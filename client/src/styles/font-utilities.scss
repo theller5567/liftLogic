@@ -1,0 +1,13 @@
+@use "font-mixins" as font;
+
+$weights: 400, 500, 600, 700, 800, 900;
+
+@each $w in $weights {
+  .jetbrains-mono-#{$w} {
+    @include font.jetbrains-mono($w);
+  }
+
+  .inter-#{$w} {
+    @include font.inter($w);
+  }
+}

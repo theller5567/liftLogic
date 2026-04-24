@@ -1,0 +1,12 @@
+@mixin jetbrains-mono($weight: 400) {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: $weight;
+  font-style: normal;
+}
+
+@mixin inter($weight: 400) {
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: $weight;
+  font-style: normal;
+}

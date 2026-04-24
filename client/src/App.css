@@ -1,0 +1,322 @@
+/* ========== CSS Reset ========== */
+/* Box sizing rules */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Prevent font size inflation */
+html {
+  -moz-text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
+/* Remove default margin in favour of better control in authored CSS */
+body, h1, h2, h3, h4, p,
+figure, blockquote, dl, dd {
+  margin-block-end: 0;
+}
+
+h1, h2, h3, h4, p {
+  margin-block-start: 0;
+}
+
+/* Remove list styles on ul, ol elements with a list role, which suggests default styling will be removed */
+ul[role='list'],
+ol[role='list'] {
+  list-style: none;
+}
+
+/* Set core body defaults */
+body {
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* Set shorter line heights on headings and interactive elements */
+h1, h2, h3, h4,
+button, input, label {
+  line-height: 1.1;
+}
+
+/* Balance text wrapping on headings */
+h1 {
+  text-wrap: balance;
+}
+
+/* A elements that don't have a class get default styles */
+a:not([class]) {
+  text-decoration-skip-ink: auto;
+  color: currentColor;
+  text-decoration: none;
+}
+
+/* Make images easier to work with */
+img,
+picture {
+  max-width: 100%;
+  display: block;
+}
+
+/* Inherit fonts for inputs and buttons */
+input, button,
+textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+
+label[data-att="required"]:after{
+  position: relative;
+  content: '*';
+  padding-left: var(--space-2xs);
+  color: var(--text-secondary);
+}
+
+/* Anything that has been anchored to should have extra scroll margin */
+:target {
+  scroll-margin-block: 5ex;
+}
+
+/* remove animations for people who've turned them off */
+@media (prefers-reduced-motion: reduce) {  
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap; /* added line */
+  border: 0;
+}  
+  
+/* Font utility classes: see src/styles/_font-mixins.scss and font-utilities.scss */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* ========== Colors ========== */
+--clr-primary-500: hsl(74 84% 64%);
+--clr-primary-600: hsl(74 84% 54%);
+--clr-primary-700: hsl(74 84% 44%);
+--clr-primary-800: hsl(74 84% 34%);
+--clr-primary-900: hsl(74 84% 24%);
+--clr-primary-1000: hsl(74 84% 14%);
+--clr-primary-1100: hsl(74 84% 5);
+--clr-primary-1200: hsl(74 84% 0);
+
+--clr-secondary-500: hsl(205 95% 56%);
+--clr-secondary-600: hsl(205 95% 46%);
+--clr-secondary-700: hsl(205 95% 36%);
+--clr-secondary-800: hsl(205 95% 26%);
+--clr-secondary-900: hsl(205 95% 16%);
+--clr-secondary-1000: hsl(205 95% 6%);
+--clr-secondary-1100: hsl(205 95% 5);
+--clr-secondary-1200: hsl(213 29% 6);
+
+--clr-neutral-900: hsl(205 0% 0);
+--clr-neutral-800: hsl(205 0% 10%);
+--clr-neutral-700: hsl(205 0% 20%);
+--clr-neutral-600: hsl(205 0% 30%);
+--clr-neutral-500: hsl(205 0% 40%);
+--clr-neutral-400: hsl(205 0% 50%);
+--clr-neutral-300: hsl(205 0% 60%);
+--clr-neutral-100: hsl(205 0% 70%);
+--clr-neutral-0: hsl(210 95% 100%);
+
+--clr-primary-500-b: 74 84% 64%;
+--clr-primary-600-b: 74 84% 54%;
+--clr-primary-700-b: 74 84% 44%;
+--clr-primary-800-b: 74 84% 34%;
+--clr-primary-900-b: 74 84% 24%;
+--clr-primary-1000-b: 74 84% 14%;
+--clr-primary-1100-b: 74 84% 5;
+--clr-primary-1200-b: 74 84% 0;
+
+--clr-secondary-500-b: 205 95% 56%;
+--clr-secondary-600-b: 205 95% 46%;
+--clr-secondary-700-b: 205 95% 36%;
+--clr-secondary-800-b: 205 95% 26%;
+--clr-secondary-900-b: 205 95% 16%;
+--clr-secondary-1000-b: 205 95% 6%;
+--clr-secondary-1100-b: 205 95% 5;
+--clr-secondary-1200-b: 213 29% 6;
+
+--clr-neutral-900-b: 205 0% 0;
+--clr-neutral-800-b: 205 0% 10%;
+--clr-neutral-700-b: 205 0% 20%;
+--clr-neutral-600-b: 205 0% 30%;
+--clr-neutral-500-b: 205 0% 40%;
+--clr-neutral-400-b: 205 0% 50%;
+--clr-neutral-300-b: 205 0% 60%;
+--clr-neutral-100-b: 205 0% 70%;
+--clr-neutral-0-b: 210 95% 100%;
+
+--clr-red-500-b: 358 95% 56%;
+
+  /* ========== Font-Sizes ========== */
+  --fs-0: 0px;
+  --fs-100: 0.2rem;
+  --fs-200: 0.375rem;
+  --fs-300: 0.5rem;
+  --fs-400: 0.75rem;
+  --fs-500: 1rem;
+  --fs-600: 1.125rem;
+  --fs-700: 1.25rem;
+  --fs-800: 1.5rem;
+  --fs-900: 1.875rem;
+  --fs-1000: 2.25rem;
+  --fs-1100: 3rem;
+  --fs-1200: 3.75rem;
+  --fs-1300: 4.5rem;
+
+   /* ========== Border-Radius ========== */
+   --br-0: 0px;
+   --br-4: 4px;
+   --br-6: 6px;
+   --br-8: 8px;
+   --br-10: 10px;
+   --br-12: 12px;
+   --br-16: 16px;
+   --br-20: 20px;
+   --br-24: 24px;
+   --br-full: 9999px;
+ 
+   /* ========== Letter Spacing ========== */
+   --ls-0: 0px;
+   --ls-025: 2px;
+   --ls-050: 4px;
+   --ls-075: 6px;
+   --ls-100: 8px;
+   --ls-125: 10px;
+   --ls-150: 12px;
+   --ls-200: 16px;
+   --ls-250: 20px;
+   --ls-300: 24px;
+   --ls-400: 32px;
+   --ls-500: 40px;
+   --ls-600: 48px;
+   --ls-800: 64px;
+   --ls-1000: 80px;
+   --ls-1200: 96px;
+   --ls-1400: 112px;
+   --ls-1600: 128px;
+   --ls-1800: 140px;
+
+  /* ========== Semantic Colors ========== */
+  --surface-page: hsl(var(--clr-neutral-900));
+  --surface-panel: hsl(var(--clr-neutral-800));
+  
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  
+}
+
+/* ********* Style Utilities ********* */
+.tx-center {
+  text-align: center;
+}
+
+.flex {
+  display: flex;
+  gap: var(--gap, 1rem);
+}
+
+.flex.flex-column {
+  flex-direction: column;
+}
+
+.flex.flex-center {
+  align-items: center;
+}
+
+.flex.flex-start {
+  align-items: flex-start;
+}
+
+.flex.flex-end {
+  align-items: flex-end;
+}
+
+.flex.flex-between-justify {
+  justify-content: space-between;
+}
+
+.flex.flex-around-justify {
+  justify-content: space-around;
+}
+
+.flex.flex-evenly-justify {
+  justify-content: space-evenly;
+}
+
+.flex.flex-center-justify {
+  justify-content: center;
+  gap: var(--space-lg);
+}
+
+.grid {
+  display: grid;
+  gap: var(--gap, 1rem);
+}
+
+.flow > *:where(:not(:first-child)) {
+  margin-top: var(--flow-space, 1rem);
+}
+
+/* ========== Fonts ========== */
+
+
+
+
+/* ********* Layout ********* */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Manrope", sans-serif;
+  background: var(--surface-page);
+  color: var(--clr-primary-500-b);
+  min-height: 100dvh;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+
+@media (min-width: 768px) {
+ 
+}
+
+
+@media (max-width: 768px) {
+ 
+}
+
+
+
+main {
+  flex: 1;
+}
+
+

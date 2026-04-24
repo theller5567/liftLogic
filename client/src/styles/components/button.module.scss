@@ -1,0 +1,200 @@
+@use 'sass:map';
+
+@function hsl-token($token, $alpha: null) {
+  @if $alpha == null {
+    @return hsl(var(#{$token}));
+  }
+
+  @return hsl(var(#{$token}) / #{$alpha});
+}
+
+@mixin button-vars($config) {
+  @if map.has-key($config, bg) {
+    --button-bg: #{map.get($config, bg)};
+  }
+
+  @if map.has-key($config, color) {
+    --button-color: #{map.get($config, color)};
+  }
+
+  @if map.has-key($config, border) {
+    --button-border: #{map.get($config, border)};
+  }
+
+  @if map.has-key($config, shadow) {
+    --button-shadow: #{map.get($config, shadow)};
+  }
+}
+
+$button-sizes: (
+  large: (
+    min-height: 2.5rem,
+    padding: 0.625rem 1.75rem,
+    font-size: var(--fs-800),
+    gap: 0.5rem,
+  ),
+  medium: (
+    min-height: 2rem,
+    padding: 0.5rem 1.35rem,
+    font-size: var(--fs-600),
+    gap: 0.5rem,
+  ),
+  small: (
+    min-height: 1.25rem,
+    padding: 0.2rem 0.625rem,
+    font-size: var(--fs-400),
+    gap: 0.3rem,
+  ),
+);
+
+$button-variants: (
+  'primary': (
+    'solid': (
+      bg: hsl-token(--clr-primary-500-b),
+      color: hsl-token(--clr-neutral-900-b),
+      shadow: inset 0 1px 0 hsl-token(--clr-neutral-0-b, 0.22),
+    ),
+    'outline': (
+      bg: transparent,
+      color: hsl-token(--clr-primary-500-b),
+      border: hsl-token(--clr-primary-500-b),
+    ),
+  ),
+  'white': (
+    'solid': (
+      bg: hsl-token(--clr-neutral-0-b),
+      color: hsl-token(--clr-neutral-700-b),
+      border: hsl-token(--clr-neutral-900-b, 0.18),
+      shadow: inset 0 1px 0 hsl-token(--clr-neutral-0-b, 0.65),
+    ),
+    'outline': (
+      bg: transparent,
+      color: hsl-token(--clr-neutral-0-b),
+      border: hsl-token(--clr-neutral-0-b, 0.92),
+    ),
+  ),
+  'gray': (
+    'solid': (
+      bg: hsl-token(--clr-neutral-600-b),
+      color: hsl-token(--clr-neutral-0-b),
+      border: hsl-token(--clr-neutral-900-b, 0.22),
+    ),
+    'outline': (
+      bg: transparent,
+      color: hsl-token(--clr-neutral-500-b),
+      border: hsl-token(--clr-neutral-500-b, 0.6),
+    ),
+    'ghost': (
+      bg: transparent,
+      color: hsl-token(--clr-neutral-500-b),
+      border: hsl-token(--clr-neutral-500-b, 0.6),
+    ),
+  ),
+  'black': (
+    'solid': (
+      bg: hsl-token(--clr-neutral-900-b),
+      color: hsl-token(--clr-neutral-500-b),
+    ),
+    'ghost': (
+      bg: hsl-token(--clr-neutral-800-b),
+      color: hsl-token(--clr-neutral-900-b),
+      border: hsl-token(--clr-neutral-900-b, 0.55),
+    ),
+  ),
+  'secondary': (
+    'solid': (
+      bg: hsl-token(--clr-secondary-500-b),
+      color: hsl-token(--clr-neutral-0-b),
+      shadow: inset 0 1px 0 hsl-token(--clr-neutral-0-b, 0.2),
+    ),
+    'outline': (
+      bg: transparent,
+      color: hsl-token(--clr-secondary-500-b),
+      border: hsl-token(--clr-secondary-500-b),
+    ),
+  ),
+);
+
+.button {
+  --button-bg: #{hsl-token(--clr-primary-500-b)};
+  --button-color: #{hsl-token(--clr-neutral-900-b)};
+  --button-border: transparent;
+  --button-shadow: none;
+  --button-gap: 0.5rem;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--button-gap);
+  min-width: fit-content;
+  border-radius: var(--br-4);
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
+  color: var(--button-color);
+  box-shadow: var(--button-shadow);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.button:hover {
+  transform: translateY(-1px);
+}
+
+.button:focus-visible {
+  outline: 2px solid hsl-token(--clr-secondary-500-b, 0.85);
+  outline-offset: 3px;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.7;
+}
+
+@each $size, $config in $button-sizes {
+  .button--#{$size} {
+    min-height: map.get($config, min-height);
+    padding: map.get($config, padding);
+    font-size: map.get($config, font-size);
+    --button-gap: #{map.get($config, gap)};
+  }
+}
+
+@each $tone, $variants in $button-variants {
+  @each $variant, $config in $variants {
+    .button--#{$variant}.button--#{$tone} {
+      @include button-vars($config);
+    }
+  }
+}
+
+.button--rounded {
+  border-radius: var(--br-full);
+}
+
+.button--with-icon {
+  gap: var(--button-gap);
+}
+
+.iconWrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon {
+  width: 0.8em;
+  height: 0.8em;
+}
+
+.label {
+  line-height: 1;
+}
