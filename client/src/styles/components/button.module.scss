@@ -59,6 +59,11 @@ $button-variants: (
       color: hsl-token(--clr-primary-500-b),
       border: hsl-token(--clr-primary-500-b),
     ),
+    'iconOnly': (
+      bg: transparent,
+      color: hsl-token(--clr-primary-500-b),
+      border: transparent,
+    ),
   ),
   'white': (
     'solid': (
@@ -71,6 +76,11 @@ $button-variants: (
       bg: transparent,
       color: hsl-token(--clr-neutral-0-b),
       border: hsl-token(--clr-neutral-0-b, 0.92),
+    ),
+    'iconOnly': (
+      bg: transparent,
+      color: hsl-token(--clr-neutral-0-b),
+      border: transparent,
     ),
   ),
   'gray': (
@@ -89,6 +99,11 @@ $button-variants: (
       color: hsl-token(--clr-neutral-500-b),
       border: hsl-token(--clr-neutral-500-b, 0.6),
     ),
+    'iconOnly': (
+      bg: transparent,
+      color: hsl-token(--clr-neutral-500-b),
+      border: transparent,
+    ),
   ),
   'black': (
     'solid': (
@@ -99,6 +114,11 @@ $button-variants: (
       bg: hsl-token(--clr-neutral-800-b),
       color: hsl-token(--clr-neutral-900-b),
       border: hsl-token(--clr-neutral-900-b, 0.55),
+    ),
+    'iconOnly': (
+      bg: transparent,
+      color: hsl-token(--clr-neutral-900-b),
+      border: transparent,
     ),
   ),
   'secondary': (
@@ -112,6 +132,11 @@ $button-variants: (
       color: hsl-token(--clr-secondary-500-b),
       border: hsl-token(--clr-secondary-500-b),
     ),
+    'iconOnly': (
+      bg: transparent,
+      color: hsl-token(--clr-secondary-500-b),
+      border: transparent,
+    ),
   ),
 );
 
@@ -121,6 +146,7 @@ $button-variants: (
   --button-border: transparent;
   --button-shadow: none;
   --button-gap: 0.5rem;
+  --button-icon-size: 0.8em;
 
   display: inline-flex;
   align-items: center;
@@ -181,6 +207,46 @@ $button-variants: (
 
 .button--with-icon {
   gap: var(--button-gap);
+  padding: 0.3rem;
+
+  &.button--medium {
+    padding: 0.5rem;
+  }
+
+  &.button--large {
+    padding: 0.8rem;
+  }
+}
+
+.button--icon-only {
+  aspect-ratio: 1;
+  width: var(--button-icon-only-size);
+  min-height: var(--button-icon-only-size);
+  min-width: auto;
+  padding: 0;
+
+  &.button--small {
+    --button-icon-only-size: 1.5rem;
+    --button-icon-size: 1rem;
+  }
+
+  &.button--medium {
+    --button-icon-only-size: 3rem;
+    --button-icon-size: 2.1rem;
+  }
+
+  &.button--large {
+    --button-icon-only-size: 4.25rem;
+    --button-icon-size: 4.25rem;
+  }
+}
+
+.button--iconOnly {
+  box-shadow: none;
+
+  &:hover {
+    background: hsl-token(--clr-neutral-0-b, 0.08);
+  }
 }
 
 .iconWrapper {
@@ -191,9 +257,10 @@ $button-variants: (
 }
 
 .icon {
-  width: 0.8em;
-  height: 0.8em;
+  width: var(--button-icon-size);
+  height: var(--button-icon-size);
 }
+
 
 .label {
   line-height: 1;

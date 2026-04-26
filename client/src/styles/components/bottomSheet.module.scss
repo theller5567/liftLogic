@@ -1,0 +1,133 @@
+.viewport {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: hsl(var(--clr-neutral-900-b) / 0.7);
+  cursor: pointer;
+}
+
+.sheet {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 28rem);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  padding: 0.9rem 1rem 1rem;
+  background: hsl(var(--clr-neutral-800-b));
+  border: 1px solid hsl(var(--clr-neutral-600-b) / 0.35);
+  border-radius: 1.75rem;
+  box-shadow:
+    0 -10px 32px hsl(var(--clr-neutral-900-b) / 0.35),
+    inset 0 1px 0 hsl(var(--clr-neutral-0-b) / 0.03);
+  overflow: hidden;
+}
+
+.sheet--half {
+  min-height: 50dvh;
+  max-height: 50dvh;
+}
+
+.sheet--full {
+  min-height: 80dvh;
+  max-height: 80dvh;
+}
+
+.handle {
+  justify-self: center;
+  width: 4rem;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: hsl(var(--clr-neutral-300-b) / 0.55);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.headerCopy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.eyebrow,
+.title,
+.description {
+  margin: 0;
+}
+
+.eyebrow {
+  color: hsl(var(--clr-secondary-500-b));
+  font-size: var(--fs-400);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  color: hsl(var(--clr-neutral-0-b));
+  font-size: var(--fs-800);
+  font-weight: 800;
+}
+
+.description {
+  color: hsl(var(--clr-neutral-100-b));
+  font-size: var(--fs-500);
+}
+
+.closeButton {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid hsl(var(--clr-neutral-600-b) / 0.45);
+  border-radius: var(--br-full);
+  background: hsl(var(--clr-neutral-900-b) / 0.45);
+  color: hsl(var(--clr-neutral-0-b));
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.closeButton:hover {
+  transform: translateY(-1px);
+  background: hsl(var(--clr-neutral-700-b) / 0.5);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid hsl(var(--clr-secondary-500-b) / 0.85);
+  outline-offset: 2px;
+}
+
+.closeButton span {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.content {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.actions {
+  display: grid;
+  gap: 0.75rem;
+}

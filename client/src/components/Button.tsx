@@ -1,17 +1,21 @@
 import clsx from 'clsx'
 import type { ButtonHTMLAttributes, ComponentType, SVGProps } from 'react'
 import IconChevronLeft from '../assets/icons/chevron-left.svg?react'
+import IconRefresh from '../assets/icons/refresh.svg?react'
+import IconEdit from '../assets/icons/edit.svg?react'
+import IconPlus from '../assets/icons/plus.svg?react'
+import IconMinus from '../assets/icons/minus.svg?react'
 
 import styles from '../styles/components/button.module.scss'
 
 type ButtonTone = 'primary' | 'white' | 'gray' | 'black' | 'secondary'
-type ButtonVariant = 'outline' | 'ghost'
+type ButtonVariant = 'outline' | 'ghost' | 'iconOnly'
 type ButtonSize = 'small' | 'medium' | 'large'
 type ButtonIconPosition = 'left' | 'right'
-type ButtonIcon = 'chevronLeft'
+type ButtonIcon = 'chevronLeft' | 'refresh' | 'edit' | 'plus' | 'minus'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  label: string
+  label?: string
   tone?: ButtonTone
   variant?: ButtonVariant
   rounded?: boolean
@@ -21,11 +25,15 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   iconPosition?: ButtonIconPosition
   onClick?: ButtonHTMLAttributes<HTMLButtonElement>['onClick']
   type?: ButtonHTMLAttributes<HTMLButtonElement>['type']
-  ariaLabel?: string,
+  ariaLabel?: string
 }
 
 const ICONS: Record<ButtonIcon, ComponentType<SVGProps<SVGSVGElement>>> = {
   chevronLeft: IconChevronLeft,
+  refresh: IconRefresh,
+  edit: IconEdit,
+  plus: IconPlus,
+  minus: IconMinus,
 }
 
 const Button = ({
@@ -39,14 +47,17 @@ const Button = ({
   className,
   disabled,
   type = 'button',
+  ariaLabel,
   ...props
 }: ButtonProps) => {
   const variantClass = variant ? styles[`button--${variant}`] : styles['button--solid']
   const roundedVariantClass = rounded ? styles['button--rounded'] : ''
   const iconClass = icon ? styles['button--with-icon'] : ''
+  const iconOnlyClass = icon && !label ? styles['button--icon-only'] : ''
   const classes = clsx(
     styles.button,
     iconClass,
+    iconOnlyClass,
     styles[`button--${tone}`],
     variantClass,
     roundedVariantClass,
@@ -62,9 +73,15 @@ const Button = ({
   ) : null
 
   return (
-    <button className={classes} type={type} {...props}>
+    <button
+      aria-label={ariaLabel}
+      className={classes}
+      disabled={disabled}
+      type={type}
+      {...props}
+    >
       {iconPosition === 'left' ? iconMarkup : null}
-      <span className={styles.label}>{label}</span>
+      {label && <span className={styles.label}>{label}</span>}
       {iconPosition === 'right' ? iconMarkup : null}
     </button>
   )
