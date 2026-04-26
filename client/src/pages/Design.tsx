@@ -1,7 +1,6 @@
-import type { CSSProperties } from 'react'
-
 import '../App.css'
 import Button from '../components/Button'
+import pageStyles from '../styles/pages/page.module.scss'
 
 type ButtonPreview = {
   variant?: 'outline' | 'ghost'
@@ -76,24 +75,13 @@ const Design = () => {
       ]
     
       return (
-        <main
-          style={{
-            minHeight: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'start',
-            padding: '2rem',
-            gap: '1rem',
-            background: 'hsl(var(--clr-neutral-800-b))',
-          }}
-        >
+        <section className={`${pageStyles.shell} flex flex-column flex-start gap-4`}>
           <h2>Buttons</h2>
-          <div className="flex" style={{ '--gap': '1.25rem' } as CSSProperties}>
+          <div className="flex gap-5">
             {buttonGroups.map((group) => (
               <div
                 key={group.tone}
-                className="flex flex-column flex-start"
-                style={{ '--gap': '1rem' } as CSSProperties}
+                className="flex flex-column flex-start gap-4"
               >
                 {group.variants.map(({ variant, size, disabled, rounded, icon, iconPosition }) => (
                   <Button
@@ -111,7 +99,7 @@ const Design = () => {
               </div>
             ))}
           </div>
-        </main>
+        </section>
       )
 }
 

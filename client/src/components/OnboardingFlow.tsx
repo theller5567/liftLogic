@@ -113,30 +113,30 @@ const OnboardingFlow = ({
   const watchedValues = useWatch({
     control,
     defaultValue: defaultAnswers,
-  });
+  }) as OnboardingAnswers;
 
   const answers = useMemo(
     () => ({
       ...defaultAnswers,
-      ...getValues(),
+      ...watchedValues,
       benchPress: {
         ...defaultAnswers.benchPress,
-        ...getValues().benchPress,
+        ...watchedValues.benchPress,
       },
       dumbbellRow: {
         ...defaultAnswers.dumbbellRow,
-        ...getValues().dumbbellRow,
+        ...watchedValues.dumbbellRow,
       },
       squat: {
         ...defaultAnswers.squat,
-        ...getValues().squat,
+        ...watchedValues.squat,
       },
       barbellDeadlift: {
         ...defaultAnswers.barbellDeadlift,
-        ...getValues().barbellDeadlift,
+        ...watchedValues.barbellDeadlift,
       },
     }),
-    [defaultAnswers, getValues, watchedValues]
+    [defaultAnswers, watchedValues]
   );
 
   const visibleSteps = useMemo(
@@ -153,19 +153,16 @@ const OnboardingFlow = ({
     }
   }, [answers.goal, setValue]);
 
-  useEffect(() => {
-    if (currentStepIndex > visibleSteps.length - 1) {
-      setCurrentStepIndex(Math.max(visibleSteps.length - 1, 0));
-    }
-  }, [currentStepIndex, visibleSteps.length]);
+  const lastStepIndex = Math.max(visibleSteps.length - 1, 0);
+  const activeStepIndex = Math.min(currentStepIndex, lastStepIndex);
 
   useEffect(() => {
     onAnswersChange?.(answers);
   }, [answers, onAnswersChange]);
 
   useEffect(() => {
-    onStepIndexChange?.(currentStepIndex);
-  }, [currentStepIndex, onStepIndexChange]);
+    onStepIndexChange?.(activeStepIndex);
+  }, [activeStepIndex, onStepIndexChange]);
 
   useEffect(() => {
     if (!DEBUG_ONBOARDING) {
@@ -173,8 +170,8 @@ const OnboardingFlow = ({
     }
 
     console.groupCollapsed("[OnboardingFlow] Visible steps");
-    console.log("currentStepIndex:", currentStepIndex);
-    console.log("currentStepId:", visibleSteps[currentStepIndex]?.id ?? null);
+    console.log("currentStepIndex:", activeStepIndex);
+    console.log("currentStepId:", visibleSteps[activeStepIndex]?.id ?? null);
     console.log("equipmentAccess:", answers.equipmentAccess);
     console.log("goal:", answers.goal);
     console.log("experienceLevel:", answers.experienceLevel);
@@ -187,10 +184,10 @@ const OnboardingFlow = ({
       visibleSteps.map((step) => step.id)
     );
     console.groupEnd();
-  }, [answers, currentStepIndex, visibleSteps]);
+  }, [activeStepIndex, answers, visibleSteps]);
 
-  const currentStep = visibleSteps[currentStepIndex];
-  const isLastStep = currentStepIndex === visibleSteps.length - 1;
+  const currentStep = visibleSteps[activeStepIndex];
+  const isLastStep = activeStepIndex === lastStepIndex;
 
   const onSubmit: SubmitHandler<OnboardingAnswers> = (data) => {
     onComplete?.(data);
@@ -205,7 +202,7 @@ const OnboardingFlow = ({
     if (DEBUG_ONBOARDING) {
       console.groupCollapsed("[OnboardingFlow] Next clicked");
       console.log("currentStepId:", currentStep.id);
-      console.log("currentStepIndex:", currentStepIndex);
+      console.log("currentStepIndex:", activeStepIndex);
     }
 
     if ("field" in currentStep && currentStep.field && currentStep.required) {
@@ -261,7 +258,7 @@ const OnboardingFlow = ({
   };
 
   const goBack = () => {
-    setCurrentStepIndex((index) => Math.max(index - 1, 0));
+    setCurrentStepIndex(Math.max(activeStepIndex - 1, 0));
   };
 
   if (!currentStep) {
@@ -269,18 +266,11 @@ const OnboardingFlow = ({
   }
 
   return (
-    <div style={{ width: "min(100%, 42rem)" }}>
+    <div id="onboarding-shell">
       <form
         onSubmit={handleSubmit(onSubmit)}
         id="onboarding-form"
-        style={{
-          display: "grid",
-          gap: "1.5rem",
-          padding: "1.5rem",
-          borderRadius: "1rem",
-          background: "hsl(var(--clr-neutral-800-b))",
-          border: "1px solid hsl(var(--clr-neutral-600-b) / 0.35)",
-        }}
+        className="grid gap-5 border-panel"
       >
         <OnboardingStepHeader
           step={currentStep}
@@ -295,7 +285,7 @@ const OnboardingFlow = ({
         />
 
         <OnboardingStepActions
-          canGoBack={currentStepIndex > 0}
+          canGoBack={activeStepIndex > 0}
           isLastStep={isLastStep}
           onBack={goBack}
           onNext={goNext}

@@ -1,0 +1,30 @@
+.shell {
+  width: min(100%, 64rem);
+}
+
+.panel {
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background: hsl(var(--clr-neutral-800-b));
+}
+
+.reviewHero {
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background: hsl(var(--clr-secondary-1100));
+}
+
+.eyebrow {
+  color: hsl(var(--clr-neutral-100-b));
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+}
+
+.meta {
+  color: hsl(var(--clr-secondary-500-b));
+}

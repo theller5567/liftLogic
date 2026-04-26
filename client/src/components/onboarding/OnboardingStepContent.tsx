@@ -47,7 +47,7 @@ const OnboardingStepContent = ({
           ) : null}
 
           {currentFieldError ? (
-            <p style={{ margin: 0, color: "salmon" }}>
+            <p className="onboarding-error">
               {(currentFieldError as { message?: string }).message ??
                 "Please complete this step."}
             </p>

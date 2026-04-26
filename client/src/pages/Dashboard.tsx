@@ -1,6 +1,8 @@
+import clsx from "clsx";
 import { Navigate } from "react-router-dom";
 
 import { readSubmittedAnswers } from "../utils/workoutStorage";
+import pageStyles from "../styles/pages/page.module.scss";
 
 const Dashboard = () => {
   const submittedAnswers = readSubmittedAnswers();
@@ -10,30 +12,12 @@ const Dashboard = () => {
   }
 
   return (
-    <section
-      style={{
-        width: "min(100%, 64rem)",
-        display: "grid",
-        gap: "0.75rem",
-        padding: "1.5rem",
-        borderRadius: "1rem",
-        background: "hsl(var(--clr-neutral-800-b))",
-        border: "1px solid hsl(var(--clr-neutral-600-b) / 0.35)",
-      }}
-    >
-      <p
-        style={{
-          margin: 0,
-          color: "hsl(var(--clr-neutral-100-b))",
-          fontSize: "0.85rem",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-        }}
-      >
+    <section className={clsx(pageStyles.shell, pageStyles.panel, "grid gap-3 border-panel")}>
+      <p className={pageStyles.eyebrow}>
         Dashboard
       </p>
-      <h1 style={{ margin: 0 }}>Your training dashboard is coming soon.</h1>
-      <p style={{ margin: 0, color: "hsl(var(--clr-neutral-100-b))" }}>
+      <h1 className={pageStyles.title}>Your training dashboard is coming soon.</h1>
+      <p className="text-muted">
         Your onboarding answers and workout review have been saved.
       </p>
     </section>

@@ -11,15 +11,7 @@ function App() {
   
 
   return (
-    <main
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        justifyContent: 'center',
-        padding: '2rem',
-        background: 'hsl(var(--clr-neutral-800-b))',
-      }}
-    >
+    <main>
       <Router>
         <Routes>
           <Route path="/" Component={Home} />

@@ -55,14 +55,7 @@ const NumberStep = <TFieldValues extends FieldValues>({
             const rawValue = event.target.value;
             field.onChange(rawValue === "" ? undefined : Number(rawValue));
           }}
-          style={{
-            width: "100%",
-            padding: "0.9rem 1rem",
-            borderRadius: "0.75rem",
-            border: "1px solid hsl(var(--clr-neutral-600-b) / 0.5)",
-            background: "hsl(var(--clr-neutral-900-b) / 0.5)",
-            color: "inherit",
-          }}
+          className="onboarding-number-input w-full border-control"
         />
       )}
     />

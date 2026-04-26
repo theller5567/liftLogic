@@ -31,12 +31,12 @@ const OnboardingStepHeader = ({
       : 0;
 
   return (
-    <div className="onboarding-header">
-      <div className="onboarding-progress-meta">
+    <div className="onboarding-header grid gap-3">
+      <div className="onboarding-progress-meta grid gap-3">
         <p className="onboarding-progress-kicker">
           Section {SECTION_ORDER.indexOf(currentSection) + 1} of {SECTION_ORDER.length}
         </p>
-        <div className="onboarding-progress-topline">
+        <div className="onboarding-progress-topline flex justify-between flex-wrap gap-4">
           <p className="onboarding-progress-section">{currentSection}</p>
           <p className="onboarding-progress-count">
             Step {currentSectionStepIndex + 1} of {sectionSteps.length} in this section
@@ -55,7 +55,7 @@ const OnboardingStepHeader = ({
             style={{ width: `${sectionProgressValue}%` }}
           />
         </div>
-        <div className="onboarding-section-pills" aria-label="Onboarding sections">
+        <div className="onboarding-section-pills flex flex-wrap" aria-label="Onboarding sections">
           {SECTION_ORDER.map((section) => {
             const isCurrent = section === currentSection;
             const isComplete = completedSections.includes(section);
@@ -71,8 +71,8 @@ const OnboardingStepHeader = ({
           })}
         </div>
       </div>
-      <h2 style={{ margin: 0 }}>{step.title}</h2>
-      {"body" in step && step.body ? <p style={{ margin: 0 }}>{step.body}</p> : null}
+      <h2>{step.title}</h2>
+      {"body" in step && step.body ? <p>{step.body}</p> : null}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import clsx from "clsx";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import BottomSheet from "../components/BottomSheet";
@@ -13,6 +14,7 @@ import {
   writeEditedWorkoutPreview,
   writeWorkoutReviewed,
 } from "../utils/workoutStorage";
+import pageStyles from "../styles/pages/page.module.scss";
 
 const WorkoutReview = () => {
   const navigate = useNavigate();
@@ -60,41 +62,18 @@ const WorkoutReview = () => {
   };
 
   return (
-    <section
-      style={{
-        width: "min(100%, 64rem)",
-        display: "grid",
-        gap: "1.5rem",
-      }}
-    >
-      <header
-        style={{
-          display: "grid",
-          gap: "1rem",
-          padding: "1.5rem",
-          borderRadius: "1rem",
-          background: "hsl(var(--clr-secondary-1100))",
-          border: "1px solid hsl(var(--clr-neutral-600-b) / 0.35)",
-        }}
-      >
-        <div style={{ display: "grid", gap: "0.75rem" }}>
-          <p
-            style={{
-              margin: 0,
-              color: "hsl(var(--clr-neutral-100-b))",
-              fontSize: "0.85rem",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-            }}
-          >
+    <section className={clsx(pageStyles.shell, "grid gap-5")}>
+      <header className={clsx(pageStyles.reviewHero, "grid gap-4")}>
+        <div className="grid gap-3">
+          <p className={pageStyles.eyebrow}>
             Starter Program Preview
           </p>
-          <h1 style={{ margin: 0 }}>{preview.label}</h1>
-          <p style={{ margin: 0, color: "hsl(var(--clr-neutral-100-b))" }}>
+          <h1 className={pageStyles.title}>{preview.label}</h1>
+          <p className={pageStyles.meta}>
             {preview.daysPerWeek} days per week • Goal: {preview.goal} • Unit: {preview.weightUnit}
           </p>
         </div>
-        <div style={{ display: "flex" }}>
+        <div className="flex">
           <Button
             label={hasEdits ? "Continue with edits" : "Continue"}
             tone="primary"
@@ -112,6 +91,7 @@ const WorkoutReview = () => {
         open={showEditWarning}
         onClose={() => setShowEditWarning(false)}
         eyebrow="Before You Continue"
+        variant="full"
         title="Keep these edits?"
         description="Your changes have been saved, but the original recommendations are usually the best place to start."
         actions={[
@@ -127,15 +107,9 @@ const WorkoutReview = () => {
           },
         ]}
       >
-        <div style={{ display: "grid", gap: "0.75rem" }}>
+        <div className="grid gap-3">
           {editedMessages.map((message) => (
-            <p
-              key={message}
-              style={{
-                margin: 0,
-                color: "hsl(var(--clr-neutral-100-b))",
-              }}
-            >
+            <p key={message} className="text-muted">
               {message}
             </p>
           ))}
