@@ -62,20 +62,22 @@ const WorkoutReview = () => {
   };
 
   return (
-    <section className={clsx(pageStyles.shell, "grid gap-5")}>
+    <section className={clsx(pageStyles.shell, "grid gap-2")}>
       <header className={clsx(pageStyles.reviewHero, "grid gap-4")}>
         <div className="grid gap-3">
-          <p className={pageStyles.eyebrow}>
+          <p className={clsx("text-secondary", pageStyles.eyebrow)}>
             Starter Program Preview
           </p>
           <h1 className={pageStyles.title}>{preview.label}</h1>
           <p className={pageStyles.meta}>
             {preview.daysPerWeek} days per week • Goal: {preview.goal} • Unit: {preview.weightUnit}
           </p>
+          <p className="sub-text">A balanced 4-day program designed to build muscle through progressive overload and smart exercise selection.</p>
+          
         </div>
         <div className="flex">
           <Button
-            label={hasEdits ? "Continue with edits" : "Continue"}
+            label={hasEdits ? "Continue with edits" : "Continue to Program"}
             tone="primary"
             onClick={handleContinue}
           />

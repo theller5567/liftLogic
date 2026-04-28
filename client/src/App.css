@@ -157,6 +157,7 @@ label[data-att="required"]:after{
 --clr-secondary-1000-b: 205 95% 6%;
 --clr-secondary-1100-b: 205 95% 5;
 --clr-secondary-1200-b: 213 29% 6;
+--clr-darkBlue-b: 213 29% 6;
 
 --clr-neutral-900-b: 205 0% 0;
 --clr-neutral-800-b: 205 0% 10%;
@@ -221,7 +222,8 @@ label[data-att="required"]:after{
 
   /* ========== Semantic Colors ========== */
   --surface-page: var(--clr-darkBlue);
-  --surface-panel: hsl(var(--clr-neutral-800-b) / 0.50);
+  --surface-panel: hsl(var(--clr-darkBlue-b) / 0.20);
+  --surface-panel-light: hsl(var(--clr-neutral-300-b)/0.05);
   
 }
 
@@ -338,6 +340,10 @@ label[data-att="required"]:after{
   color: hsl(var(--clr-secondary-500-b));
 }
 .text-muted {
+  color: hsl(var(--clr-neutral-100-b));
+}
+.sub-text {
+  font-size: 0.75rem;
   color: hsl(var(--clr-neutral-100-b));
 }
 

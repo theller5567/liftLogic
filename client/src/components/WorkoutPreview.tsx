@@ -1,5 +1,6 @@
 import { type ChangeEvent, useState } from "react";
 import clsx from "clsx";
+import { AnimatePresence, motion } from "framer-motion";
 
 import BottomSheet from "./BottomSheet";
 import Button from "./Button";
@@ -23,6 +24,8 @@ type MovementOption = GeneratedWorkoutExerciseAlternative & {
   isCurrent?: boolean;
 };
 
+type DayNavigationDirection = 1 | -1;
+
 const formatRestLabel = (restSeconds: number) => {
   const minutes = Math.floor(restSeconds / 60);
   const seconds = restSeconds % 60;
@@ -38,12 +41,27 @@ const formatRestLabel = (restSeconds: number) => {
   return `${seconds}s rest`;
 };
 
+const dayCardMotion = {
+  initial: (direction: DayNavigationDirection) => ({
+    opacity: 0,
+    x: direction > 0 ? 48 : -48,
+  }),
+  animate: { opacity: 1, x: 0 },
+  exit: (direction: DayNavigationDirection) => ({
+    opacity: 0,
+    x: direction > 0 ? -48 : 48,
+  }),
+};
+
 const WorkoutPreview = ({
   preview,
   onPreviewChange,
 }: WorkoutPreviewProps) => {
   const [workingPreview, setWorkingPreview] =
     useState<GeneratedWorkoutPreview>(preview);
+  const [activeDayIndex, setActiveDayIndex] = useState(0);
+  const [dayNavigationDirection, setDayNavigationDirection] =
+    useState<DayNavigationDirection>(1);
   const [selectedEditExercise, setSelectedEditExercise] =
     useState<SelectedEditExercise | null>(null);
   const [draftExerciseId, setDraftExerciseId] = useState<string | null>(null);
@@ -53,6 +71,15 @@ const WorkoutPreview = ({
     setSelectedEditExercise(exercise);
     setDraftExerciseId(exercise.exerciseId);
     setDraftWeight(exercise.suggestedWeight ?? 0);
+  };
+
+  const selectDay = (dayIndex: number) => {
+    if (dayIndex === activeDayIndex) {
+      return;
+    }
+
+    setDayNavigationDirection(dayIndex > activeDayIndex ? 1 : -1);
+    setActiveDayIndex(dayIndex);
   };
 
   const closeEditSheet = () => {
@@ -145,62 +172,104 @@ const WorkoutPreview = ({
   const hasEditableWeight =
     selectedEditExercise?.suggestedWeight !== undefined &&
     selectedEditExercise.weightUnit !== undefined;
+  const resolvedActiveDayIndex = Math.min(
+    activeDayIndex,
+    Math.max(workingPreview.days.length - 1, 0)
+  );
+  const activeDay =
+    workingPreview.days[resolvedActiveDayIndex] ??
+    workingPreview.days[0];
 
   return (
-    <section className={clsx(styles.preview, "grid gap-5")}>
-      <div className="grid gap-4">
-        {workingPreview.days.map((day) => (
-          <section
-            key={day.id}
-            className={clsx(styles.dayCard, "grid gap-4 border-panel")}
-          >
-            <header className="grid gap-1">
-              <h2 className={styles.dayTitle}>{day.label}</h2>
-              <p className="text-muted">{day.focus}</p>
-            </header>
+    <>
+     <div className={styles.dayTabs} role="tablist" aria-label="Workout days">
+      {workingPreview.days.map((day, dayIndex) => {
+        const isActive = dayIndex === resolvedActiveDayIndex;
 
-            <div className="grid gap-3">
-              {day.exercises.map((exercise) => (
-                <article
-                  key={exercise.id}
-                  className={clsx(styles.exerciseCard, "grid gap-2 border-subtle")}
-                >
-                  <div
-                    className={clsx(
-                      styles.exerciseHeading,
-                      "flex gap-4 flex-wrap justify-between"
-                    )}
+        return (
+          <button
+            key={day.id}
+            id={`workout-day-tab-${day.id}`}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            aria-controls={`workout-day-panel-${day.id}`}
+            className={clsx(styles.dayTab, isActive && styles.active)}
+            onClick={() => selectDay(dayIndex)}
+          >
+            <span className={styles.dayTabLabel}>{day.label}</span>
+          </button>
+        );
+      })}
+    </div>
+    <section className={clsx(styles.preview, "grid gap-5")}>
+      <div className={styles.dayPanelViewport}>
+        <AnimatePresence mode="wait" initial={false}>
+          {activeDay ? (
+            <motion.section
+              key={activeDay.id}
+              id={`workout-day-panel-${activeDay.id}`}
+              role="tabpanel"
+              aria-labelledby={`workout-day-tab-${activeDay.id}`}
+              variants={dayCardMotion}
+              custom={dayNavigationDirection}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ duration: 0.24, ease: "easeOut" }}
+              className={clsx(styles.dayCard, "grid gap-4 border-panel")}
+            >
+              <header className="grid gap-1">
+                <div className="flex flex-column gap-1">
+                  <h2 className={styles.dayTitle}>{activeDay.label}</h2>
+                  <p className={styles.dayFocus}>{activeDay.focus}</p>
+                </div>
+                <div className={clsx(styles.exerciseNum)}>{activeDay.exercises.length} Exercises</div>
+              </header>
+
+              <div className="grid gap-3">
+                {activeDay.exercises.map((exercise) => (
+                  <article
+                    key={exercise.id}
+                    className={clsx(styles.exerciseCard, "grid gap-2 border-subtle")}
                   >
-                    <strong>{exercise.label}</strong>
-                    {exercise.suggestedWeight !== undefined ? (
-                      <span className={clsx(styles.weightSummary, "flex gap-2")}>
-                        Start at {exercise.suggestedWeight} {exercise.weightUnit}
-                      </span>
+                    <div
+                      className={clsx(
+                        styles.exerciseHeading,
+                        "flex gap-4 flex-wrap justify-between"
+                      )}
+                    >
+                      <strong>{exercise.label}</strong>
+                      {exercise.suggestedWeight !== undefined ? (
+                        <span className={clsx(styles.weightSummary, "flex gap-2")}>
+                          Start at {exercise.suggestedWeight} {exercise.weightUnit}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className={clsx(styles.setsReps, "flex gap-2")}>
+                      {exercise.prescription.sets} sets • {exercise.prescription.reps} reps •{" "}
+                      {formatRestLabel(exercise.prescription.restSeconds)}
+                    </p>
+                    {exercise.notes ? (
+                      <p className="text-muted">{exercise.notes}</p>
                     ) : null}
-                  </div>
-                  <p className="text-muted">
-                    {exercise.prescription.sets} sets • {exercise.prescription.reps} reps •{" "}
-                    {formatRestLabel(exercise.prescription.restSeconds)}
-                  </p>
-                  {exercise.notes ? (
-                    <p className="text-muted">{exercise.notes}</p>
-                  ) : null}
-                  {exercise.suggestedWeight !== undefined ||
-                  exercise.exerciseAlternatives.length > 0 ? (
-                    <Button
-                      label="Edit exercise"
-                      size="medium"
-                      icon="edit"
-                      variant="outline"
-                      tone="gray"
-                      onClick={() => editExercise(exercise)}
-                    />
-                  ) : null}
-                </article>
-              ))}
-            </div>
-          </section>
-        ))}
+                    {exercise.suggestedWeight !== undefined ||
+                    exercise.exerciseAlternatives.length > 0 ? (
+                      <Button
+                        label="Edit exercise"
+                        size="medium"
+                        icon="edit"
+                        variant="outline"
+                        tone="gray"
+                        onClick={() => editExercise(exercise)}
+                      />
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            </motion.section>
+          ) : null}
+        </AnimatePresence>
       </div>
 
       <BottomSheet
@@ -334,6 +403,7 @@ const WorkoutPreview = ({
         ) : null}
       </BottomSheet>
     </section>
+    </>
   );
 };
 
