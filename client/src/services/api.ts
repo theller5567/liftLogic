@@ -4,6 +4,7 @@ import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWork
 const CLIENT_ID_KEY = "liftlogic:client-id";
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)
   ?.replace(/\/$/, "");
+let authTokenProvider: (() => Promise<string>) | null = null;
 
 export type WorkoutPlanDto = {
   _id: string;
@@ -27,6 +28,12 @@ export type UserProfileDto = {
 };
 
 export const isApiEnabled = () => Boolean(API_BASE_URL);
+
+export const setAuthTokenProvider = (
+  provider: (() => Promise<string>) | null
+) => {
+  authTokenProvider = provider;
+};
 
 const createClientId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -56,11 +63,14 @@ async function apiRequest<TResponse>(
     throw new Error("VITE_API_BASE_URL is not configured.");
   }
 
+  const authToken = authTokenProvider ? await authTokenProvider() : null;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "x-liftlogic-client-id": getLiftLogicClientId(),
+      ...(authToken
+        ? { Authorization: `Bearer ${authToken}` }
+        : { "x-liftlogic-client-id": getLiftLogicClientId() }),
       ...options.headers,
     },
   });

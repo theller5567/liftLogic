@@ -15,10 +15,23 @@ router.use(requireClientIdentity);
 
 router.get("/current", async (req, res, next) => {
   try {
-    const { clientId } = req as ClientIdentityRequest;
+    const {
+      authDisplayName,
+      authEmail,
+      authProvider,
+      authUserId,
+      clientId,
+    } = req as ClientIdentityRequest;
     const profile = await UserProfile.findOneAndUpdate(
       { clientId },
-      { $setOnInsert: { clientId, authProvider: "anonymous" } },
+      {
+        $set: {
+          authProvider,
+          authUserId,
+          displayName: authDisplayName ?? authEmail,
+        },
+        $setOnInsert: { clientId },
+      },
       { new: true, upsert: true }
     ).lean();
     const workoutPlan = await WorkoutPlan.findOne({ clientId }).lean();
@@ -31,13 +44,26 @@ router.get("/current", async (req, res, next) => {
 
 router.put("/onboarding", async (req, res, next) => {
   try {
-    const { clientId } = req as ClientIdentityRequest;
+    const {
+      authDisplayName,
+      authEmail,
+      authProvider,
+      authUserId,
+      clientId,
+    } = req as ClientIdentityRequest;
     const { answers } = onboardingSubmissionSchema.parse(req.body);
     const suggestedPreview = generateWorkoutPreview(answers);
 
     const profile = await UserProfile.findOneAndUpdate(
       { clientId },
-      { $setOnInsert: { clientId, authProvider: "anonymous" } },
+      {
+        $set: {
+          authProvider,
+          authUserId,
+          displayName: authDisplayName ?? authEmail,
+        },
+        $setOnInsert: { clientId },
+      },
       { new: true, upsert: true }
     ).lean();
 
