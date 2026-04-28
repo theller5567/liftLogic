@@ -32,6 +32,7 @@ app.use("/api/workout-plan", workoutPlanRoutes);
 const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   if (error instanceof ZodError) {
     res.status(400).json({
+      code: "VALIDATION_ERROR",
       error: "Invalid request body.",
       details: error.flatten(),
     });
@@ -39,7 +40,10 @@ const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   }
 
   console.error(error);
-  res.status(500).json({ error: "Internal server error." });
+  res.status(500).json({
+    code: "INTERNAL_SERVER_ERROR",
+    error: "Internal server error.",
+  });
 };
 
 app.use(errorHandler);

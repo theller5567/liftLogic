@@ -1,13 +1,11 @@
 import { Router } from "express";
-import { z } from "zod";
 
 import { WorkoutPlan } from "../models/WorkoutPlan";
 import {
   requireClientIdentity,
   type ClientIdentityRequest,
 } from "../middleware/clientIdentity";
-
-const workoutPreviewSchema = z.object({}).passthrough();
+import { editedWorkoutPreviewSubmissionSchema } from "../schemas/workoutApiSchemas";
 
 const router = Router();
 
@@ -27,7 +25,7 @@ router.get("/current", async (req, res, next) => {
 router.put("/current", async (req, res, next) => {
   try {
     const { clientId } = req as ClientIdentityRequest;
-    const editedPreview = workoutPreviewSchema.parse(req.body.editedPreview);
+    const { editedPreview } = editedWorkoutPreviewSubmissionSchema.parse(req.body);
     const workoutPlan = await WorkoutPlan.findOneAndUpdate(
       { clientId },
       {
@@ -40,7 +38,10 @@ router.put("/current", async (req, res, next) => {
     ).lean();
 
     if (!workoutPlan) {
-      res.status(404).json({ error: "Workout plan not found." });
+      res.status(404).json({
+        code: "WORKOUT_PLAN_NOT_FOUND",
+        error: "Workout plan not found.",
+      });
       return;
     }
 
@@ -60,7 +61,10 @@ router.post("/review", async (req, res, next) => {
     ).lean();
 
     if (!workoutPlan) {
-      res.status(404).json({ error: "Workout plan not found." });
+      res.status(404).json({
+        code: "WORKOUT_PLAN_NOT_FOUND",
+        error: "Workout plan not found.",
+      });
       return;
     }
 

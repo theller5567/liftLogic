@@ -16,6 +16,7 @@ export function requireClientIdentity(
 
   if (!clientId) {
     res.status(400).json({
+      code: "MISSING_CLIENT_ID",
       error: "Missing x-liftlogic-client-id header.",
     });
     return;

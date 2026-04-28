@@ -236,7 +236,7 @@ function buildExercisePreview(
           alternativeExercise?.displayName ??
           alternativeExercise?.name ??
           alternative.exerciseId,
-        note: alternative.note,
+        ...(alternative.note ? { note: alternative.note } : {}),
       };
     }
   );
@@ -247,7 +247,7 @@ function buildExercisePreview(
       exerciseId: slot.exerciseId,
       label,
       prescription: slot.prescription,
-      notes: slot.notes,
+      ...(slot.notes ? { notes: slot.notes } : {}),
       exerciseAlternatives,
     };
   }
@@ -264,7 +264,7 @@ function buildExercisePreview(
       new Set()
     ),
     weightUnit: getWeightUnit(answers),
-    notes: slot.notes,
+    ...(slot.notes ? { notes: slot.notes } : {}),
     exerciseAlternatives,
   };
 }

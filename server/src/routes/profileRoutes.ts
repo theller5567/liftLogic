@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { z } from "zod";
 
 import { generateWorkoutPreview } from "../../../shared/utils/generateWorkoutPreview";
 import { UserProfile } from "../models/UserProfile";
@@ -8,8 +7,7 @@ import {
   requireClientIdentity,
   type ClientIdentityRequest,
 } from "../middleware/clientIdentity";
-
-const onboardingAnswersSchema = z.object({}).passthrough();
+import { onboardingSubmissionSchema } from "../schemas/workoutApiSchemas";
 
 const router = Router();
 
@@ -34,7 +32,7 @@ router.get("/current", async (req, res, next) => {
 router.put("/onboarding", async (req, res, next) => {
   try {
     const { clientId } = req as ClientIdentityRequest;
-    const answers = onboardingAnswersSchema.parse(req.body.answers);
+    const { answers } = onboardingSubmissionSchema.parse(req.body);
     const suggestedPreview = generateWorkoutPreview(answers);
 
     const profile = await UserProfile.findOneAndUpdate(
