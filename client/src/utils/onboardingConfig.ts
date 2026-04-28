@@ -427,12 +427,5 @@ export const onboardingConfig = {
         equals: true,
       },
     },
-    {
-      id: "review",
-      section: "Review",
-      type: "review",
-      title: "Review your starting setup",
-      body: "We’ll use your answers to set conservative starting weights. You can adjust them anytime.",
-    },
   ],
 };

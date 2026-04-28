@@ -3,7 +3,6 @@ import type { Control, FieldErrors, Path } from "react-hook-form";
 import type { OnboardingAnswers } from "../../../../shared/types/onboarding.types";
 
 import NumberStep from "./steps/NumberStep";
-import ReviewStep from "./steps/ReviewStep";
 import SingleSelectStep from "./steps/SingleSelectStep";
 import type { OnboardingStep } from "./types";
 import { getValueByPath } from "./utils";
@@ -12,14 +11,12 @@ type OnboardingStepContentProps = {
   control: Control<OnboardingAnswers>;
   errors: FieldErrors<OnboardingAnswers>;
   step: OnboardingStep;
-  answers: OnboardingAnswers;
 };
 
 const OnboardingStepContent = ({
   control,
   errors,
   step,
-  answers,
 }: OnboardingStepContentProps) => {
   const currentFieldError =
     "field" in step && step.field ? getValueByPath(errors, step.field) : undefined;
@@ -54,8 +51,6 @@ const OnboardingStepContent = ({
           ) : null}
         </>
       ) : null}
-
-      {step.type === "review" ? <ReviewStep answers={answers} /> : null}
     </>
   );
 };

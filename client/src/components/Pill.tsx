@@ -2,15 +2,16 @@ import styles from '../styles/components/pill.module.scss'
 import clsx from 'clsx'
 
 type PillProps = {
-  copy: string
+  label: string
   state?: "active" | "inactive" | "muted" | "completed",
   size?: "small" | "medium" | "large"
+  className?: string
 }
 
-const Pill = ({ copy, state, size }: PillProps) => {
-    const classes = clsx(styles.pill, state && styles[`pill--${state}`], size && styles[`pill--${size}`])
+const Pill = ({ label, state, size, className }: PillProps) => {
+    const classes = clsx(styles.pill, state && styles[`pill--${state}`], size && styles[`pill--${size}`], className)
   return (
-    <span className={`pill ${classes}`}>{copy}</span>
+    <span className={`pill ${classes}`}>{label}</span>
   )
 }
 

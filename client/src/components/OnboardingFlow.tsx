@@ -82,7 +82,7 @@ const isStepVisible = (values: OnboardingAnswers, step: OnboardingStep) => {
   return matchesCondition(values, step.showIf as ShowIfCondition | undefined);
 };
 
-const DEBUG_ONBOARDING = true;
+const DEBUG_ONBOARDING = false;
 
 const OnboardingFlow = ({
   initialAnswers,
@@ -281,7 +281,6 @@ const OnboardingFlow = ({
           control={control}
           errors={errors}
           step={currentStep}
-          answers={answers}
         />
 
         <OnboardingStepActions

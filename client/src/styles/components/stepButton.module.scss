@@ -1,0 +1,31 @@
+.stepButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--clr-neutral-700);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  &.smallButton {
+    --size: 24px;
+    svg {
+        width: var(--size);
+        height: var(--size);
+      }
+  }
+  &.mediumButton {
+    --size: 32px;
+    svg {
+        width: var(--size);
+        height: var(--size);
+      }
+  }
+  &.largeButton {
+    --size: 55px;
+    svg {
+        width: var(--size);
+        height: var(--size);
+    }
+  }
+}
+

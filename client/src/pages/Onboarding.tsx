@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import OnboardingFlow from "../components/OnboardingFlow";
@@ -17,20 +17,20 @@ import {
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const [draftAnswers, setDraftAnswers] = useState<OnboardingAnswers | null>(() =>
-    readDraftAnswers() ?? readSubmittedAnswers()
+  const [initialAnswers] = useState<OnboardingAnswers | undefined>(() =>
+    readDraftAnswers() ?? readSubmittedAnswers() ?? undefined
   );
-  const [draftStepIndex, setDraftStepIndex] = useState<number>(() =>
+  const [initialStepIndex] = useState<number>(() =>
     readDraftStepIndex()
   );
 
-  useEffect(() => {
-    writeDraftAnswers(draftAnswers);
-  }, [draftAnswers]);
+  const handleAnswersChange = useCallback((answers: OnboardingAnswers) => {
+    writeDraftAnswers(answers);
+  }, []);
 
-  useEffect(() => {
-    writeDraftStepIndex(draftStepIndex);
-  }, [draftStepIndex]);
+  const handleStepIndexChange = useCallback((stepIndex: number) => {
+    writeDraftStepIndex(stepIndex);
+  }, []);
 
   const handleComplete = (answers: OnboardingAnswers) => {
     writeSubmittedAnswers(answers);
@@ -38,17 +38,15 @@ const Onboarding = () => {
     writeWorkoutReviewed(false);
     writeDraftAnswers(null);
     clearDraftStepIndex();
-    setDraftAnswers(null);
-    setDraftStepIndex(0);
     navigate("/workout-review");
   };
 
   return (
     <OnboardingFlow
-      initialAnswers={draftAnswers ?? undefined}
-      initialStepIndex={draftStepIndex}
-      onAnswersChange={setDraftAnswers}
-      onStepIndexChange={setDraftStepIndex}
+      initialAnswers={initialAnswers}
+      initialStepIndex={initialStepIndex}
+      onAnswersChange={handleAnswersChange}
+      onStepIndexChange={handleStepIndexChange}
       onComplete={handleComplete}
     />
   );

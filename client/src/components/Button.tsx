@@ -3,8 +3,8 @@ import type { ButtonHTMLAttributes, ComponentType, SVGProps } from 'react'
 import IconChevronLeft from '../assets/icons/chevron-left.svg?react'
 import IconRefresh from '../assets/icons/refresh.svg?react'
 import IconEdit from '../assets/icons/edit.svg?react'
-import IconPlus from '../assets/icons/plus.svg?react'
-import IconMinus from '../assets/icons/minus.svg?react'
+import IconPlus from '../assets/icons/plus-c.svg?react'
+import IconMinus from '../assets/icons/minus-c.svg?react'
 
 import styles from '../styles/components/button.module.scss'
 

@@ -737,13 +737,16 @@ export const exerciseLibrary: ExerciseLibrary = {
       ],
       "alternatives": [
         {
-          "exerciseId": "flat_dumbbell_press"
+          "exerciseId": "dumbbell_bench_press",
+          "note": "More Stability. Better muscle balance. Easier on shoulder if that’s an issue"
         },
         {
-          "exerciseId": "flat_hammer_machine_press"
+          "exerciseId": "flat_dumbbell_press",
+          "note": "Easier on shoulder if that’s an issue"
         },
         {
-          "exerciseId": "flat_smith_machine_bench_press"
+          "exerciseId": "flat_smith_machine_bench_press",
+          "note": "Fixed path. Beginner friendly. Easier on shoulder if that’s an issue"
         }
       ]
     },

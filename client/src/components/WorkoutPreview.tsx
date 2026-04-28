@@ -3,6 +3,8 @@ import clsx from "clsx";
 
 import BottomSheet from "./BottomSheet";
 import Button from "./Button";
+import Pill from "./Pill";
+import StepButton from "./StepButton";
 import styles from "../styles/components/workoutPreview.module.scss";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import type {
@@ -207,76 +209,55 @@ const WorkoutPreview = ({
         variant="full"
         eyebrow="Exercise Editor"
         title={
-          selectedEditExercise ? `Edit ${selectedEditExercise.label}` : undefined
+          selectedEditExercise ? `Customize ${selectedEditExercise.label}` : undefined
         }
         description={
           selectedEditExercise
-            ? "Adjust the starting weight or choose a different movement."
+            ? `Set a starting weight that matches your current strength. You can change this later anytime.`
             : undefined
         }
         actions={[
+          
           {
-            label: "Cancel",
-            tone: "gray",
-            variant: "outline",
-          },
-          {
-            label: "Save",
+            label: "Save & Return",
             tone: "primary",
             onClick: saveExerciseEdits,
           },
         ]}
       >
         {selectedEditExercise ? (
-          <div className="grid gap-4">
-            <p className="text-muted">
+          <>
+          <p className={clsx(styles.prescriptionSummary, "text-muted")}>
               {selectedEditExercise.prescription.sets} sets •{" "}
               {selectedEditExercise.prescription.reps} reps •{" "}
               {formatRestLabel(selectedEditExercise.prescription.restSeconds)}
             </p>
-
+          <div className="grid gap-4">
             {hasEditableWeight ? (
               <section
                 className={clsx(styles.editorSection, "grid gap-3 border-subtle")}
               >
-                <h3 className={styles.sectionTitle}>Starting weight</h3>
+                <div className={clsx(styles.headerContent)}>
+                  <h3 className={styles.sectionTitle}>Starting Weight</h3>
+                  <p style={{color:'var(--clr-primary-500)'}}>Recommended: <span style={{color:'var(--clr-neutral-0)'}}>{draftWeight}</span> lb</p>
+                  <p>You should be able to complete {selectedEditExercise.prescription.reps} reps. </p>
+                  
+                </div>
                 <div
-                  className={clsx(styles.weightStepper, "grid gap-3 items-center")}
-                >
-                  <Button
-                    ariaLabel={`Decrease starting weight for ${selectedEditExercise.label}`}
-                    tone="gray"
-                    variant="iconOnly"
-                    size="large"
-                    icon="minus"
-                    onClick={() =>
-                      updateDraftWeight(-getWeightStep(selectedEditExercise.weightUnit))
-                    }
-                  />
-                  <div className="flex gap-2 items-center">
-                    <input
+                    className={clsx(styles.weightStepper)}
+                  >
+                  <StepButton type="decrement" size="large" onClick={() => updateDraftWeight(-getWeightStep(selectedEditExercise.weightUnit))} />
+                  <div className={clsx(styles.weightInputWrapper)}>
+                    <div
                       id={`starting-weight-input-${selectedEditExercise.id}`}
-                      type="number"
-                      min="0"
-                      step={getWeightStep(selectedEditExercise.weightUnit)}
-                      value={draftWeight}
                       onChange={handleDraftWeightChange}
-                      className={clsx(styles.weightInput, "w-full border-control")}
-                    />
+                      className={clsx(styles.weightInput)}
+                    >{draftWeight}</div>
                     <span className={styles.weightUnit}>
                       {selectedEditExercise.weightUnit}
                     </span>
                   </div>
-                  <Button
-                    ariaLabel={`Increase starting weight for ${selectedEditExercise.label}`}
-                    tone="gray"
-                    variant="iconOnly"
-                    size="large"
-                    icon="plus"
-                    onClick={() =>
-                      updateDraftWeight(getWeightStep(selectedEditExercise.weightUnit))
-                    }
-                  />
+                  <StepButton type="increment" size="large" onClick={() => updateDraftWeight(+getWeightStep(selectedEditExercise.weightUnit))} />
                 </div>
               </section>
             ) : null}
@@ -285,7 +266,10 @@ const WorkoutPreview = ({
               <section
                 className={clsx(styles.editorSection, "grid gap-3 border-subtle")}
               >
-                <h3 className={styles.sectionTitle}>Movement</h3>
+                <div className={clsx(styles.headerContent)}>
+                <h3 className={styles.sectionTitle}>Swap Exercise</h3>
+                <p>Choose an alternative if equipment is unavailable or if you prefer a different variation.</p>
+                </div>
                 <div className="grid gap-2">
                   {movementOptions.map((option) => {
                     const isSelected = option.exerciseId === draftExerciseId;
@@ -298,19 +282,46 @@ const WorkoutPreview = ({
                         onClick={() => setDraftExerciseId(option.exerciseId)}
                         className={clsx(
                           styles.movementOption,
-                          "grid gap-1 w-full border-subtle",
-                          isSelected && styles["movementOption--selected"]
+                          "border-subtle",
+                          isSelected && styles["movementOption--selected"],
                         )}
                       >
-                        <strong>{option.label}</strong>
-                        {option.isCurrent ? (
-                          <span className={styles.currentMovement}>
-                            Current movement
-                          </span>
-                        ) : null}
-                        {option.note ? (
-                          <span className="text-muted">{option.note}</span>
-                        ) : null}
+                        <div className={clsx(styles.movementHeader, "flex gap-2")}>
+                          <div className={clsx(styles.movementIconWrapper)}>
+                            {option.isCurrent ? (
+                              <span
+                                className={clsx(styles.currentIcon)}
+                                aria-label="Current exercise"
+                                title="Current exercise"
+                              >
+                                &#10003;
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className={clsx(styles.movementLabel)}>
+                            <div className="flex gap-2 flex-center">
+                              <strong className={clsx(styles.exerciseLabel)}>{option.label}</strong>
+                              {option.isCurrent ? (
+                                <Pill
+                                  label="Current"
+                                  size="small"
+                                  className={clsx(styles.activePill)}
+                                />
+                              ) : null}
+                            </div>
+                            {option.note ? <span className={clsx(styles.exerciseNote)}>{"option.note"}</span> : null}
+                          </div>
+                        </div>
+                        <div className={clsx(styles.statusIconWrapper)}>
+                          {option.isCurrent ? (
+                            <span
+                              className={clsx(styles.currentStatusIcon)}
+                              aria-hidden="true"
+                            >
+                              &#10003;
+                            </span>
+                          ) : null}
+                        </div>
                       </button>
                     );
                   })}
@@ -318,6 +329,8 @@ const WorkoutPreview = ({
               </section>
             ) : null}
           </div>
+        </>
+
         ) : null}
       </BottomSheet>
     </section>
