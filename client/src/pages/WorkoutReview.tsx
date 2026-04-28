@@ -1,10 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
 import WorkoutPreview from "../components/WorkoutPreview";
+import {
+  getCurrentWorkoutPlan,
+  isApiEnabled,
+  markWorkoutPlanReviewed,
+  saveEditedWorkoutPreview,
+  type WorkoutPlanDto,
+} from "../services/api";
 import { generateWorkoutPreview } from "../utils/generateWorkoutPreview";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import { getEditedPreviewMessages } from "../utils/workoutPreviewEdits";
@@ -18,14 +25,50 @@ import pageStyles from "../styles/pages/page.module.scss";
 
 const WorkoutReview = () => {
   const navigate = useNavigate();
-  const submittedAnswers = readSubmittedAnswers();
+  const [remoteWorkoutPlan, setRemoteWorkoutPlan] =
+    useState<WorkoutPlanDto | null>(null);
+  const [hasLoadedRemotePlan, setHasLoadedRemotePlan] = useState(!isApiEnabled());
+  const submittedAnswers =
+    remoteWorkoutPlan?.onboardingAnswers ?? readSubmittedAnswers();
   const [editedPreview, setEditedPreview] =
     useState<GeneratedWorkoutPreview | null>(() => readEditedWorkoutPreview());
   const [showEditWarning, setShowEditWarning] = useState(false);
 
+  useEffect(() => {
+    if (!isApiEnabled()) {
+      return;
+    }
+
+    let isCurrent = true;
+
+    getCurrentWorkoutPlan()
+      .then(({ workoutPlan }) => {
+        if (!isCurrent) {
+          return;
+        }
+
+        setRemoteWorkoutPlan(workoutPlan);
+        setEditedPreview(workoutPlan?.editedPreview ?? null);
+        setHasLoadedRemotePlan(true);
+      })
+      .catch((error) => {
+        console.error("Failed to load workout plan from API", error);
+
+        if (isCurrent) {
+          setHasLoadedRemotePlan(true);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
   const suggestedPreview = useMemo(
-    () => (submittedAnswers ? generateWorkoutPreview(submittedAnswers) : null),
-    [submittedAnswers]
+    () =>
+      remoteWorkoutPlan?.suggestedPreview ??
+      (submittedAnswers ? generateWorkoutPreview(submittedAnswers) : null),
+    [remoteWorkoutPlan?.suggestedPreview, submittedAnswers]
   );
   const preview =
     suggestedPreview && editedPreview?.programId === suggestedPreview.programId
@@ -37,17 +80,39 @@ const WorkoutReview = () => {
       : [];
   const hasEdits = editedMessages.length > 0;
 
+  if (!hasLoadedRemotePlan) {
+    return <p className="text-muted">Loading workout review...</p>;
+  }
+
   if (!submittedAnswers || !suggestedPreview || !preview) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  const handlePreviewChange = (nextPreview: GeneratedWorkoutPreview) => {
+  const handlePreviewChange = async (nextPreview: GeneratedWorkoutPreview) => {
     setEditedPreview(nextPreview);
     writeEditedWorkoutPreview(nextPreview);
     writeWorkoutReviewed(false);
+
+    if (isApiEnabled()) {
+      try {
+        const { workoutPlan } = await saveEditedWorkoutPreview(nextPreview);
+        setRemoteWorkoutPlan(workoutPlan);
+      } catch (error) {
+        console.error("Failed to save workout preview to API", error);
+      }
+    }
   };
 
-  const completeReview = () => {
+  const completeReview = async () => {
+    if (isApiEnabled()) {
+      try {
+        const { workoutPlan } = await markWorkoutPlanReviewed();
+        setRemoteWorkoutPlan(workoutPlan);
+      } catch (error) {
+        console.error("Failed to mark workout review complete in API", error);
+      }
+    }
+
     writeWorkoutReviewed(true);
     navigate("/dashboard");
   };

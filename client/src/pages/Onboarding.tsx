@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import OnboardingFlow from "../components/OnboardingFlow";
+import { isApiEnabled, submitOnboardingAnswers } from "../services/api";
 import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
 import {
   clearDraftStepIndex,
@@ -32,7 +33,15 @@ const Onboarding = () => {
     writeDraftStepIndex(stepIndex);
   }, []);
 
-  const handleComplete = (answers: OnboardingAnswers) => {
+  const handleComplete = async (answers: OnboardingAnswers) => {
+    if (isApiEnabled()) {
+      try {
+        await submitOnboardingAnswers(answers);
+      } catch (error) {
+        console.error("Failed to save onboarding answers to API", error);
+      }
+    }
+
     writeSubmittedAnswers(answers);
     writeEditedWorkoutPreview(null);
     writeWorkoutReviewed(false);

@@ -1,11 +1,53 @@
+import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { Navigate } from "react-router-dom";
 
+import {
+  getCurrentWorkoutPlan,
+  isApiEnabled,
+  type WorkoutPlanDto,
+} from "../services/api";
 import { readSubmittedAnswers } from "../utils/workoutStorage";
 import pageStyles from "../styles/pages/page.module.scss";
 
 const Dashboard = () => {
-  const submittedAnswers = readSubmittedAnswers();
+  const [remoteWorkoutPlan, setRemoteWorkoutPlan] =
+    useState<WorkoutPlanDto | null>(null);
+  const [hasLoadedRemotePlan, setHasLoadedRemotePlan] = useState(!isApiEnabled());
+  const submittedAnswers = remoteWorkoutPlan?.onboardingAnswers ?? readSubmittedAnswers();
+
+  useEffect(() => {
+    if (!isApiEnabled()) {
+      return;
+    }
+
+    let isCurrent = true;
+
+    getCurrentWorkoutPlan()
+      .then(({ workoutPlan }) => {
+        if (!isCurrent) {
+          return;
+        }
+
+        setRemoteWorkoutPlan(workoutPlan);
+        setHasLoadedRemotePlan(true);
+      })
+      .catch((error) => {
+        console.error("Failed to load dashboard workout plan from API", error);
+
+        if (isCurrent) {
+          setHasLoadedRemotePlan(true);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  if (!hasLoadedRemotePlan) {
+    return <p className="text-muted">Loading dashboard...</p>;
+  }
 
   if (!submittedAnswers) {
     return <Navigate to="/onboarding" replace />;
