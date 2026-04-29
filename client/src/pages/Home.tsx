@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Navigate } from "react-router-dom";
+import IconDumbbell from "../assets/icons/dumbbell.svg?react";
+import IconGrowth from "../assets/icons/growth.svg?react";
+import IconTarget from "../assets/icons/target.svg?react";
 
 import Button from "../components/Button";
 import { useAuth } from "../context/useAuth";
@@ -93,7 +96,7 @@ const Home = () => {
   return (
     <section className={styles.authShell}>
       <div className={styles.splash}>
-        <motion.div
+        {/* <motion.div
           aria-hidden="true"
           className={styles.logoMark}
           initial={{ opacity: 0, scale: 0.82, rotate: -8 }}
@@ -101,36 +104,67 @@ const Home = () => {
           transition={{ duration: 0.58, ease: "easeOut" }}
         >
           LL
-        </motion.div>
+        </motion.div> */}
 
-        <motion.div
-          className={styles.copy}
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.24, duration: 0.42, ease: "easeOut" }}
-        >
-          <p className={styles.eyebrow}>LiftLogic</p>
-          <h1 className={styles.title}>Build your first smart program.</h1>
-          <p className={styles.body}>
+        <div className={styles.copy}>
+          <motion.h1
+            className={styles.logoSplash}
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.48, ease: "easeOut" }}
+          >
+            <span>Lift</span>Logic
+          </motion.h1>
+
+          <motion.div
+            className={styles.copyContent}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.48, duration: 0.42, ease: "easeOut" }}
+          >
+          <h2 className={styles.eyebrow}>Build your first smart program.</h2>
+          <div className={styles.showcase}>
+            <div className={styles.showcaseItem}>
+              <IconTarget className={styles.showcaseIcon} aria-hidden="true" />
+              <p className={styles.title}>SMART PROGRAMS</p>
+              <p className={styles.showcaseText}>Personalized training that adapts to you.</p>
+            </div>
+            <div className={styles.showcaseItem}>
+              <IconGrowth className={styles.showcaseIcon} aria-hidden="true" />
+              <p className={styles.title}>PROGRESS DRIVEN</p>
+              <p className={styles.showcaseText}>Track, analyze and improve every week.</p>
+            </div>
+            <div className={styles.showcaseItem}>
+              <IconDumbbell className={styles.showcaseIcon} aria-hidden="true" />
+              <p className={styles.title}>BUILT FOR RESULTS</p>
+              <p className={styles.showcaseText}>Science backed training for real results.</p>
+            </div>
+          </div>
+          {/* <p className={styles.body}>
             Sign in with Google to save your onboarding answers, workout review, and future training data.
-          </p>
-        </motion.div>
+          </p> */}
+          </motion.div>
+        </div>
 
         <motion.div
           className={styles.actions}
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.42, duration: 0.42, ease: "easeOut" }}
+          transition={{ delay: 0.58, duration: 0.42, ease: "easeOut" }}
         >
           <Button
-            label="Login with Google"
+            label="Continue with Google"
             tone="primary"
+            size="large"
             onClick={handleGoogleSignIn}
             disabled={isLoading}
+            icon="google"
           />
+          <div className={styles.lineBreak}><span>OR</span></div>
           <Button
-            label="Create account"
+            label="Create Account"
             tone="secondary"
+            size="large"
             variant="outline"
             onClick={handleGoogleSignIn}
             disabled={isLoading}

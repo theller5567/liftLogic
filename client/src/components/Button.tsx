@@ -5,6 +5,7 @@ import IconRefresh from '../assets/icons/refresh.svg?react'
 import IconEdit from '../assets/icons/edit.svg?react'
 import IconPlus from '../assets/icons/plus-c.svg?react'
 import IconMinus from '../assets/icons/minus-c.svg?react'
+import IconGoogle from '../assets/icons/google.svg?react'
 
 import styles from '../styles/components/button.module.scss'
 
@@ -12,7 +13,7 @@ type ButtonTone = 'primary' | 'white' | 'gray' | 'black' | 'secondary'
 type ButtonVariant = 'outline' | 'ghost' | 'iconOnly'
 type ButtonSize = 'small' | 'medium' | 'large'
 type ButtonIconPosition = 'left' | 'right'
-type ButtonIcon = 'chevronLeft' | 'refresh' | 'edit' | 'plus' | 'minus'
+type ButtonIcon = 'chevronLeft' | 'refresh' | 'edit' | 'plus' | 'minus' | 'google'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   label?: string
@@ -34,6 +35,7 @@ const ICONS: Record<ButtonIcon, ComponentType<SVGProps<SVGSVGElement>>> = {
   edit: IconEdit,
   plus: IconPlus,
   minus: IconMinus,
+  google: IconGoogle,
 }
 
 const Button = ({
