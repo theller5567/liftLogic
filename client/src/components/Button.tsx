@@ -5,7 +5,7 @@ import IconRefresh from '../assets/icons/refresh.svg?react'
 import IconEdit from '../assets/icons/edit.svg?react'
 import IconPlus from '../assets/icons/plus-c.svg?react'
 import IconMinus from '../assets/icons/minus-c.svg?react'
-import IconGoogle from '../assets/icons/google.svg?react'
+import IconGoogle from '../assets/icons/Google.svg?react'
 
 import styles from '../styles/components/button.module.scss'
 
