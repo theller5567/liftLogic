@@ -7,7 +7,9 @@ export type ClientIdentityRequest = Request & {
   authProvider: "anonymous" | "firebase";
   authUserId?: string;
   authEmail?: string;
+  authEmailVerified?: boolean;
   authDisplayName?: string;
+  authPhotoUrl?: string;
 };
 
 const getBearerToken = (req: Request) => {
@@ -43,7 +45,9 @@ export async function requireClientIdentity(
       identityRequest.authProvider = "firebase";
       identityRequest.authUserId = decodedToken.uid;
       identityRequest.authEmail = decodedToken.email;
+      identityRequest.authEmailVerified = decodedToken.email_verified;
       identityRequest.authDisplayName = decodedToken.name;
+      identityRequest.authPhotoUrl = decodedToken.picture;
       next();
       return;
     } catch {

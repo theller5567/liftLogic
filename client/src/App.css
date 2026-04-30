@@ -379,7 +379,9 @@ body {
 
 
 @media (max-width: 768px) {
- 
+  main {
+    padding: 0;
+  }
 }
 
 
@@ -391,4 +393,10 @@ main {
   display: flex;
   justify-content: center;
   padding: 2rem;
+}
+
+@media (max-width: 768px) {
+  main {
+    padding: 0;
+  }
 }

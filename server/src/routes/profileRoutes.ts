@@ -13,27 +13,29 @@ const router = Router();
 
 router.use(requireClientIdentity);
 
+const upsertCurrentUserProfile = (identityRequest: ClientIdentityRequest) =>
+  UserProfile.findOneAndUpdate(
+    { clientId: identityRequest.clientId },
+    {
+      $set: {
+        authProvider: identityRequest.authProvider,
+        authUserId: identityRequest.authUserId,
+        displayName: identityRequest.authDisplayName ?? identityRequest.authEmail,
+        email: identityRequest.authEmail,
+        emailVerified: identityRequest.authEmailVerified,
+        photoUrl: identityRequest.authPhotoUrl,
+        lastLoginAt: new Date(),
+      },
+      $setOnInsert: { clientId: identityRequest.clientId },
+    },
+    { new: true, upsert: true }
+  ).lean();
+
 router.get("/current", async (req, res, next) => {
   try {
-    const {
-      authDisplayName,
-      authEmail,
-      authProvider,
-      authUserId,
-      clientId,
-    } = req as ClientIdentityRequest;
-    const profile = await UserProfile.findOneAndUpdate(
-      { clientId },
-      {
-        $set: {
-          authProvider,
-          authUserId,
-          displayName: authDisplayName ?? authEmail,
-        },
-        $setOnInsert: { clientId },
-      },
-      { new: true, upsert: true }
-    ).lean();
+    const identityRequest = req as ClientIdentityRequest;
+    const { clientId } = identityRequest;
+    const profile = await upsertCurrentUserProfile(identityRequest);
     const workoutPlan = await WorkoutPlan.findOne({ clientId }).lean();
 
     res.json({ profile, workoutPlan });
@@ -44,28 +46,12 @@ router.get("/current", async (req, res, next) => {
 
 router.put("/onboarding", async (req, res, next) => {
   try {
-    const {
-      authDisplayName,
-      authEmail,
-      authProvider,
-      authUserId,
-      clientId,
-    } = req as ClientIdentityRequest;
+    const identityRequest = req as ClientIdentityRequest;
+    const { clientId } = identityRequest;
     const { answers } = onboardingSubmissionSchema.parse(req.body);
     const suggestedPreview = generateWorkoutPreview(answers);
 
-    const profile = await UserProfile.findOneAndUpdate(
-      { clientId },
-      {
-        $set: {
-          authProvider,
-          authUserId,
-          displayName: authDisplayName ?? authEmail,
-        },
-        $setOnInsert: { clientId },
-      },
-      { new: true, upsert: true }
-    ).lean();
+    const profile = await upsertCurrentUserProfile(identityRequest);
 
     const workoutPlan = await WorkoutPlan.findOneAndUpdate(
       { clientId },

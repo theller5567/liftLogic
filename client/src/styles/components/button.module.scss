@@ -147,6 +147,7 @@ $button-variants: (
   --button-shadow: none;
   --button-gap: 0.5rem;
   --button-icon-size: 0.8em;
+  --button-icon-offset-y: -0.06em;
 
   display: inline-flex;
   align-items: center;
@@ -205,18 +206,18 @@ $button-variants: (
   border-radius: var(--br-full);
 }
 
-.button--with-icon {
-  gap: var(--button-gap);
-  padding: 0.3rem;
+// .button--with-icon {
+//   gap: var(--button-gap);
+//   padding: 0.3rem;
 
-  &.button--medium {
-    padding: 0.5rem;
-  }
+//   &.button--medium {
+//     padding: 0.5rem;
+//   }
 
-  &.button--large {
-    padding: 0.8rem;
-  }
-}
+//   &.button--large {
+//     padding: 0.8rem;
+//   }
+// }
 
 .button--icon-only {
   aspect-ratio: 1;
@@ -254,9 +255,12 @@ $button-variants: (
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  line-height: 0;
+  transform: translateY(var(--button-icon-offset-y));
 }
 
 .icon {
+  display: block;
   width: var(--button-icon-size);
   height: var(--button-icon-size);
 }

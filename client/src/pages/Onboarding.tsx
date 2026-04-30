@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 import OnboardingFlow from "../components/OnboardingFlow";
 import { isApiEnabled, submitOnboardingAnswers } from "../services/api";
@@ -15,14 +15,19 @@ import {
   writeSubmittedAnswers,
   writeWorkoutReviewed,
 } from "../utils/workoutStorage";
+import { useUserFlow } from "../utils/userFlow";
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { destination, error, isLoading } = useUserFlow();
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [initialAnswers] = useState<OnboardingAnswers | undefined>(() =>
-    readDraftAnswers() ?? readSubmittedAnswers() ?? undefined
+    !isApiEnabled()
+      ? readDraftAnswers() ?? readSubmittedAnswers() ?? undefined
+      : undefined
   );
   const [initialStepIndex] = useState<number>(() =>
-    readDraftStepIndex()
+    !isApiEnabled() ? readDraftStepIndex() : 0
   );
 
   const handleAnswersChange = useCallback((answers: OnboardingAnswers) => {
@@ -34,11 +39,15 @@ const Onboarding = () => {
   }, []);
 
   const handleComplete = async (answers: OnboardingAnswers) => {
+    setSubmissionError(null);
+
     if (isApiEnabled()) {
       try {
         await submitOnboardingAnswers(answers);
       } catch (error) {
         console.error("Failed to save onboarding answers to API", error);
+        setSubmissionError("We could not save your onboarding answers. Please try again.");
+        return;
       }
     }
 
@@ -50,14 +59,29 @@ const Onboarding = () => {
     navigate("/workout-review");
   };
 
+  if (isLoading) {
+    return <p className="text-muted">Loading onboarding...</p>;
+  }
+
+  if (error) {
+    return <p className="text-muted">We could not load your onboarding status. Please refresh.</p>;
+  }
+
+  if (destination && destination !== "/onboarding") {
+    return <Navigate to={destination} replace />;
+  }
+
   return (
-    <OnboardingFlow
-      initialAnswers={initialAnswers}
-      initialStepIndex={initialStepIndex}
-      onAnswersChange={handleAnswersChange}
-      onStepIndexChange={handleStepIndexChange}
-      onComplete={handleComplete}
-    />
+    <>
+      {submissionError ? <p className="text-muted">{submissionError}</p> : null}
+      <OnboardingFlow
+        initialAnswers={initialAnswers}
+        initialStepIndex={initialStepIndex}
+        onAnswersChange={handleAnswersChange}
+        onStepIndexChange={handleStepIndexChange}
+        onComplete={handleComplete}
+      />
+    </>
   );
 };
 

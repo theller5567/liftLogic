@@ -59,6 +59,7 @@ Firebase Console setup:
    - `FIREBASE_PROJECT_ID`
    - `FIREBASE_CLIENT_EMAIL`
    - `FIREBASE_PRIVATE_KEY`
+   - Or set `FIREBASE_SERVICE_ACCOUNT_JSON` to the full service account JSON as a single env var.
 
 The client sends Firebase ID tokens to the API with `Authorization: Bearer <token>`. The API still supports `x-liftlogic-client-id` as a smoke-test and pre-auth fallback, but app users should be owned by verified Firebase UID records.
 

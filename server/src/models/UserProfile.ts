@@ -5,6 +5,10 @@ export type UserProfileDocument = {
   displayName?: string;
   authProvider?: "anonymous" | "firebase";
   authUserId?: string;
+  email?: string;
+  emailVerified?: boolean;
+  photoUrl?: string;
+  lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -29,9 +33,27 @@ const userProfileSchema = new Schema<UserProfileDocument>(
     },
     authUserId: {
       type: String,
-      index: true,
+      index: {
+        unique: true,
+        sparse: true,
+      },
       sparse: true,
       trim: true,
+    },
+    email: {
+      type: String,
+      lowercase: true,
+      trim: true,
+    },
+    emailVerified: {
+      type: Boolean,
+    },
+    photoUrl: {
+      type: String,
+      trim: true,
+    },
+    lastLoginAt: {
+      type: Date,
     },
   },
   { timestamps: true }
@@ -39,5 +61,6 @@ const userProfileSchema = new Schema<UserProfileDocument>(
 
 export const UserProfile = model<UserProfileDocument>(
   "UserProfile",
-  userProfileSchema
+  userProfileSchema,
+  "userProfiles"
 );

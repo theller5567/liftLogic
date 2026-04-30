@@ -378,7 +378,7 @@ const WorkoutPreview = ({
                                 />
                               ) : null}
                             </div>
-                            {option.note ? <span className={clsx(styles.exerciseNote)}>{"option.note"}</span> : null}
+                            {option.note ? <span className={clsx(styles.exerciseNote)}>{option.note}</span> : null}
                           </div>
                         </div>
                         <div className={clsx(styles.statusIconWrapper)}>
