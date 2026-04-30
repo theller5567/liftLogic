@@ -6,6 +6,18 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)
   ?.replace(/\/$/, "");
 let authTokenProvider: (() => Promise<string>) | null = null;
 
+class ApiError extends Error {
+  code?: string;
+  status: number;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
 export type WorkoutPlanDto = {
   _id: string;
   clientId: string;
@@ -23,6 +35,10 @@ export type UserProfileDto = {
   displayName?: string;
   authProvider?: "anonymous" | "firebase";
   authUserId?: string;
+  email?: string;
+  emailVerified?: boolean;
+  photoUrl?: string;
+  lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -63,8 +79,7 @@ async function apiRequest<TResponse>(
     throw new Error("VITE_API_BASE_URL is not configured.");
   }
 
-  const authToken = authTokenProvider ? await authTokenProvider() : null;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const makeRequest = async (authToken: string | null) => fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -75,9 +90,18 @@ async function apiRequest<TResponse>(
     },
   });
 
+  const authToken = authTokenProvider ? await authTokenProvider() : null;
+  let response = await makeRequest(authToken);
+
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
-    throw new Error(errorBody?.error ?? `API request failed: ${response.status}`);
+    const apiError = new ApiError(
+      errorBody?.error ?? `API request failed: ${response.status}`,
+      response.status,
+      errorBody?.code
+    );
+
+    throw apiError;
   }
 
   return (await response.json()) as TResponse;

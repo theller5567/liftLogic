@@ -1,15 +1,12 @@
 import { useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
 
 import Button from "../../components/Button";
 import { useAuth } from "../../context/useAuth";
 import styles from "../../styles/pages/auth.module.scss";
 
 const Login = () => {
-  const { isConfigured, isLoading, signInWithGoogle, user } = useAuth();
-  const location = useLocation();
+  const { isConfigured, isLoading, signInWithGoogle } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const from = (location.state as { from?: string } | null)?.from ?? "/";
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -25,10 +22,6 @@ const Login = () => {
       );
     }
   };
-
-  if (user) {
-    return <Navigate to={from} replace />;
-  }
 
   return (
     <section className={styles.authShell}>

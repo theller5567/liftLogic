@@ -3,20 +3,62 @@ import { getAuth } from "firebase-admin/auth";
 
 import { env } from "./env";
 
-const hasFirebaseCredentials =
-  env.firebaseProjectId && env.firebaseClientEmail && env.firebasePrivateKey;
+type FirebaseCredentialConfig = {
+  clientEmail: string;
+  privateKey: string;
+  projectId: string;
+};
 
-if (hasFirebaseCredentials && getApps().length === 0) {
+const parseServiceAccountJson = (): FirebaseCredentialConfig | null => {
+  if (!env.firebaseServiceAccountJson) {
+    return null;
+  }
+
+  try {
+    const serviceAccount = JSON.parse(env.firebaseServiceAccountJson) as {
+      client_email?: string;
+      private_key?: string;
+      project_id?: string;
+    };
+
+    if (
+      !serviceAccount.client_email ||
+      !serviceAccount.private_key ||
+      !serviceAccount.project_id
+    ) {
+      return null;
+    }
+
+    return {
+      clientEmail: serviceAccount.client_email,
+      privateKey: serviceAccount.private_key.replace(/\\n/g, "\n"),
+      projectId: serviceAccount.project_id,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const firebaseCredentials =
+  env.firebaseProjectId && env.firebaseClientEmail && env.firebasePrivateKey
+    ? {
+        clientEmail: env.firebaseClientEmail,
+        privateKey: env.firebasePrivateKey,
+        projectId: env.firebaseProjectId,
+      }
+    : parseServiceAccountJson();
+
+if (firebaseCredentials && getApps().length === 0) {
   initializeApp({
     credential: cert({
-      projectId: env.firebaseProjectId,
-      clientEmail: env.firebaseClientEmail,
-      privateKey: env.firebasePrivateKey,
+      projectId: firebaseCredentials.projectId,
+      clientEmail: firebaseCredentials.clientEmail,
+      privateKey: firebaseCredentials.privateKey,
     }),
   });
 }
 
-export const isFirebaseAdminConfigured = () => Boolean(hasFirebaseCredentials);
+export const isFirebaseAdminConfigured = () => Boolean(firebaseCredentials);
 
 export const firebaseAuth = () => {
   if (!isFirebaseAdminConfigured()) {

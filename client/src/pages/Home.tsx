@@ -1,74 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Navigate } from "react-router-dom";
 import IconDumbbell from "../assets/icons/dumbbell.svg?react";
 import IconGrowth from "../assets/icons/growth.svg?react";
 import IconTarget from "../assets/icons/target.svg?react";
 
 import Button from "../components/Button";
 import { useAuth } from "../context/useAuth";
-import { getCurrentWorkoutPlan, isApiEnabled } from "../services/api";
-import {
-  readSubmittedAnswers,
-  readWorkoutReviewed,
-} from "../utils/workoutStorage";
 import styles from "../styles/pages/auth.module.scss";
 
-type HomeDestination = "/onboarding" | "/workout-review" | "/dashboard" | null;
-
-const getLocalDestination = (): Exclude<HomeDestination, null> => {
-  const submittedAnswers = readSubmittedAnswers();
-
-  if (!submittedAnswers) {
-    return "/onboarding";
-  }
-
-  if (readWorkoutReviewed()) {
-    return "/dashboard";
-  }
-
-  return "/workout-review";
-};
-
 const Home = () => {
-  const { isConfigured, isLoading, signInWithGoogle, user } = useAuth();
-  const [destination, setDestination] = useState<HomeDestination>(null);
+  const { isConfigured, isLoading, signInWithGoogle } = useAuth();
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isLoading || !user) {
-      return;
-    }
-
-    let isCurrent = true;
-
-    getCurrentWorkoutPlan()
-      .then(({ workoutPlan }) => {
-        if (!isCurrent) {
-          return;
-        }
-
-        if (!workoutPlan) {
-          setDestination("/onboarding");
-          return;
-        }
-
-        setDestination(
-          workoutPlan.workoutReviewed ? "/dashboard" : "/workout-review"
-        );
-      })
-      .catch((apiError) => {
-        console.error("Failed to load workout plan from API", apiError);
-
-        if (isCurrent) {
-          setDestination(getLocalDestination());
-        }
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [isLoading, user]);
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -84,14 +26,6 @@ const Home = () => {
       );
     }
   };
-
-  if (user && !isApiEnabled()) {
-    return <Navigate to={getLocalDestination()} replace />;
-  }
-
-  if (user && destination) {
-    return <Navigate to={destination} replace />;
-  }
 
   return (
     <section className={styles.authShell}>
@@ -160,15 +94,9 @@ const Home = () => {
             disabled={isLoading}
             icon="google"
           />
-          <div className={styles.lineBreak}><span>OR</span></div>
-          <Button
-            label="Create Account"
-            tone="secondary"
-            size="large"
-            variant="outline"
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-          />
+          <p className={styles.authHint}>
+            New here? We will create your account with Google.
+          </p>
           {error ? <p className={styles.error}>{error}</p> : null}
         </motion.div>
       </div>

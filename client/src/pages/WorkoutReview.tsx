@@ -6,11 +6,9 @@ import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
 import WorkoutPreview from "../components/WorkoutPreview";
 import {
-  getCurrentWorkoutPlan,
   isApiEnabled,
   markWorkoutPlanReviewed,
   saveEditedWorkoutPreview,
-  type WorkoutPlanDto,
 } from "../services/api";
 import { generateWorkoutPreview } from "../utils/generateWorkoutPreview";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
@@ -21,48 +19,29 @@ import {
   writeEditedWorkoutPreview,
   writeWorkoutReviewed,
 } from "../utils/workoutStorage";
+import { useUserFlow } from "../utils/userFlow";
 import pageStyles from "../styles/pages/page.module.scss";
 
 const WorkoutReview = () => {
   const navigate = useNavigate();
-  const [remoteWorkoutPlan, setRemoteWorkoutPlan] =
-    useState<WorkoutPlanDto | null>(null);
-  const [hasLoadedRemotePlan, setHasLoadedRemotePlan] = useState(!isApiEnabled());
+  const {
+    destination,
+    error,
+    isLoading,
+    workoutPlan: remoteWorkoutPlan,
+  } = useUserFlow();
   const submittedAnswers =
     remoteWorkoutPlan?.onboardingAnswers ?? readSubmittedAnswers();
   const [editedPreview, setEditedPreview] =
     useState<GeneratedWorkoutPreview | null>(() => readEditedWorkoutPreview());
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [showEditWarning, setShowEditWarning] = useState(false);
 
   useEffect(() => {
-    if (!isApiEnabled()) {
-      return;
+    if (isApiEnabled()) {
+      setEditedPreview(remoteWorkoutPlan?.editedPreview ?? null);
     }
-
-    let isCurrent = true;
-
-    getCurrentWorkoutPlan()
-      .then(({ workoutPlan }) => {
-        if (!isCurrent) {
-          return;
-        }
-
-        setRemoteWorkoutPlan(workoutPlan);
-        setEditedPreview(workoutPlan?.editedPreview ?? null);
-        setHasLoadedRemotePlan(true);
-      })
-      .catch((error) => {
-        console.error("Failed to load workout plan from API", error);
-
-        if (isCurrent) {
-          setHasLoadedRemotePlan(true);
-        }
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
+  }, [remoteWorkoutPlan]);
 
   const suggestedPreview = useMemo(
     () =>
@@ -80,8 +59,16 @@ const WorkoutReview = () => {
       : [];
   const hasEdits = editedMessages.length > 0;
 
-  if (!hasLoadedRemotePlan) {
+  if (isLoading) {
     return <p className="text-muted">Loading workout review...</p>;
+  }
+
+  if (error) {
+    return <p className="text-muted">We could not load your workout review yet. Please refresh.</p>;
+  }
+
+  if (destination && destination !== "/workout-review") {
+    return <Navigate to={destination} replace />;
   }
 
   if (!submittedAnswers || !suggestedPreview || !preview) {
@@ -89,14 +76,14 @@ const WorkoutReview = () => {
   }
 
   const handlePreviewChange = async (nextPreview: GeneratedWorkoutPreview) => {
+    setReviewError(null);
     setEditedPreview(nextPreview);
     writeEditedWorkoutPreview(nextPreview);
     writeWorkoutReviewed(false);
 
     if (isApiEnabled()) {
       try {
-        const { workoutPlan } = await saveEditedWorkoutPreview(nextPreview);
-        setRemoteWorkoutPlan(workoutPlan);
+        await saveEditedWorkoutPreview(nextPreview);
       } catch (error) {
         console.error("Failed to save workout preview to API", error);
       }
@@ -104,12 +91,15 @@ const WorkoutReview = () => {
   };
 
   const completeReview = async () => {
+    setReviewError(null);
+
     if (isApiEnabled()) {
       try {
-        const { workoutPlan } = await markWorkoutPlanReviewed();
-        setRemoteWorkoutPlan(workoutPlan);
+        await markWorkoutPlanReviewed();
       } catch (error) {
         console.error("Failed to mark workout review complete in API", error);
+        setReviewError("We could not save your workout review. Please try again.");
+        return;
       }
     }
 
@@ -147,6 +137,7 @@ const WorkoutReview = () => {
             onClick={handleContinue}
           />
         </div>
+        {reviewError ? <p className="text-muted">{reviewError}</p> : null}
       </header>
 
       <WorkoutPreview
@@ -163,14 +154,14 @@ const WorkoutReview = () => {
         description="Your changes have been saved, but the original recommendations are usually the best place to start."
         actions={[
           {
-            label: "Cancel",
-            tone: "gray",
-            variant: "outline",
-          },
-          {
             label: "Continue with edits",
             tone: "primary",
             onClick: completeReview,
+          },
+          {
+            label: "Cancel",
+            tone: "gray",
+            variant: "outline",
           },
         ]}
       >

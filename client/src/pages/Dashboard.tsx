@@ -1,68 +1,112 @@
-import { useEffect, useState } from "react";
-import clsx from "clsx";
+import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 
+import AppShell from "../components/app/AppShell";
+import DashboardHeader from "../components/dashboard/DashboardHeader";
+import WeekSelector, { type WeekDayOption } from "../components/dashboard/WeekSelector";
+import WorkoutCard from "../components/dashboard/WorkoutCard";
+import { generateWorkoutPreview } from "../utils/generateWorkoutPreview";
+import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
+import { useUserFlow } from "../utils/userFlow";
 import {
-  getCurrentWorkoutPlan,
-  isApiEnabled,
-  type WorkoutPlanDto,
-} from "../services/api";
-import { readSubmittedAnswers } from "../utils/workoutStorage";
-import pageStyles from "../styles/pages/page.module.scss";
+  readEditedWorkoutPreview,
+  readSubmittedAnswers,
+} from "../utils/workoutStorage";
+import styles from "../styles/components/dashboard.module.scss";
+
+const getStartOfWeek = (date: Date) => {
+  const start = new Date(date);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + diff);
+  start.setHours(0, 0, 0, 0);
+  return start;
+};
+
+const getWeekDays = (date: Date, workoutCount: number): WeekDayOption[] => {
+  const start = getStartOfWeek(date);
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const nextDate = new Date(start);
+    nextDate.setDate(start.getDate() + index);
+
+    return {
+      date: nextDate,
+      hasWorkout: index < workoutCount,
+    };
+  });
+};
+
+const resolveDashboardPreview = (
+  workoutPlan: ReturnType<typeof useUserFlow>["workoutPlan"]
+): GeneratedWorkoutPreview | null => {
+  if (workoutPlan) {
+    return workoutPlan.editedPreview ?? workoutPlan.suggestedPreview;
+  }
+
+  const submittedAnswers = readSubmittedAnswers();
+
+  if (!submittedAnswers) {
+    return null;
+  }
+
+  const suggestedPreview = generateWorkoutPreview(submittedAnswers);
+  const editedPreview = readEditedWorkoutPreview();
+
+  return editedPreview?.programId === suggestedPreview.programId
+    ? editedPreview
+    : suggestedPreview;
+};
 
 const Dashboard = () => {
-  const [remoteWorkoutPlan, setRemoteWorkoutPlan] =
-    useState<WorkoutPlanDto | null>(null);
-  const [hasLoadedRemotePlan, setHasLoadedRemotePlan] = useState(!isApiEnabled());
-  const submittedAnswers = remoteWorkoutPlan?.onboardingAnswers ?? readSubmittedAnswers();
+  const { destination, error, isLoading, profile, workoutPlan } = useUserFlow();
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const preview = useMemo(
+    () => resolveDashboardPreview(workoutPlan),
+    [workoutPlan]
+  );
+  const weekDays = useMemo(
+    () => getWeekDays(selectedDate, preview?.days.length ?? 0),
+    [preview?.days.length, selectedDate]
+  );
+  const selectedIndex = weekDays.findIndex(
+    (day) =>
+      day.date.getFullYear() === selectedDate.getFullYear() &&
+      day.date.getMonth() === selectedDate.getMonth() &&
+      day.date.getDate() === selectedDate.getDate()
+  );
+  const workoutDay =
+    preview && selectedIndex >= 0 && selectedIndex < preview.days.length
+      ? preview.days[selectedIndex]
+      : null;
 
-  useEffect(() => {
-    if (!isApiEnabled()) {
-      return;
-    }
-
-    let isCurrent = true;
-
-    getCurrentWorkoutPlan()
-      .then(({ workoutPlan }) => {
-        if (!isCurrent) {
-          return;
-        }
-
-        setRemoteWorkoutPlan(workoutPlan);
-        setHasLoadedRemotePlan(true);
-      })
-      .catch((error) => {
-        console.error("Failed to load dashboard workout plan from API", error);
-
-        if (isCurrent) {
-          setHasLoadedRemotePlan(true);
-        }
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-
-  if (!hasLoadedRemotePlan) {
+  if (isLoading) {
     return <p className="text-muted">Loading dashboard...</p>;
   }
 
-  if (!submittedAnswers) {
-    return <Navigate to="/onboarding" replace />;
+  if (error) {
+    return <p className="text-muted">We could not load your dashboard yet. Please refresh.</p>;
+  }
+
+  if (destination && destination !== "/dashboard") {
+    return <Navigate to={destination} replace />;
   }
 
   return (
-    <section className={clsx(pageStyles.shell, pageStyles.panel, "grid gap-3 border-panel")}>
-      <p className={pageStyles.eyebrow}>
-        Dashboard
-      </p>
-      <h1 className={pageStyles.title}>Your training dashboard is coming soon.</h1>
-      <p className="text-muted">
-        Your onboarding answers and workout review have been saved.
-      </p>
-    </section>
+    <AppShell>
+      <section className={styles.dashboard}>
+        <DashboardHeader
+          displayName={profile?.displayName}
+          photoUrl={profile?.photoUrl}
+        />
+        <WeekSelector
+          days={weekDays}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
+        <WorkoutCard date={selectedDate} workoutDay={workoutDay} />
+      </section>
+    </AppShell>
   );
 };
 
