@@ -279,6 +279,9 @@ label[data-att="required"]:after{
   display: grid;
   gap: var(--gap, 1rem);
 }
+.grid.grid-columns-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
 
 .gap-1 {
   --gap: 0.25rem;
