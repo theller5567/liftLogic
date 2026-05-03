@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 import AppShell from "../components/app/AppShell";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import WeekSelector, { type WeekDayOption } from "../components/dashboard/WeekSelector";
 import WorkoutCard from "../components/dashboard/WorkoutCard";
+import { createWorkoutSession } from "../services/api";
 import { generateWorkoutPreview } from "../utils/generateWorkoutPreview";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import { useUserFlow } from "../utils/userFlow";
@@ -13,6 +14,8 @@ import {
   readSubmittedAnswers,
 } from "../utils/workoutStorage";
 import styles from "../styles/components/dashboard.module.scss";
+
+type SelectedWorkoutByDate = Record<string, string>;
 
 const getStartOfWeek = (date: Date) => {
   const start = new Date(date);
@@ -23,7 +26,15 @@ const getStartOfWeek = (date: Date) => {
   return start;
 };
 
-const getWeekDays = (date: Date, workoutCount: number): WeekDayOption[] => {
+const getDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const getWeekDays = (date: Date): WeekDayOption[] => {
   const start = getStartOfWeek(date);
 
   return Array.from({ length: 7 }, (_, index) => {
@@ -32,7 +43,7 @@ const getWeekDays = (date: Date, workoutCount: number): WeekDayOption[] => {
 
     return {
       date: nextDate,
-      hasWorkout: index < workoutCount,
+      workoutStatus: "not-started",
     };
   });
 };
@@ -60,25 +71,65 @@ const resolveDashboardPreview = (
 
 const Dashboard = () => {
   const { destination, error, isLoading, profile, workoutPlan } = useUserFlow();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [startWorkoutError, setStartWorkoutError] = useState<string | null>(null);
+  const [isStartingWorkout, setIsStartingWorkout] = useState(false);
+  const [selectedWorkoutByDate, setSelectedWorkoutByDate] =
+    useState<SelectedWorkoutByDate>({});
   const preview = useMemo(
     () => resolveDashboardPreview(workoutPlan),
     [workoutPlan]
   );
   const weekDays = useMemo(
-    () => getWeekDays(selectedDate, preview?.days.length ?? 0),
-    [preview?.days.length, selectedDate]
+    () => getWeekDays(selectedDate),
+    [selectedDate]
   );
-  const selectedIndex = weekDays.findIndex(
-    (day) =>
-      day.date.getFullYear() === selectedDate.getFullYear() &&
-      day.date.getMonth() === selectedDate.getMonth() &&
-      day.date.getDate() === selectedDate.getDate()
+  const completedWorkoutIds = useMemo(() => new Set<string>(), []);
+  const availableWorkoutDays = useMemo(
+    () =>
+      preview?.days.filter((day) => !completedWorkoutIds.has(day.id)) ?? [],
+    [completedWorkoutIds, preview?.days]
   );
+  const selectedDateKey = getDateKey(selectedDate);
+  const selectedWorkoutId = selectedWorkoutByDate[selectedDateKey];
   const workoutDay =
-    preview && selectedIndex >= 0 && selectedIndex < preview.days.length
-      ? preview.days[selectedIndex]
-      : null;
+    availableWorkoutDays.find((day) => day.id === selectedWorkoutId) ??
+    availableWorkoutDays[0] ??
+    null;
+
+  const handleWorkoutSelect = (workoutDayId: string) => {
+    setSelectedWorkoutByDate((currentSelections) => ({
+      ...currentSelections,
+      [selectedDateKey]: workoutDayId,
+    }));
+  };
+
+  const handleStartWorkout = async () => {
+    if (!workoutDay) {
+      return;
+    }
+
+    setIsStartingWorkout(true);
+    setStartWorkoutError(null);
+
+    try {
+      const { workoutSession } = await createWorkoutSession({
+        programDayId: workoutDay.id,
+        scheduledFor: selectedDate.toISOString(),
+      });
+
+      navigate(`/workout/${workoutSession._id}`);
+    } catch (startError) {
+      setStartWorkoutError(
+        startError instanceof Error
+          ? startError.message
+          : "We could not start this workout yet."
+      );
+    } finally {
+      setIsStartingWorkout(false);
+    }
+  };
 
   if (isLoading) {
     return <p className="text-muted">Loading dashboard...</p>;
@@ -104,7 +155,17 @@ const Dashboard = () => {
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
         />
-        <WorkoutCard date={selectedDate} workoutDay={workoutDay} />
+        <WorkoutCard
+          availableWorkoutDays={availableWorkoutDays}
+          date={selectedDate}
+          isStartingWorkout={isStartingWorkout}
+          onSelectWorkout={handleWorkoutSelect}
+          onStartWorkout={handleStartWorkout}
+          workoutDay={workoutDay}
+        />
+        {startWorkoutError ? (
+          <p className="text-muted">{startWorkoutError}</p>
+        ) : null}
       </section>
     </AppShell>
   );

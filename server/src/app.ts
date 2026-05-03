@@ -10,6 +10,7 @@ import { ZodError } from "zod";
 import { env } from "./config/env";
 import profileRoutes from "./routes/profileRoutes";
 import workoutPlanRoutes from "./routes/workoutPlanRoutes";
+import workoutSessionRoutes from "./routes/workoutSessionRoutes";
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 
 app.use("/api/profile", profileRoutes);
 app.use("/api/workout-plan", workoutPlanRoutes);
+app.use("/api/workout-sessions", workoutSessionRoutes);
 
 const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   if (error instanceof ZodError) {

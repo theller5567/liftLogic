@@ -1,10 +1,12 @@
 import clsx from "clsx";
-
 import styles from "../../styles/components/dashboard.module.scss";
+import { CalendarDays } from "lucide-react";
+
+export type WorkoutCompletionStatus = "not-started" | "started" | "completed";
 
 export type WeekDayOption = {
   date: Date;
-  hasWorkout: boolean;
+  workoutStatus: WorkoutCompletionStatus;
 };
 
 type WeekSelectorProps = {
@@ -23,21 +25,38 @@ const isSameDate = (left: Date, right: Date) =>
 const WeekSelector = ({ days, onSelectDate, selectedDate }: WeekSelectorProps) => (
   <section className={styles.weekPanel} aria-label="Schedule for this week">
     <div className={styles.sectionHeading}>
-      <h2>Schedule for this week</h2>
-      <span>calendar</span>
+      <div className="flex flex-column gap-1">
+      <h2>This Week</h2>
+      <span>4 of 7 days scheduled</span>
+      </div>
+      <div className="flex flex-center gap-2 text-secondary">
+        <p>View calendar</p>
+      <CalendarDays/>
+      </div>
     </div>
     <div className={styles.weekGrid}>
       {days.map((day) => {
         const isSelected = isSameDate(day.date, selectedDate);
+        const isToday = isSameDate(day.date, new Date());
+        const statusClass =
+          day.workoutStatus === "completed"
+            ? styles.workoutDotCompleted
+            : styles.workoutDotStarted;
 
         return (
           <button
             key={day.date.toISOString()}
-            className={clsx(styles.dayButton, isSelected && styles.dayButtonSelected)}
+            className={clsx(
+              styles.dayButton,
+              isSelected && styles.dayButtonSelected,
+              isToday && styles.dayButtonToday
+            )}
             type="button"
             onClick={() => onSelectDate(day.date)}
           >
-            {day.hasWorkout ? <span className={styles.workoutDot} /> : null}
+            {day.workoutStatus !== "not-started" ? (
+              <span className={clsx(styles.workoutDot, statusClass)} />
+            ) : null}
             <span>{dayFormatter.format(day.date)}</span>
             <strong>{day.date.getDate()}</strong>
           </button>

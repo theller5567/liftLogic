@@ -5,15 +5,12 @@
   grid-template-rows: minmax(0, 1fr) auto;
   overflow: hidden;
   border-radius: var(--br-24);
-  background:
-    linear-gradient(180deg, hsl(var(--clr-neutral-800-b)) 0 31%, hsl(350 55% 5%) 31% 100%);
-  box-shadow: 0 1.5rem 4rem hsl(var(--clr-neutral-900-b) / 0.35);
 }
 
 .appContent {
   min-height: 0;
   overflow-y: auto;
-  padding: 3.5rem 1.25rem 1.25rem;
+  padding: 1.5rem 1.25rem 1.25rem;
 }
 
 .bottomNavigation {
@@ -38,11 +35,12 @@
   svg {
     width: 2rem;
     height: 2rem;
+    stroke-width: 2px;
   }
 }
 
 .navItemActive {
-  color: hsl(var(--clr-primary-500-b));
+  color: hsl(var(--clr-secondary-500-b));
 }
 
 .avatar {
@@ -54,6 +52,8 @@
   border-radius: var(--br-full);
   background: hsl(var(--clr-secondary-700-b));
   color: hsl(var(--clr-neutral-0-b));
+  outline: 1px solid var(--clr-primary-500);
+  outline-offset: 3px;
   font-size: 0.85rem;
   font-weight: 900;
 

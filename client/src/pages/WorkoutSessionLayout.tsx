@@ -1,0 +1,119 @@
+import { useEffect, useState } from "react";
+import {
+  Navigate,
+  Outlet,
+  useNavigate,
+  useOutletContext,
+  useParams,
+} from "react-router-dom";
+
+import AppShell from "../components/app/AppShell";
+import Button from "../components/Button";
+import { getWorkoutSession, getWorkoutSessions } from "../services/api";
+import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
+import styles from "../styles/pages/workout.module.scss";
+
+type WorkoutSessionRouteContext = {
+  priorSessions: WorkoutSessionDto[];
+  session: WorkoutSessionDto;
+  setSession: (session: WorkoutSessionDto) => void;
+};
+
+const getStartOfWeek = (date: Date) => {
+  const start = new Date(date);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + diff);
+  start.setHours(0, 0, 0, 0);
+  return start;
+};
+
+export const useWorkoutSessionRouteContext = () =>
+  useOutletContext<WorkoutSessionRouteContext>();
+
+const WorkoutSessionLayout = () => {
+  const { sessionId } = useParams();
+  const navigate = useNavigate();
+  const [session, setSession] = useState<WorkoutSessionDto | null>(null);
+  const [priorSessions, setPriorSessions] = useState<WorkoutSessionDto[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadWorkout = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const { workoutSession } = await getWorkoutSession(sessionId);
+        const currentWeekStart = getStartOfWeek(
+          new Date(workoutSession.scheduledFor)
+        );
+        const { workoutSessions } = await getWorkoutSessions({
+          dateTo: currentWeekStart.toISOString(),
+          status: "completed",
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSession(workoutSession);
+        setPriorSessions(workoutSessions);
+      } catch (loadError) {
+        if (isMounted) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "We could not load this workout."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadWorkout();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [sessionId]);
+
+  if (!sessionId) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (isLoading) {
+    return <p className="text-muted">Loading workout...</p>;
+  }
+
+  if (error || !session) {
+    return (
+      <AppShell>
+        <section className={styles.workout}>
+          <p className="text-muted">
+            {error ?? "We could not load this workout."}
+          </p>
+          <Button label="Back to dashboard" onClick={() => navigate("/dashboard")} />
+        </section>
+      </AppShell>
+    );
+  }
+
+  return (
+    <AppShell>
+      <Outlet context={{ priorSessions, session, setSession }} />
+    </AppShell>
+  );
+};
+
+export default WorkoutSessionLayout;

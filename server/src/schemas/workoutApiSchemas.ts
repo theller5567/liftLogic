@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
+import type {
+  WorkoutBadgeId,
+  WorkoutExerciseLog,
+  WorkoutSetLog,
+} from "../../../shared/types/workoutSession.types";
 import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWorkoutPreview";
 
 const goalSchema = z.enum(["hypertrophy", "strength", "hybrid"]);
@@ -13,6 +18,15 @@ const equipmentAccessSchema = z.enum([
   "basic_equipment",
 ]);
 const weightUnitSchema = z.enum(["lb", "kg"]);
+const workoutBadgeIdSchema = z.enum([
+  "pr",
+  "missed_reps",
+  "form_issue",
+  "pain",
+  "felt_easy",
+  "felt_hard",
+  "substituted",
+]) satisfies z.ZodType<WorkoutBadgeId>;
 const confidenceSchema = z.enum(["high", "medium", "low"]);
 const familiaritySchema = z.enum(["never", "some", "often"]);
 
@@ -104,5 +118,78 @@ export const onboardingSubmissionSchema = z
 export const editedWorkoutPreviewSubmissionSchema = z
   .object({
     editedPreview: generatedWorkoutPreviewSchema,
+  })
+  .strict();
+
+const workoutSetLogSchema = z
+  .object({
+    setNumber: z.number().finite().int().min(1).max(50),
+    targetReps: z.string().min(1).max(80).optional(),
+    actualReps: z.number().finite().int().min(0).max(500).optional(),
+    weight: z.number().finite().nonnegative().optional(),
+    weightUnit: weightUnitSchema.optional(),
+    completed: z.boolean(),
+    rpe: z.number().finite().min(0).max(10).optional(),
+    rir: z.number().finite().min(0).max(20).optional(),
+    notes: z.string().min(1).max(500).optional(),
+  })
+  .strict() satisfies z.ZodType<WorkoutSetLog>;
+
+const prescriptionSnapshotSchema = prescriptionSchema.extend({
+  suggestedWeight: z.number().finite().nonnegative().optional(),
+  weightUnit: weightUnitSchema.optional(),
+});
+
+const workoutExerciseLogSchema = z
+  .object({
+    slotId: z.string().min(1).max(160),
+    plannedExerciseId: z.string().min(1).max(120),
+    plannedLabel: z.string().min(1).max(160),
+    exerciseId: z.string().min(1).max(120),
+    label: z.string().min(1).max(160),
+    wasSubstituted: z.boolean(),
+    prescriptionSnapshot: prescriptionSnapshotSchema,
+    sets: z.array(workoutSetLogSchema).max(50),
+    notes: z.string().min(1).max(1000).optional(),
+    badgeIds: z.array(workoutBadgeIdSchema).max(20).default([]),
+    completed: z.boolean(),
+  })
+  .strict() satisfies z.ZodType<WorkoutExerciseLog>;
+
+export const createWorkoutSessionSchema = z
+  .object({
+    programDayId: z.string().min(1).max(160),
+    scheduledFor: z.coerce.date(),
+    startedAt: z.coerce.date().optional(),
+  })
+  .strict();
+
+export const updateWorkoutSessionSchema = z
+  .object({
+    scheduledFor: z.coerce.date().optional(),
+    startedAt: z.coerce.date().optional(),
+    notes: z.string().min(1).max(2000).nullable().optional(),
+    badgeIds: z.array(workoutBadgeIdSchema).max(20).optional(),
+    durationSeconds: z.number().finite().int().nonnegative().optional(),
+    exerciseLogs: z.array(workoutExerciseLogSchema).min(1).max(40).optional(),
+    status: z.enum(["in_progress", "abandoned"]).optional(),
+  })
+  .strict();
+
+export const completeWorkoutSessionSchema = z
+  .object({
+    completedAt: z.coerce.date().optional(),
+    notes: z.string().min(1).max(2000).nullable().optional(),
+    badgeIds: z.array(workoutBadgeIdSchema).max(20).optional(),
+    durationSeconds: z.number().finite().int().nonnegative().optional(),
+    exerciseLogs: z.array(workoutExerciseLogSchema).min(1).max(40).optional(),
+  })
+  .strict();
+
+export const workoutSessionQuerySchema = z
+  .object({
+    dateFrom: z.coerce.date().optional(),
+    dateTo: z.coerce.date().optional(),
+    status: z.enum(["in_progress", "completed", "abandoned"]).optional(),
   })
   .strict();
