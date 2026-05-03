@@ -30,8 +30,9 @@ span.pill {
     }
     
     &.pill--inactive {
-        background-color: var(--clr-secondary-500);
-        color: var(--clr-neutral-0);
+        background-color: var(--clr-neutral-600);
+        color: var(--clr-neutral-100);
+        border-color: var(--clr-neutral-500);
     }
     &.pill--muted {
         background-color: var(--clr-neutral-600);
@@ -41,5 +42,10 @@ span.pill {
         background-color: var(--clr-primary-500);
         color: var(--clr-neutral-900);
         border-color: var(--clr-primary-500);
+    }
+    &.pill--dark {
+        background-color: var(--clr-neutral-900);
+        color: var(--clr-neutral-100);
+        border-color: var(--clr-neutral-600);
     }
 }

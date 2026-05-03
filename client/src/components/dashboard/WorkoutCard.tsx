@@ -1,5 +1,3 @@
-import { Link } from "react-router-dom";
-
 import Button from "../Button";
 import { Timer } from "lucide-react";
 import type { GeneratedWorkoutDayPreview } from "../../utils/generateWorkoutPreview";
@@ -8,7 +6,9 @@ import styles from "../../styles/components/dashboard.module.scss";
 type WorkoutCardProps = {
   availableWorkoutDays: GeneratedWorkoutDayPreview[];
   date: Date;
+  isStartingWorkout?: boolean;
   onSelectWorkout: (workoutDayId: string) => void;
+  onStartWorkout: () => void;
   workoutDay: GeneratedWorkoutDayPreview | null;
 };
 
@@ -20,7 +20,9 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 const WorkoutCard = ({
   availableWorkoutDays,
   date,
+  isStartingWorkout = false,
   onSelectWorkout,
+  onStartWorkout,
   workoutDay,
 }: WorkoutCardProps) => {
   const swapOptions = availableWorkoutDays.filter(
@@ -82,9 +84,15 @@ const WorkoutCard = ({
               </div>
             ) : null}
           </article>
-          <Link className={styles.startLink} to="/workout">
-            <Button label="Start Workout" size="large" tone="primary" />
-          </Link>
+          <div className={styles.startLink}>
+            <Button
+              disabled={isStartingWorkout}
+              label={isStartingWorkout ? "Starting..." : "Start Workout"}
+              size="large"
+              tone="primary"
+              onClick={onStartWorkout}
+            />
+          </div>
         </>
       ) : (
         <article className={styles.emptyWorkoutCard}>

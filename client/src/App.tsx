@@ -1,6 +1,6 @@
 
 import './App.css'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Navigate, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthProvider'
 import ProtectedRoute from './components/ProtectedRoute'
 import PublicOnlyRoute from './components/PublicOnlyRoute'
@@ -12,7 +12,9 @@ import Onboarding from './pages/Onboarding'
 import Settings from './pages/Settings'
 import Trends from './pages/Trends'
 import Workout from './pages/Workout'
+import WorkoutExercise from './pages/WorkoutExercise'
 import WorkoutReview from './pages/WorkoutReview'
+import WorkoutSessionLayout from './pages/WorkoutSessionLayout'
 import Login from './pages/auth/Login'
 import Logout from './pages/auth/Logout'
 import ResetPassword from './pages/auth/ResetPassword'
@@ -95,10 +97,21 @@ function App() {
               path="/workout"
               element={
                 <ProtectedRoute>
-                  <Workout />
+                  <Navigate to="/dashboard" replace />
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/workout/:sessionId"
+              element={
+                <ProtectedRoute>
+                  <WorkoutSessionLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Workout />} />
+              <Route path="exercise/:exerciseIndex" element={<WorkoutExercise />} />
+            </Route>
             <Route path="/design" Component={Design} />
           </Routes>
         </Router>

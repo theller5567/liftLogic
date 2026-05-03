@@ -1,6 +1,6 @@
 .dashboard {
   display: grid;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .dashboardHeader {
@@ -8,8 +8,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding-bottom: 1.35rem;
-  border-bottom: 2px solid hsl(var(--clr-neutral-100-b) / 0.25);
+  padding-bottom: 1rem;
+  border-bottom: 1px solid hsl(var(--clr-neutral-100-b) / 0.25);
 }
 
 .brand {

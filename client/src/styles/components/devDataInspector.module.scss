@@ -1,0 +1,75 @@
+.trigger {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid hsl(var(--clr-secondary-500-b) / 0.55);
+  border-radius: 999px;
+  background: hsl(var(--clr-neutral-900-b) / 0.45);
+  color: hsl(var(--clr-secondary-500-b));
+}
+
+.inspector {
+  display: grid;
+  gap: 0.85rem;
+  min-height: 100%;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.tab,
+.tabActive {
+  display: inline-grid;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.24);
+  border-radius: 0.45rem;
+  background: hsl(var(--clr-neutral-700-b));
+  color: hsl(var(--clr-neutral-0-b));
+  text-align: left;
+
+  span,
+  small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  small {
+    color: hsl(var(--clr-neutral-100-b) / 0.72);
+    font-size: 0.65rem;
+    font-weight: 700;
+  }
+}
+
+.tabActive {
+  border-color: hsl(var(--clr-primary-500-b));
+  color: hsl(var(--clr-primary-500-b));
+}
+
+.output {
+  min-height: 24rem;
+  max-height: 54dvh;
+  margin: 0;
+  overflow: auto;
+  padding: 0.75rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.2);
+  border-radius: 0.45rem;
+  background: hsl(var(--clr-neutral-900-b) / 0.7);
+  color: hsl(var(--clr-neutral-0-b));
+  font-size: 0.72rem;
+  line-height: 1.55;
+  white-space: pre;
+}

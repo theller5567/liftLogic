@@ -16,6 +16,7 @@ LiftLogic helps users create, review, and follow personalized strength training 
   - no plan: onboarding
   - plan not reviewed: workout review
   - reviewed plan: dashboard
+- Workout session API foundation for in-progress and completed workout logs.
 - Mongo-backed user profiles and workout plans.
 - API-disabled localStorage fallback for local development without the server.
 
@@ -56,6 +57,22 @@ Current plan fields include:
 - `createdAt`
 - `updatedAt`
 
+### `workoutSessions`
+
+Mongo collection for actual performed workout history. Sessions are separate from `WorkoutPlan` so the plan can evolve while completed logs remain historically accurate.
+
+Current session fields include:
+
+- `clientId`: ties the session to the profile/Firebase UID.
+- `workoutPlanId`: references the plan used when the session started.
+- `programId`, `programDayId`, `programDayLabel`
+- `scheduledFor`, `startedAt`, `completedAt`
+- `status`: `in_progress`, `completed`, or `abandoned`
+- `workoutSnapshot`: copy of the workout day and planned exercises at start time
+- `completionPercentage`, `completedExerciseCount`, `totalExerciseCount`
+- workout-level `notes`, `badgeIds`, `durationSeconds`
+- `exerciseLogs`: detailed performed exercise and set data
+
 ### Local Storage
 
 Local storage is used for API-disabled development and draft onboarding state. It should not be treated as canonical account data when the API is enabled.
@@ -83,6 +100,7 @@ Current local storage responsibilities:
 7. Onboarding submission creates or replaces the user's `WorkoutPlan`.
 8. Workout review marks `workoutReviewed` true.
 9. Dashboard reads the reviewed plan and derives the first plan-based UI from it.
+10. Workout session endpoints save in-progress and completed workout logs for future dashboard, calendar, and trends features.
 
 ## Dashboard Milestones
 
@@ -100,7 +118,7 @@ Current local storage responsibilities:
 - Workout logging:
   - active workout page
   - set, rep, weight, and completion logging
-  - save completed workout sessions
+  - connect the workout page UI to the workout session API
 - Calendar and workout history:
   - planned workout dates
   - completed-day indicators
@@ -118,26 +136,9 @@ Current local storage responsibilities:
 
 ## Suggested Future Data Models
 
-### Workout Sessions
-
-Stores completed or in-progress workout logs.
-
-Likely fields:
-
-- `clientId`
-- `workoutPlanId`
-- `programDayId`
-- `scheduledFor`
-- `startedAt`
-- `completedAt`
-- `status`
-- `exerciseLogs`
-
 ### Exercise Logs
 
-Nested inside a workout session or stored separately if querying becomes complex.
-
-Likely fields:
+Exercise logs are currently nested inside workout sessions. They capture:
 
 - `exerciseId`
 - `exerciseLabel`
@@ -186,4 +187,3 @@ npm --prefix server run build
 
 - Open a pull request into `main`.
 - Include a PR description covering what changed, why it changed, and how it was validated.
-

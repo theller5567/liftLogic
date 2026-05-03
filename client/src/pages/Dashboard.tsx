@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 import AppShell from "../components/app/AppShell";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import WeekSelector, { type WeekDayOption } from "../components/dashboard/WeekSelector";
 import WorkoutCard from "../components/dashboard/WorkoutCard";
+import { createWorkoutSession } from "../services/api";
 import { generateWorkoutPreview } from "../utils/generateWorkoutPreview";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import { useUserFlow } from "../utils/userFlow";
@@ -70,7 +71,10 @@ const resolveDashboardPreview = (
 
 const Dashboard = () => {
   const { destination, error, isLoading, profile, workoutPlan } = useUserFlow();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [startWorkoutError, setStartWorkoutError] = useState<string | null>(null);
+  const [isStartingWorkout, setIsStartingWorkout] = useState(false);
   const [selectedWorkoutByDate, setSelectedWorkoutByDate] =
     useState<SelectedWorkoutByDate>({});
   const preview = useMemo(
@@ -101,6 +105,32 @@ const Dashboard = () => {
     }));
   };
 
+  const handleStartWorkout = async () => {
+    if (!workoutDay) {
+      return;
+    }
+
+    setIsStartingWorkout(true);
+    setStartWorkoutError(null);
+
+    try {
+      const { workoutSession } = await createWorkoutSession({
+        programDayId: workoutDay.id,
+        scheduledFor: selectedDate.toISOString(),
+      });
+
+      navigate(`/workout/${workoutSession._id}`);
+    } catch (startError) {
+      setStartWorkoutError(
+        startError instanceof Error
+          ? startError.message
+          : "We could not start this workout yet."
+      );
+    } finally {
+      setIsStartingWorkout(false);
+    }
+  };
+
   if (isLoading) {
     return <p className="text-muted">Loading dashboard...</p>;
   }
@@ -128,9 +158,14 @@ const Dashboard = () => {
         <WorkoutCard
           availableWorkoutDays={availableWorkoutDays}
           date={selectedDate}
+          isStartingWorkout={isStartingWorkout}
           onSelectWorkout={handleWorkoutSelect}
+          onStartWorkout={handleStartWorkout}
           workoutDay={workoutDay}
         />
+        {startWorkoutError ? (
+          <p className="text-muted">{startWorkoutError}</p>
+        ) : null}
       </section>
     </AppShell>
   );

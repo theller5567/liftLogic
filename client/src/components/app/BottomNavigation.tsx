@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { CalendarDays, Dumbbell, SlidersHorizontal, TrendingUp, Home } from "lucide-react";
+import { CalendarDays, Home, SlidersHorizontal, TrendingUp } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import styles from "../../styles/components/appShell.module.scss";
