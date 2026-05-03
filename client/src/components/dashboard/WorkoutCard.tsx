@@ -4,9 +4,12 @@ import type { GeneratedWorkoutDayPreview } from "../../utils/generateWorkoutPrev
 import styles from "../../styles/components/dashboard.module.scss";
 
 type WorkoutCardProps = {
+  actionLabel?: string;
   availableWorkoutDays: GeneratedWorkoutDayPreview[];
+  completionPercentage?: number;
   date: Date;
   isStartingWorkout?: boolean;
+  isWorkoutActive?: boolean;
   onSelectWorkout: (workoutDayId: string) => void;
   onStartWorkout: () => void;
   workoutDay: GeneratedWorkoutDayPreview | null;
@@ -18,9 +21,12 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 const WorkoutCard = ({
+  actionLabel = "Start Workout",
   availableWorkoutDays,
+  completionPercentage = 0,
   date,
   isStartingWorkout = false,
+  isWorkoutActive = false,
   onSelectWorkout,
   onStartWorkout,
   workoutDay,
@@ -36,7 +42,7 @@ const WorkoutCard = ({
           <h2>Today's Workout</h2>
           <span>{dateFormatter.format(date)}</span>
         </div>
-        <p>0% Completed</p>
+        <p>{completionPercentage}% Completed</p>
       </div>
 
       {workoutDay ? (
@@ -58,9 +64,11 @@ const WorkoutCard = ({
             <div className={styles.dataCta}>
               <div className={styles.lastSession}>
               <Timer className="text-secondary" />
-                <div>
+              <div>
               <p className={styles.lastSessionLabel}>Last Session:</p>
-              <p className={styles.emptyMetric}>No sessions logged yet</p>
+              <p className={styles.emptyMetric}>
+                {isWorkoutActive ? "Workout in progress" : "No sessions logged yet"}
+              </p>
               </div>
               </div>
               <div className={styles.progress}>
@@ -87,7 +95,7 @@ const WorkoutCard = ({
           <div className={styles.startLink}>
             <Button
               disabled={isStartingWorkout}
-              label={isStartingWorkout ? "Starting..." : "Start Workout"}
+              label={isStartingWorkout ? "Opening..." : actionLabel}
               size="large"
               tone="primary"
               onClick={onStartWorkout}

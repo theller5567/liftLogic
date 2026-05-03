@@ -1,4 +1,6 @@
 import { ArrowLeft, Check, Minus, Plus } from "lucide-react";
+import ActiveSet from '../assets/icons/activeSet.svg?react';
+import clsx from "clsx";
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import Pill from "../components/Pill";
@@ -375,7 +377,7 @@ const WorkoutExercise = () => {
                 ))}
               </div>
             ) : (
-              <Pill label="No previous completed sets" size="small" style="darkMute" tone="dark" />
+              <Pill label="No previous completed sets" size="small" tone="dark" />
             )}
           </div>
           <div className={styles.currentPerformance}>
@@ -413,11 +415,11 @@ const WorkoutExercise = () => {
             return (
               <section
                 key={setLog.setNumber}
-                className={getSetClassName(setState)}
+                className={clsx(styles.setPanel, getSetClassName(setState))}
               >
                 <header>
                   <span className={styles.setStatusIcon}>
-                    {setState === "completed" ? <Check size={18} /> : null}
+                    {setState === "completed" ? <Check size={18} /> : isActiveSet ? <ActiveSet /> : null}
                   </span>
                   <h2>Set {setLog.setNumber}</h2>
                   <small>{setLog.targetReps}</small>

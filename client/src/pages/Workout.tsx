@@ -8,6 +8,8 @@ import { getMostRecentPriorWeekExerciseLog } from "../utils/workoutAdvisory";
 import { useWorkoutSessionRouteContext } from "./WorkoutSessionLayout";
 import styles from "../styles/pages/workout.module.scss";
 
+type ExerciseUiState = "active" | "completed" | "inactive";
+
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   month: "long",
@@ -33,11 +35,41 @@ const getPreviousLogSummary = (
     .join(" | ")}`;
 };
 
+const getActiveExerciseIndex = (
+  exerciseLogs: ReturnType<typeof useWorkoutSessionRouteContext>["session"]["exerciseLogs"]
+) => exerciseLogs.findIndex((exerciseLog) => !exerciseLog.completed);
+
+const getExerciseUiState = (
+  isCompleted: boolean,
+  exerciseIndex: number,
+  activeExerciseIndex: number
+): ExerciseUiState => {
+  if (isCompleted) {
+    return "completed";
+  }
+
+  return exerciseIndex === activeExerciseIndex ? "active" : "inactive";
+};
+
+const getExerciseClassName = (exerciseState: ExerciseUiState) => {
+  if (exerciseState === "completed") {
+    return styles.exerciseItemComplete;
+  }
+
+  if (exerciseState === "active") {
+    return styles.exerciseItemActive;
+  }
+
+  return styles.exerciseItemInactive;
+};
+
 const Workout = () => {
   const navigate = useNavigate();
   const { priorSessions, session, setSession } = useWorkoutSessionRouteContext();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const activeExerciseIndex = getActiveExerciseIndex(session.exerciseLogs);
+  const activeExercise = session.exerciseLogs[activeExerciseIndex] ?? null;
 
   const handleCompleteWorkout = async () => {
     setIsSaving(true);
@@ -83,10 +115,14 @@ const Workout = () => {
       <article className={styles.exerciseList}>
         <p>
           Active Exercise:{" "}
-          {session.exerciseLogs.find((exerciseLog) => !exerciseLog.completed)
-            ?.label ?? "All exercises complete"}
+          {activeExercise?.label ?? "All exercises complete"}
         </p>
         {session.exerciseLogs.map((exerciseLog, index) => {
+          const exerciseState = getExerciseUiState(
+            exerciseLog.completed,
+            index,
+            activeExerciseIndex
+          );
           const previousExerciseLog = getMostRecentPriorWeekExerciseLog(
             exerciseLog,
             session,
@@ -97,9 +133,7 @@ const Workout = () => {
             <button
               key={exerciseLog.slotId}
               type="button"
-              className={
-                exerciseLog.completed ? styles.exerciseItemComplete : styles.exerciseItem
-              }
+              className={getExerciseClassName(exerciseState)}
               onClick={() => navigate(`/workout/${session._id}/exercise/${index}`)}
             >
               <span>
@@ -107,8 +141,10 @@ const Workout = () => {
               </span>
               <strong>{exerciseLog.label}</strong>
               <small>
-                {exerciseLog.prescriptionSnapshot.sets} x{" "}
-                {exerciseLog.prescriptionSnapshot.reps}
+                {exerciseState === "active" ? "Active" : null}
+                {exerciseState !== "active"
+                  ? `${exerciseLog.prescriptionSnapshot.sets} x ${exerciseLog.prescriptionSnapshot.reps}`
+                  : null}
               </small>
               <em>{getPreviousLogSummary(previousExerciseLog)}</em>
             </button>

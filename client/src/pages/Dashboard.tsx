@@ -1,11 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import AppShell from "../components/app/AppShell";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import WeekSelector, { type WeekDayOption } from "../components/dashboard/WeekSelector";
 import WorkoutCard from "../components/dashboard/WorkoutCard";
-import { createWorkoutSession } from "../services/api";
+import {
+  createWorkoutSession,
+  getWorkoutSessions,
+} from "../services/api";
+import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
 import { generateWorkoutPreview } from "../utils/generateWorkoutPreview";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import { useUserFlow } from "../utils/userFlow";
@@ -34,7 +38,44 @@ const getDateKey = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const getWeekDays = (date: Date): WeekDayOption[] => {
+const getEndOfWeek = (date: Date) => {
+  const end = getStartOfWeek(date);
+  end.setDate(end.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return end;
+};
+
+const isSameDate = (left: Date, right: Date) =>
+  left.getFullYear() === right.getFullYear() &&
+  left.getMonth() === right.getMonth() &&
+  left.getDate() === right.getDate();
+
+const getSessionDate = (session: WorkoutSessionDto) =>
+  new Date(session.scheduledFor);
+
+const getDayWorkoutStatus = (
+  date: Date,
+  workoutSessions: WorkoutSessionDto[]
+): WeekDayOption["workoutStatus"] => {
+  const sessionsForDate = workoutSessions.filter((session) =>
+    isSameDate(getSessionDate(session), date)
+  );
+
+  if (sessionsForDate.some((session) => session.status === "completed")) {
+    return "completed";
+  }
+
+  if (sessionsForDate.some((session) => session.status === "in_progress")) {
+    return "started";
+  }
+
+  return "not-started";
+};
+
+const getWeekDays = (
+  date: Date,
+  workoutSessions: WorkoutSessionDto[]
+): WeekDayOption[] => {
   const start = getStartOfWeek(date);
 
   return Array.from({ length: 7 }, (_, index) => {
@@ -43,10 +84,28 @@ const getWeekDays = (date: Date): WeekDayOption[] => {
 
     return {
       date: nextDate,
-      workoutStatus: "not-started",
+      workoutStatus: getDayWorkoutStatus(nextDate, workoutSessions),
     };
   });
 };
+
+const findWorkoutSessionForDate = (
+  workoutSessions: WorkoutSessionDto[],
+  date: Date,
+  programDayId?: string,
+  status?: WorkoutSessionDto["status"]
+) =>
+  workoutSessions
+    .filter(
+      (session) =>
+        (!programDayId || session.programDayId === programDayId) &&
+        (!status || session.status === status) &&
+        isSameDate(getSessionDate(session), date)
+    )
+    .sort(
+      (left, right) =>
+        new Date(right.startedAt).getTime() - new Date(left.startedAt).getTime()
+    )[0] ?? null;
 
 const resolveDashboardPreview = (
   workoutPlan: ReturnType<typeof useUserFlow>["workoutPlan"]
@@ -74,6 +133,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [startWorkoutError, setStartWorkoutError] = useState<string | null>(null);
+  const [workoutSessionsError, setWorkoutSessionsError] = useState<string | null>(null);
+  const [weekWorkoutSessions, setWeekWorkoutSessions] = useState<WorkoutSessionDto[]>([]);
   const [isStartingWorkout, setIsStartingWorkout] = useState(false);
   const [selectedWorkoutByDate, setSelectedWorkoutByDate] =
     useState<SelectedWorkoutByDate>({});
@@ -82,10 +143,18 @@ const Dashboard = () => {
     [workoutPlan]
   );
   const weekDays = useMemo(
-    () => getWeekDays(selectedDate),
-    [selectedDate]
+    () => getWeekDays(selectedDate, weekWorkoutSessions),
+    [selectedDate, weekWorkoutSessions]
   );
-  const completedWorkoutIds = useMemo(() => new Set<string>(), []);
+  const completedWorkoutIds = useMemo(
+    () =>
+      new Set(
+        weekWorkoutSessions
+          .filter((session) => session.status === "completed")
+          .map((session) => session.programDayId)
+      ),
+    [weekWorkoutSessions]
+  );
   const availableWorkoutDays = useMemo(
     () =>
       preview?.days.filter((day) => !completedWorkoutIds.has(day.id)) ?? [],
@@ -93,10 +162,75 @@ const Dashboard = () => {
   );
   const selectedDateKey = getDateKey(selectedDate);
   const selectedWorkoutId = selectedWorkoutByDate[selectedDateKey];
+  const activeSessionForSelectedDate = findWorkoutSessionForDate(
+    weekWorkoutSessions,
+    selectedDate,
+    undefined,
+    "in_progress"
+  );
   const workoutDay =
     availableWorkoutDays.find((day) => day.id === selectedWorkoutId) ??
+    availableWorkoutDays.find(
+      (day) => day.id === activeSessionForSelectedDate?.programDayId
+    ) ??
     availableWorkoutDays[0] ??
     null;
+  const activeWorkoutSession = workoutDay
+    ? findWorkoutSessionForDate(
+        weekWorkoutSessions,
+        selectedDate,
+        workoutDay.id,
+        "in_progress"
+      )
+    : null;
+  const completedWorkoutSession = workoutDay
+    ? findWorkoutSessionForDate(
+        weekWorkoutSessions,
+        selectedDate,
+        workoutDay.id,
+        "completed"
+      )
+    : null;
+  const currentWorkoutSession = activeWorkoutSession ?? completedWorkoutSession;
+
+  useEffect(() => {
+    if (isLoading || error || (destination && destination !== "/dashboard")) {
+      return;
+    }
+
+    let isMounted = true;
+    const startOfWeek = getStartOfWeek(selectedDate);
+    const endOfWeek = getEndOfWeek(selectedDate);
+
+    const loadWeekWorkoutSessions = async () => {
+      setWorkoutSessionsError(null);
+
+      try {
+        const { workoutSessions } = await getWorkoutSessions({
+          dateFrom: startOfWeek.toISOString(),
+          dateTo: endOfWeek.toISOString(),
+        });
+
+        if (isMounted) {
+          setWeekWorkoutSessions(workoutSessions);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setWorkoutSessionsError(
+            loadError instanceof Error
+              ? loadError.message
+              : "We could not load workout sessions yet."
+          );
+        }
+      }
+    };
+
+    void loadWeekWorkoutSessions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [destination, error, isLoading, selectedDate]);
 
   const handleWorkoutSelect = (workoutDayId: string) => {
     setSelectedWorkoutByDate((currentSelections) => ({
@@ -114,11 +248,20 @@ const Dashboard = () => {
     setStartWorkoutError(null);
 
     try {
+      if (activeWorkoutSession) {
+        navigate(`/workout/${activeWorkoutSession._id}`);
+        return;
+      }
+
       const { workoutSession } = await createWorkoutSession({
         programDayId: workoutDay.id,
         scheduledFor: selectedDate.toISOString(),
       });
 
+      setWeekWorkoutSessions((currentSessions) => [
+        ...currentSessions,
+        workoutSession,
+      ]);
       navigate(`/workout/${workoutSession._id}`);
     } catch (startError) {
       setStartWorkoutError(
@@ -156,13 +299,19 @@ const Dashboard = () => {
           onSelectDate={setSelectedDate}
         />
         <WorkoutCard
+          actionLabel={activeWorkoutSession ? "Resume Workout" : "Start Workout"}
           availableWorkoutDays={availableWorkoutDays}
+          completionPercentage={currentWorkoutSession?.completionPercentage ?? 0}
           date={selectedDate}
           isStartingWorkout={isStartingWorkout}
+          isWorkoutActive={Boolean(activeWorkoutSession)}
           onSelectWorkout={handleWorkoutSelect}
           onStartWorkout={handleStartWorkout}
           workoutDay={workoutDay}
         />
+        {workoutSessionsError ? (
+          <p className="text-muted">{workoutSessionsError}</p>
+        ) : null}
         {startWorkoutError ? (
           <p className="text-muted">{startWorkoutError}</p>
         ) : null}
