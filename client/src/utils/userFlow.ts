@@ -42,44 +42,21 @@ export const getLocalUserFlowDestination = (): UserFlowDestination => {
 };
 
 export const useUserFlow = (enabled = true): UserFlowState => {
+  const apiEnabled = isApiEnabled();
   const [state, setState] = useState<UserFlowState>({
     destination: null,
     error: null,
-    isLoading: enabled,
+    isLoading: enabled && apiEnabled,
     profile: null,
     workoutPlan: null,
   });
 
   useEffect(() => {
-    if (!enabled) {
-      setState({
-        destination: null,
-        error: null,
-        isLoading: false,
-        profile: null,
-        workoutPlan: null,
-      });
-      return;
-    }
-
-    if (!isApiEnabled()) {
-      setState({
-        destination: getLocalUserFlowDestination(),
-        error: null,
-        isLoading: false,
-        profile: null,
-        workoutPlan: null,
-      });
+    if (!enabled || !apiEnabled) {
       return;
     }
 
     let isCurrent = true;
-
-    setState((currentState) => ({
-      ...currentState,
-      error: null,
-      isLoading: true,
-    }));
 
     getCurrentProfile()
       .then(({ profile, workoutPlan }) => {
@@ -112,7 +89,27 @@ export const useUserFlow = (enabled = true): UserFlowState => {
     return () => {
       isCurrent = false;
     };
-  }, [enabled]);
+  }, [apiEnabled, enabled]);
+
+  if (!enabled) {
+    return {
+      destination: null,
+      error: null,
+      isLoading: false,
+      profile: null,
+      workoutPlan: null,
+    };
+  }
+
+  if (!apiEnabled) {
+    return {
+      destination: getLocalUserFlowDestination(),
+      error: null,
+      isLoading: false,
+      profile: null,
+      workoutPlan: null,
+    };
+  }
 
   return state;
 };

@@ -12,22 +12,45 @@ import {
   type User,
 } from "firebase/auth";
 
-import { AuthContext, type AuthContextValue } from "./authContext";
+import { AuthContext, type AuthContextValue, type AuthStatus } from "./authContext";
 import {
   firebaseAuth,
   googleAuthProvider,
   isFirebaseConfigured,
 } from "../services/firebase";
-import { setAuthTokenProvider } from "../services/api";
+import { setAuthExpiredHandler, setAuthTokenProvider } from "../services/api";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(() => Boolean(firebaseAuth));
+  const [authError, setAuthError] = useState<Error | null>(null);
+  const [status, setStatus] = useState<AuthStatus>(() =>
+    firebaseAuth ? "loading" : "signed_out"
+  );
   const isConfigured = isFirebaseConfigured();
+
+  const clearAuthError = useCallback(() => {
+    setAuthError(null);
+    setStatus((currentStatus) =>
+      currentStatus === "auth_error" ? "signed_out" : currentStatus
+    );
+  }, []);
+
+  const signOut = useCallback(async () => {
+    if (!firebaseAuth) {
+      setUser(null);
+      setAuthTokenProvider(null);
+      setStatus("signed_out");
+      return;
+    }
+
+    await firebaseSignOut(firebaseAuth);
+  }, []);
 
   useEffect(() => {
     if (!firebaseAuth) {
       setAuthTokenProvider(null);
+      setAuthExpiredHandler(null);
       return;
     }
 
@@ -35,36 +58,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(nextUser);
       setAuthTokenProvider(nextUser ? () => nextUser.getIdToken() : null);
       setIsLoading(false);
+      setStatus(nextUser ? "authenticated" : "signed_out");
     });
 
-    return unsubscribe;
-  }, []);
+    setAuthExpiredHandler(async (error) => {
+      setAuthError(error);
+      setStatus("auth_error");
+      setAuthTokenProvider(null);
+      await signOut();
+    });
+
+    return () => {
+      unsubscribe();
+      setAuthExpiredHandler(null);
+    };
+  }, [signOut]);
 
   const signInWithGoogle = useCallback(async () => {
     if (!firebaseAuth) {
       throw new Error("Firebase is not configured.");
     }
 
+    clearAuthError();
     await signInWithPopup(firebaseAuth, googleAuthProvider);
-  }, []);
-
-  const signOut = useCallback(async () => {
-    if (!firebaseAuth) {
-      return;
-    }
-
-    await firebaseSignOut(firebaseAuth);
-  }, []);
+  }, [clearAuthError]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
+      authError,
+      clearAuthError,
       isLoading,
       isConfigured,
       signInWithGoogle,
       signOut,
+      status,
     }),
-    [isConfigured, isLoading, signInWithGoogle, signOut, user]
+    [
+      authError,
+      clearAuthError,
+      isConfigured,
+      isLoading,
+      signInWithGoogle,
+      signOut,
+      status,
+      user,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

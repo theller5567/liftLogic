@@ -1,16 +1,32 @@
 import { useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../context/useAuth";
 
 const Logout = () => {
-  const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const { clearAuthError, signOut } = useAuth();
 
   useEffect(() => {
-    void signOut();
-  }, [signOut]);
+    let isMounted = true;
 
-  return <Navigate to="/" replace />;
+    const completeSignOut = async () => {
+      clearAuthError();
+      await signOut();
+
+      if (isMounted) {
+        navigate("/", { replace: true });
+      }
+    };
+
+    void completeSignOut();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [clearAuthError, navigate, signOut]);
+
+  return <p className="text-muted">Signing out...</p>;
 };
 
 export default Logout;

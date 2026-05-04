@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import { completeWorkoutSession } from "../services/api";
 import { getMostRecentPriorWeekExerciseLog } from "../utils/workoutAdvisory";
-import { useWorkoutSessionRouteContext } from "./WorkoutSessionLayout";
+import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
 import styles from "../styles/pages/workout.module.scss";
 
 type ExerciseUiState = "active" | "completed" | "inactive";

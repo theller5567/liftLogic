@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "../context/useAuth";
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { isLoading, user } = useAuth();
+  const { authError, isLoading, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -12,7 +12,18 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{
+          from: location.pathname,
+          message: authError
+            ? "Your session expired. Please sign in again."
+            : undefined,
+        }}
+      />
+    );
   }
 
   return children;

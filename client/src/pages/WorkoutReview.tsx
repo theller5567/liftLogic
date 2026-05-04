@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import clsx from "clsx";
 import { Navigate, useNavigate } from "react-router-dom";
 
@@ -32,16 +32,10 @@ const WorkoutReview = () => {
   } = useUserFlow();
   const submittedAnswers =
     remoteWorkoutPlan?.onboardingAnswers ?? readSubmittedAnswers();
-  const [editedPreview, setEditedPreview] =
+  const [localEditedPreview, setLocalEditedPreview] =
     useState<GeneratedWorkoutPreview | null>(() => readEditedWorkoutPreview());
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [showEditWarning, setShowEditWarning] = useState(false);
-
-  useEffect(() => {
-    if (isApiEnabled()) {
-      setEditedPreview(remoteWorkoutPlan?.editedPreview ?? null);
-    }
-  }, [remoteWorkoutPlan]);
 
   const suggestedPreview = useMemo(
     () =>
@@ -50,8 +44,12 @@ const WorkoutReview = () => {
     [remoteWorkoutPlan?.suggestedPreview, submittedAnswers]
   );
   const preview =
-    suggestedPreview && editedPreview?.programId === suggestedPreview.programId
-      ? editedPreview
+    suggestedPreview &&
+    (isApiEnabled() ? remoteWorkoutPlan?.editedPreview : localEditedPreview)
+      ?.programId === suggestedPreview.programId
+      ? isApiEnabled()
+        ? remoteWorkoutPlan?.editedPreview
+        : localEditedPreview
       : suggestedPreview;
   const editedMessages =
     suggestedPreview && preview
@@ -77,7 +75,7 @@ const WorkoutReview = () => {
 
   const handlePreviewChange = async (nextPreview: GeneratedWorkoutPreview) => {
     setReviewError(null);
-    setEditedPreview(nextPreview);
+    setLocalEditedPreview(nextPreview);
     writeEditedWorkoutPreview(nextPreview);
     writeWorkoutReviewed(false);
 

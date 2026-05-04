@@ -10,8 +10,9 @@ const CLIENT_ID_KEY = "liftlogic:client-id";
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)
   ?.replace(/\/$/, "");
 let authTokenProvider: (() => Promise<string>) | null = null;
+let authExpiredHandler: ((error: ApiError) => void | Promise<void>) | null = null;
 
-class ApiError extends Error {
+export class ApiError extends Error {
   code?: string;
   status: number;
 
@@ -22,6 +23,18 @@ class ApiError extends Error {
     this.status = status;
   }
 }
+
+export const AUTH_EXPIRED_CODES = [
+  "INVALID_FIREBASE_TOKEN",
+  "TOKEN_REFRESH_FAILED",
+] as const;
+
+export const isAuthSessionExpiredError = (error: unknown) =>
+  error instanceof ApiError &&
+  error.status === 401 &&
+  AUTH_EXPIRED_CODES.includes(
+    error.code as (typeof AUTH_EXPIRED_CODES)[number]
+  );
 
 export type WorkoutPlanDto = {
   _id: string;
@@ -54,6 +67,20 @@ export const setAuthTokenProvider = (
   provider: (() => Promise<string>) | null
 ) => {
   authTokenProvider = provider;
+};
+
+export const setAuthExpiredHandler = (
+  handler: ((error: ApiError) => void | Promise<void>) | null
+) => {
+  authExpiredHandler = handler;
+};
+
+const notifyAuthExpired = (error: ApiError) => {
+  if (!isAuthSessionExpiredError(error)) {
+    return;
+  }
+
+  void authExpiredHandler?.(error);
 };
 
 const createClientId = () => {
@@ -95,8 +122,25 @@ async function apiRequest<TResponse>(
     },
   });
 
-  const authToken = authTokenProvider ? await authTokenProvider() : null;
-  let response = await makeRequest(authToken);
+  let authToken: string | null = null;
+
+  if (authTokenProvider) {
+    try {
+      authToken = await authTokenProvider();
+    } catch (tokenError) {
+      const apiError = new ApiError(
+        tokenError instanceof Error
+          ? tokenError.message
+          : "Could not refresh your auth session.",
+        401,
+        "TOKEN_REFRESH_FAILED"
+      );
+      notifyAuthExpired(apiError);
+      throw apiError;
+    }
+  }
+
+  const response = await makeRequest(authToken);
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
@@ -106,6 +150,7 @@ async function apiRequest<TResponse>(
       errorBody?.code
     );
 
+    notifyAuthExpired(apiError);
     throw apiError;
   }
 

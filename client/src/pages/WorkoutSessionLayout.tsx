@@ -3,7 +3,6 @@ import {
   Navigate,
   Outlet,
   useNavigate,
-  useOutletContext,
   useParams,
 } from "react-router-dom";
 
@@ -13,12 +12,6 @@ import { getWorkoutSession, getWorkoutSessions } from "../services/api";
 import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
 import styles from "../styles/pages/workout.module.scss";
 
-type WorkoutSessionRouteContext = {
-  priorSessions: WorkoutSessionDto[];
-  session: WorkoutSessionDto;
-  setSession: (session: WorkoutSessionDto) => void;
-};
-
 const getStartOfWeek = (date: Date) => {
   const start = new Date(date);
   const day = start.getDay();
@@ -27,9 +20,6 @@ const getStartOfWeek = (date: Date) => {
   start.setHours(0, 0, 0, 0);
   return start;
 };
-
-export const useWorkoutSessionRouteContext = () =>
-  useOutletContext<WorkoutSessionRouteContext>();
 
 const WorkoutSessionLayout = () => {
   const { sessionId } = useParams();

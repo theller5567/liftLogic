@@ -18,7 +18,7 @@ import {
   getProgressionTargetReps,
   shouldShowWeightIncreaseAdvisory,
 } from "../utils/workoutAdvisory";
-import { useWorkoutSessionRouteContext } from "./WorkoutSessionLayout";
+import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
 import styles from "../styles/pages/exercisePage.module.scss";
 
 type AdvisoryAttempt = {

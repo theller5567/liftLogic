@@ -1,15 +1,19 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import Button from "../../components/Button";
 import { useAuth } from "../../context/useAuth";
 import styles from "../../styles/pages/auth.module.scss";
 
 const Login = () => {
-  const { isConfigured, isLoading, signInWithGoogle } = useAuth();
+  const location = useLocation();
+  const { clearAuthError, isConfigured, isLoading, signInWithGoogle } = useAuth();
+  const locationState = location.state as { message?: string } | null;
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
     setError(null);
+    clearAuthError();
 
     try {
       await signInWithGoogle();
@@ -40,6 +44,9 @@ const Login = () => {
             onClick={handleGoogleSignIn}
             disabled={isLoading}
           />
+          {locationState?.message ? (
+            <p className={styles.authHint}>{locationState.message}</p>
+          ) : null}
           {error ? <p className={styles.error}>{error}</p> : null}
         </div>
       </div>
