@@ -185,6 +185,11 @@ const WorkoutExercise = () => {
       },
     },
   ];
+  const showDevDataInspector = import.meta.env.DEV;
+
+  if (session.status === "completed") {
+    return <Navigate to={`/workout/${session._id}/summary`} replace />;
+  }
 
   const persistExerciseLogs = async (
     exerciseLogs: WorkoutExerciseLog[]
@@ -418,10 +423,12 @@ const WorkoutExercise = () => {
           <p>
             Exercise {activeExerciseIndex + 1} / {session.exerciseLogs.length}
           </p>
-          <DevDataInspector
-            title="Workout exercise data"
-            items={devDataItems}
-          />
+          {showDevDataInspector ? (
+            <DevDataInspector
+              title="Workout exercise data"
+              items={devDataItems}
+            />
+          ) : null}
         </header>
         <div className={styles.exerciseMeta}>
           <div className={styles.exerciseTitle}>

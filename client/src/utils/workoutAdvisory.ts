@@ -3,6 +3,7 @@ import type {
   WorkoutSessionDto,
   WorkoutSetLog,
 } from "../../../shared/types/workoutSession.types";
+import { getStartOfWeek } from "./workoutSessionDates";
 
 type WeightIncreaseAdvisoryInput = {
   exerciseLog: WorkoutExerciseLog;
@@ -74,15 +75,6 @@ const sameExercise = (
   exerciseLog: WorkoutExerciseLog,
   candidateLog: WorkoutExerciseLog
 ) => getExerciseHistoryKey(exerciseLog) === getExerciseHistoryKey(candidateLog);
-
-const getStartOfWeek = (date: Date) => {
-  const start = new Date(date);
-  const day = start.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  start.setDate(start.getDate() + diff);
-  start.setHours(0, 0, 0, 0);
-  return start;
-};
 
 export const getMostRecentPriorWeekExerciseLog = (
   exerciseLog: WorkoutExerciseLog,

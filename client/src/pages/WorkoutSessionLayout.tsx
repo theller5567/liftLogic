@@ -10,16 +10,8 @@ import AppShell from "../components/app/AppShell";
 import Button from "../components/Button";
 import { getWorkoutSession, getWorkoutSessions } from "../services/api";
 import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
+import { getStartOfWeek } from "../utils/workoutSessionDates";
 import styles from "../styles/pages/workout.module.scss";
-
-const getStartOfWeek = (date: Date) => {
-  const start = new Date(date);
-  const day = start.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  start.setDate(start.getDate() + diff);
-  start.setHours(0, 0, 0, 0);
-  return start;
-};
 
 const WorkoutSessionLayout = () => {
   const { sessionId } = useParams();

@@ -100,15 +100,9 @@ const WorkoutSummary = () => {
           tone="primary"
           onClick={() => navigate("/dashboard")}
         />
-        <Button
-          label="View workout"
-          size="large"
-          tone="black"
-          onClick={() => navigate(`/workout/${session._id}`)}
-        />
       </div>
     </section>
   );
 };
 
-export default WorkoutSummary
+export default WorkoutSummary;

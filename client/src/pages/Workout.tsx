@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 import Button from "../components/Button";
 import Barbell from "../assets/icons/021-barbell.svg?react";
@@ -84,12 +84,11 @@ const Workout = () => {
   const isWorkoutCompleted =
     session.status === "completed" || allExercisesCompleted;
 
-  const handleCompleteWorkout = async () => {
-    if (session.status === "completed") {
-      navigate(`/workout/${session._id}/summary`);
-      return;
-    }
+  if (session.status === "completed") {
+    return <Navigate to={`/workout/${session._id}/summary`} replace />;
+  }
 
+  const handleCompleteWorkout = async () => {
     if (!allExercisesCompleted) {
       const nextExerciseIndex = activeExerciseIndex >= 0 ? activeExerciseIndex : 0;
       navigate(`/workout/${session._id}/exercise/${nextExerciseIndex}`);
@@ -185,11 +184,7 @@ const Workout = () => {
         <Button
           disabled={isSaving}
           label={
-            session.status === "completed"
-              ? "View workout summary"
-              : isWorkoutCompleted
-                ? "Save and view summary"
-                : "Continue workout"
+            isWorkoutCompleted ? "Save and view summary" : "Continue workout"
           }
           size="large"
           tone={isWorkoutCompleted ? "primary" : "black"}

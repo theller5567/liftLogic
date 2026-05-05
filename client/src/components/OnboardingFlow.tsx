@@ -82,8 +82,6 @@ const isStepVisible = (values: OnboardingAnswers, step: OnboardingStep) => {
   return matchesCondition(values, step.showIf as ShowIfCondition | undefined);
 };
 
-const DEBUG_ONBOARDING = false;
-
 const OnboardingFlow = ({
   initialAnswers,
   initialStepIndex = 0,
@@ -164,34 +162,11 @@ const OnboardingFlow = ({
     onStepIndexChange?.(activeStepIndex);
   }, [activeStepIndex, onStepIndexChange]);
 
-  useEffect(() => {
-    if (!DEBUG_ONBOARDING) {
-      return;
-    }
-
-    console.groupCollapsed("[OnboardingFlow] Visible steps");
-    console.log("currentStepIndex:", activeStepIndex);
-    console.log("currentStepId:", visibleSteps[activeStepIndex]?.id ?? null);
-    console.log("equipmentAccess:", answers.equipmentAccess);
-    console.log("goal:", answers.goal);
-    console.log("experienceLevel:", answers.experienceLevel);
-    console.log("benchPress:", answers.benchPress);
-    console.log("dumbbellRow:", answers.dumbbellRow);
-    console.log("squat:", answers.squat);
-    console.log("barbellDeadlift:", answers.barbellDeadlift);
-    console.log(
-      "visibleStepIds:",
-      visibleSteps.map((step) => step.id)
-    );
-    console.groupEnd();
-  }, [activeStepIndex, answers, visibleSteps]);
-
   const currentStep = visibleSteps[activeStepIndex];
   const isLastStep = activeStepIndex === lastStepIndex;
 
   const onSubmit: SubmitHandler<OnboardingAnswers> = (data) => {
     onComplete?.(data);
-    console.log("Onboarding complete:", data);
   };
 
   const goNext = async () => {
@@ -199,24 +174,10 @@ const OnboardingFlow = ({
       return;
     }
 
-    if (DEBUG_ONBOARDING) {
-      console.groupCollapsed("[OnboardingFlow] Next clicked");
-      console.log("currentStepId:", currentStep.id);
-      console.log("currentStepIndex:", activeStepIndex);
-    }
-
     if ("field" in currentStep && currentStep.field && currentStep.required) {
       const isValid = await trigger(currentStep.field as Path<OnboardingAnswers>);
 
-      if (DEBUG_ONBOARDING) {
-        console.log("validatedField:", currentStep.field);
-        console.log("isValid:", isValid);
-      }
-
       if (!isValid) {
-        if (DEBUG_ONBOARDING) {
-          console.groupEnd();
-        }
         return;
       }
     }
@@ -230,31 +191,12 @@ const OnboardingFlow = ({
     );
     const nextStepIndex = latestStepIndex + 1;
 
-    if (DEBUG_ONBOARDING) {
-      console.log("latestAnswers:", latestAnswers);
-      console.log(
-        "latestVisibleStepIds:",
-        latestVisibleSteps.map((step) => step.id)
-      );
-      console.log("latestStepIndex:", latestStepIndex);
-      console.log("nextStepIndex:", nextStepIndex);
-      console.log("nextStepId:", latestVisibleSteps[nextStepIndex]?.id ?? null);
-    }
-
     if (nextStepIndex >= latestVisibleSteps.length) {
-      if (DEBUG_ONBOARDING) {
-        console.log("submittingAnswers:", latestAnswers);
-        console.groupEnd();
-      }
       void handleSubmit(onSubmit)();
       return;
     }
 
     setCurrentStepIndex(nextStepIndex);
-
-    if (DEBUG_ONBOARDING) {
-      console.groupEnd();
-    }
   };
 
   const goBack = () => {

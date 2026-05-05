@@ -42,6 +42,16 @@ const WorkoutCard = ({
   const navigate = useNavigate();
 
   const todaysDate = new Date();
+  const isSelectedDateToday =
+    todaysDate.getFullYear() === date.getFullYear() &&
+    todaysDate.getMonth() === date.getMonth() &&
+    todaysDate.getDate() === date.getDate();
+  const sessionSummary =
+    isWorkoutCompleted
+      ? "100% complete. Your summary is ready."
+      : isWorkoutActive
+        ? "Pick up where you left off."
+        : "Ready when you are.";
 
   return (
     <section className={styles.workoutSection}>
@@ -73,7 +83,7 @@ const WorkoutCard = ({
               <div className={styles.lastSession}>
               <Timer className="text-secondary" />
               <div>
-              <p className={styles.lastSessionLabel}>Todays Session:</p>
+              <p className={styles.lastSessionLabel}>Today's Session:</p>
               <p className={styles.emptyMetric}>
                 {isWorkoutCompleted
                   ? "Workout completed"
@@ -84,7 +94,7 @@ const WorkoutCard = ({
               </div>
               </div>
               <div className={styles.progress}>
-                <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. </p>
+                <p>{sessionSummary}</p>
               </div>
             </div>
             {swapOptions.length > 0 ? (
@@ -105,7 +115,8 @@ const WorkoutCard = ({
             ) : null}
           </article>
           <div className={styles.startLink}>
-            {(!isWorkoutCompleted && (todaysDate.getDate() == date.getDate())) && <Button
+            {!isWorkoutCompleted && isSelectedDateToday ? (
+              <Button
               disabled={isStartingWorkout || isWorkoutCompleted}
               label={
                 isStartingWorkout
@@ -117,7 +128,8 @@ const WorkoutCard = ({
               size="large"
               tone="primary"
               onClick={onStartWorkout}
-            />}
+              />
+            ) : null}
           </div>
           {isWorkoutCompleted && (
             <div className={styles.completedMessage}>

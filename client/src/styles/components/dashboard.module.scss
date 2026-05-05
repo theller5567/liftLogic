@@ -252,8 +252,6 @@
 .dataCta {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  padding-block-end:1rem;
-  border-bottom: 1px solid hsl(var(--clr-neutral-300-b) / 0.25);
   > :last-child {
     padding: 1rem;
     border-left: 1px solid hsl(var(--clr-neutral-300-b) / 0.25);
@@ -289,6 +287,8 @@
   align-items: center;
   gap: 0.5rem;
   padding-top: 0.35rem;
+  padding-block-end:1rem;
+  border-bottom: 1px solid hsl(var(--clr-neutral-300-b) / 0.25);
 
   p {
     color: hsl(var(--clr-neutral-0-b));
