@@ -11,6 +11,7 @@ import {
   getSessionDate,
   isSameDate,
 } from "../utils/workoutSessionDates";
+import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import styles from "../styles/pages/calendar.module.scss";
 
 type CalendarDay = {
@@ -222,7 +223,10 @@ const Calendar = () => {
                 <article key={session._id} className={styles.sessionCard}>
                   <div>
                     <p>{session.status.replace("_", " ")}</p>
-                    <h3><span>Workout: </span>{session.programDayLabel}</h3>
+                    <h3>
+                      <span>Workout</span>
+                      {formatWorkoutDisplayLabel(session.programDayLabel)}
+                    </h3>
                   </div>
                   <div className={styles.sessionMetrics}>
                     <span>{session.completionPercentage}%</span>

@@ -376,6 +376,15 @@ body {
   width: 100%;
 }
 
+.notificationMessage {
+  display: grid;
+  place-content: center;
+  color: hsl(var(--clr-neutral-100-b));
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  height: 100vh;   
+}
 
 @media (min-width: 768px) {
  

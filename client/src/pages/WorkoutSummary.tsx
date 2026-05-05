@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 
 import Button from "../components/Button";
 import type { WorkoutSetLog } from "../../../shared/types/workoutSession.types";
+import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
 import styles from "../styles/pages/workout.module.scss";
 
@@ -37,8 +38,10 @@ const WorkoutSummary = () => {
   return (
     <section className={styles.workoutSummary}>
       <header className={styles.summaryHero}>
-        <p>Workout complete</p>
-        <h1>{session.programDayLabel}</h1>
+        <h1>
+          <span>Workout</span>
+          {formatWorkoutDisplayLabel(session.programDayLabel)}
+        </h1>
         <span>{dateFormatter.format(new Date(session.scheduledFor))}</span>
       </header>
 

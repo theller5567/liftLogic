@@ -251,11 +251,11 @@ const Dashboard = () => {
   };
 
   if (isLoading) {
-    return <p className="text-muted">Loading dashboard...</p>;
+    return <p className="text-muted notificationMessage">Loading dashboard...</p>;
   }
 
   if (error) {
-    return <p className="text-muted">We could not load your dashboard yet. Please refresh.</p>;
+    return <p className="text-muted notificationMessage">We could not load your dashboard yet. Please refresh.</p>;
   }
 
   if (destination && destination !== "/dashboard") {

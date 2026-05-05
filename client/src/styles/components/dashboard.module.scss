@@ -230,6 +230,14 @@
   font-size: 1.55rem;
   line-height: 1;
   text-transform: uppercase;
+
+  span {
+    display: block;
+    margin-block-end: 0.18rem;
+    color: hsl(var(--clr-primary-500-b));
+    font-size: 0.68rem;
+    line-height: 1;
+  }
 }
 
 .exerciseTags {

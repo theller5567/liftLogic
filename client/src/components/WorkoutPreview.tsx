@@ -8,6 +8,7 @@ import Pill from "./Pill";
 import StepButton from "./StepButton";
 import styles from "../styles/components/workoutPreview.module.scss";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
+import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import type {
   GeneratedWorkoutExerciseAlternative,
   GeneratedWorkoutExercisePreview,
@@ -197,7 +198,9 @@ const WorkoutPreview = ({
             className={clsx(styles.dayTab, isActive && styles.active)}
             onClick={() => selectDay(dayIndex)}
           >
-            <span className={styles.dayTabLabel}>{day.label}</span>
+            <span className={styles.dayTabLabel}>
+              {formatWorkoutDisplayLabel(day.label)}
+            </span>
           </button>
         );
       })}
@@ -221,7 +224,10 @@ const WorkoutPreview = ({
             >
               <header className="grid gap-1">
                 <div className="flex flex-column gap-1">
-                  <h2 className={styles.dayTitle}>{activeDay.label}</h2>
+                  <h2 className={styles.dayTitle}>
+                    <span>Workout</span>
+                    {formatWorkoutDisplayLabel(activeDay.label)}
+                  </h2>
                   <p className={styles.dayFocus}>{activeDay.focus}</p>
                 </div>
                 <div className={clsx(styles.exerciseNum)}>{activeDay.exercises.length} Exercises</div>

@@ -1,6 +1,7 @@
 import Button from "../Button";
 import { Timer } from "lucide-react";
 import type { GeneratedWorkoutDayPreview } from "../../utils/generateWorkoutPreview";
+import { formatWorkoutDisplayLabel } from "../../utils/workoutDisplayLabel";
 import styles from "../../styles/components/dashboard.module.scss";
 import { useNavigate } from "react-router-dom";
 
@@ -68,7 +69,10 @@ const WorkoutCard = ({
           <article className={styles.workoutCard}>
             <header>
             <div>
-            <h3>{workoutDay.label}</h3>
+            <h3>
+              <span>Workout</span>
+              {formatWorkoutDisplayLabel(workoutDay.label)}
+            </h3>
             <p>{workoutDay.focus}</p>
             </div>
             
@@ -107,7 +111,7 @@ const WorkoutCard = ({
                       type="button"
                       onClick={() => onSelectWorkout(option.id)}
                     >
-                      {option.label}
+                      {formatWorkoutDisplayLabel(option.label)}
                     </button>
                   ))}
                 </div>

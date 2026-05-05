@@ -54,7 +54,7 @@ export const workoutPrograms: WorkoutProgramTemplate[] = [
     days: [
       {
         id: "day_1_upper_a",
-        label: "Upper A",
+        label: "Upper Body A",
         focus: "Pressing, rowing, and shoulder volume",
         exercises: [
           {
@@ -126,7 +126,7 @@ export const workoutPrograms: WorkoutProgramTemplate[] = [
       },
       {
         id: "day_2_lower",
-        label: "Lower",
+        label: "Lower Body",
         focus: "Squat, hinge, and leg volume",
         exercises: [
           {
@@ -184,7 +184,7 @@ export const workoutPrograms: WorkoutProgramTemplate[] = [
       },
       {
         id: "day_3_upper_b",
-        label: "Upper B",
+        label: "Upper Body B",
         focus: "Upper chest, vertical pull, and arms",
         exercises: [
           {
@@ -591,7 +591,7 @@ export const workoutPrograms: WorkoutProgramTemplate[] = [
     days: [
       {
         id: "day_1_upper_1",
-        label: "Upper 1",
+        label: "Upper Body 1",
         focus: "Horizontal press and row emphasis",
         exercises: [
           {
@@ -663,7 +663,7 @@ export const workoutPrograms: WorkoutProgramTemplate[] = [
       },
       {
         id: "day_2_lower_1",
-        label: "Lower 1",
+        label: "Lower Body 1",
         focus: "Squat and posterior chain volume",
         exercises: [
           {
@@ -722,7 +722,7 @@ export const workoutPrograms: WorkoutProgramTemplate[] = [
       },
       {
         id: "day_3_upper_2",
-        label: "Upper 2",
+        label: "Upper Body 2",
         focus: "Incline press, pull volume, and arms",
         exercises: [
           {
@@ -795,7 +795,7 @@ export const workoutPrograms: WorkoutProgramTemplate[] = [
       },
       {
         id: "day_4_lower_2",
-        label: "Lower 2",
+        label: "Lower Body 2",
         focus: "Hinge, unilateral work, and quads",
         exercises: [
           {

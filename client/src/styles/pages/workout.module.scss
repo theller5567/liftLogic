@@ -12,14 +12,24 @@
   gap: 1rem;
 
   p,
+  strong,
   h1 {
     margin: 0;
   }
 
   p {
     color: hsl(var(--clr-neutral-100-b));
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  strong {
+    display: block;
+    color: hsl(var(--clr-neutral-0-b));
     font-size: 1.35rem;
     font-weight: 700;
+    line-height: 1;
   }
 
   h1 {
@@ -216,6 +226,15 @@
     color: hsl(var(--clr-neutral-0-b));
     font-size: 2rem;
     line-height: 1;
+
+    span {
+      display: block;
+      margin-block-end: 0.18rem;
+      color: hsl(var(--clr-primary-500-b));
+      font-size: 0.78rem;
+      line-height: 1;
+      text-transform: uppercase;
+    }
   }
 
   span {

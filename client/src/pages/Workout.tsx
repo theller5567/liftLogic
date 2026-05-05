@@ -6,6 +6,7 @@ import Button from "../components/Button";
 import Barbell from "../assets/icons/021-barbell.svg?react";
 import { completeWorkoutSession } from "../services/api";
 import { getMostRecentPriorWeekExerciseLog } from "../utils/workoutAdvisory";
+import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
 import styles from "../styles/pages/workout.module.scss";
 
@@ -119,7 +120,8 @@ const Workout = () => {
     <section className={styles.workout}>
       <header className={styles.header}>
         <div>
-          <p>{session.programDayLabel},</p>
+          <p>Workout</p>
+          <strong>{formatWorkoutDisplayLabel(session.programDayLabel)}</strong>
           <h1>{dateFormatter.format(new Date(session.scheduledFor))}</h1>
         </div>
         <span>{completionPercentage}%</span>
