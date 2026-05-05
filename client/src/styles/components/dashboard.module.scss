@@ -87,10 +87,10 @@
   justify-items: center;
   align-content: center;
   gap: 0.2rem;
-  border: 1px solid transparent;
+  border: 1px solid hsl(var(--clr-neutral-100-b) / 0.25);
   border-radius: var(--br-16);
-  background: hsl(var(--clr-secondary-900-b));
-  color: hsl(var(--clr-neutral-400-b));
+  background: hsl(var(--clr-secondary-1100-b));
+  color: hsl(var(--clr-neutral-300-b));
   cursor: pointer;
 
   span {
@@ -99,8 +99,9 @@
   }
 
   strong {
-    color: hsl(var(--clr-neutral-500-b));
+    color: hsl(var(--clr-neutral-0-b));
     font-size: 1.05rem;
+    padding-block-end: 0.2rem;
   }
 }
 
@@ -124,9 +125,11 @@
 .workoutDot {
   width: 0.55rem;
   height: 0.55rem;
-  position: absolute;
-  top: -0.8rem;
+  // position: absolute;
+  // top: -0.8rem;
   border-radius: var(--br-full);
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.25);
+  
 }
 
 .workoutDotCompleted {
@@ -135,6 +138,19 @@
 
 .workoutDotStarted {
   background: hsl(var(--clr-secondary-500-b));
+}
+
+.workoutDotStartedToday {
+  background: hsl(var(--clr-secondary-500-b));
+  box-shadow: 0 0 0 3px hsl(var(--clr-secondary-500-b) / 0.22);
+}
+
+.workoutDotToday {
+  background: hsl(var(--clr-neutral-0-b));
+}
+
+.workoutDotNotStarted {
+  background: hsl(var(--clr-neutral-500-b) / 0.45);
 }
 
 .workoutSection {
@@ -305,6 +321,22 @@
   button {
     width: 100%;
     text-transform: uppercase;
+  }
+}
+
+.completedMessage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1rem;
+  font-size: 1rem;
+  color: hsl(var(--clr-neutral-0-b));
+  p span {
+    display: block;
+    color: hsl(var(--clr-primary-500-b));
+    font-size: 1.5rem;
   }
 }
 

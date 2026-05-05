@@ -5,6 +5,10 @@
   grid-template-rows: minmax(0, 1fr) auto;
   overflow: hidden;
   border-radius: var(--br-24);
+  background: linear-gradient(
+    hsl(var(--clr-secondary-1000-b)),
+    hsl(var(--clr-secondary-1100-b))
+  );
 }
 
 .appContent {

@@ -21,6 +21,9 @@
   justify-content: space-between;
   gap: 0.75rem;
 }
+.stepperRow {
+    margin-block-end: 1rem;
+}
 
 .exerciseHeader {
   > button {
@@ -46,6 +49,7 @@
 .exerciseTitle {
     border-bottom: 1px solid hsl(var(--clr-neutral-300-b) / 0.25);
     padding-block-end: 1rem;
+    color: hsl(var(--clr-neutral-0-b));
   h1 {
     margin: 0;
     font-size: 1.6rem;
@@ -55,7 +59,7 @@
     flex: 0 0 auto;
     padding: 0.3rem 0.6rem;
     border-radius: 999px;
-    background: hsl(var(--clr-neutral-500-b));
+    background: hsl(var(--clr-neutral-700-b));
     font-size: 0.8rem;
     font-weight: 800;
   }
@@ -153,6 +157,10 @@
   gap: 0;
   border-color: hsl(var(--clr-neutral-300-b) / 0.25);
   background: hsl(var(--clr-neutral-700-b) / 0.82);
+  .setStatusIcon {
+    background: hsl(var(--clr-secondary-1000-b));
+    color: hsl(var(--clr-neutral-0-b));
+  }
 }
 
 .setInactive {
@@ -161,7 +169,7 @@
   padding: 0.8rem;
   border: 1px solid hsl(var(--clr-neutral-300-b) / 0.18);
   border-radius: 0.45rem;
-  background: hsl(var(--clr-neutral-700-b) / 0.55);
+  background: hsl(var(--clr-secondary-1000-b) / 0.55);
   color: hsl(var(--clr-neutral-100-b) / 0.62);
 
   h2,
@@ -176,6 +184,9 @@
   header {
     justify-content: start;
   }
+  .setStatusIcon {
+    color: hsl(var(--clr-neutral-900-b) / 0.75);
+  }
 
   header small {
     margin-left: auto;
@@ -188,24 +199,24 @@
 .setStatusIcon {
   display: grid;
   place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 50%;
-  background: hsl(var(--clr-neutral-900-b));
+  background: hsl(var(--clr-secondary-900-b));
   color: hsl(var(--clr-primary-500-b));
 }
 
 .stepper {
   display: inline-grid;
-  grid-template-columns: 2rem minmax(5rem, auto) 2rem;
+  grid-template-columns: 4rem minmax(5rem, auto) 4rem;
   align-items: center;
   gap: 0.5rem;
 
   button {
     display: grid;
     place-items: center;
-    width: 2rem;
-    height: 2rem;
+    width: 4rem;
+    height: 4rem;
     border: 2px solid hsl(var(--clr-neutral-100-b));
     border-radius: 50%;
     background: transparent;
@@ -227,6 +238,14 @@
   background: hsl(var(--clr-neutral-900-b));
   color: hsl(var(--clr-neutral-100-b) / 0.7);
   font-weight: 800;
+}
+
+.finishExerciseButton {
+  width: 100%;
+}
+
+.finishExerciseReady {
+  color: hsl(var(--clr-neutral-900-b));
 }
 
 .error {

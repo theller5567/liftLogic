@@ -8,9 +8,10 @@ import Pill from "../components/Pill";
 import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
 import DevDataInspector from "../components/dev/DevDataInspector";
-import { updateWorkoutSession } from "../services/api";
+import { completeWorkoutSession, updateWorkoutSession } from "../services/api";
 import type {
   WorkoutExerciseLog,
+  WorkoutSessionDto,
   WorkoutSetLog,
 } from "../../../shared/types/workoutSession.types";
 import {
@@ -94,6 +95,10 @@ const getSetClassName = (setState: SetUiState) => {
   return styles.setInactive;
 };
 
+const areAllExercisesCompleted = (exerciseLogs: WorkoutExerciseLog[]) =>
+  exerciseLogs.length > 0 &&
+  exerciseLogs.every((exerciseLog) => exerciseLog.completed);
+
 const WorkoutExercise = () => {
   const { exerciseIndex } = useParams();
   const navigate = useNavigate();
@@ -145,6 +150,18 @@ const WorkoutExercise = () => {
       activeExercise?.sets.filter((setLog) => setLog.completed).length ?? 0,
     [activeExercise]
   );
+  const allSetsCompleted =
+    Boolean(activeExercise?.sets.length) &&
+    completedSetCount === activeExercise?.sets.length;
+  const allExercisesCompleted = areAllExercisesCompleted(session.exerciseLogs);
+  const finishExerciseLabel =
+    session.status === "completed"
+      ? "View workout summary"
+      : allExercisesCompleted
+        ? "Save and view summary"
+      : allSetsCompleted
+        ? "Next Exercise"
+        : "Finish exercise";
   const devDataItems = [
     {
       label: "routeParams",
@@ -169,7 +186,9 @@ const WorkoutExercise = () => {
     },
   ];
 
-  const persistExerciseLogs = async (exerciseLogs: WorkoutExerciseLog[]) => {
+  const persistExerciseLogs = async (
+    exerciseLogs: WorkoutExerciseLog[]
+  ): Promise<WorkoutSessionDto | null> => {
     setIsSaving(true);
     setSaveError(null);
     setSession({ ...session, exerciseLogs });
@@ -179,12 +198,39 @@ const WorkoutExercise = () => {
         exerciseLogs,
       });
       setSession(workoutSession);
+      return workoutSession;
     } catch (saveDraftError) {
       setSaveError(
         saveDraftError instanceof Error
           ? saveDraftError.message
           : "We could not save this exercise yet."
       );
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const completeSessionWithLogs = async (exerciseLogs: WorkoutExerciseLog[]) => {
+    setIsSaving(true);
+    setSaveError(null);
+    setSession({ ...session, exerciseLogs });
+
+    try {
+      const { workoutSession } = await completeWorkoutSession(session._id, {
+        exerciseLogs,
+      });
+      setSession(workoutSession);
+      setRestSeconds(null);
+      navigate(`/workout/${workoutSession._id}/summary`);
+      return workoutSession;
+    } catch (completeError) {
+      setSaveError(
+        completeError instanceof Error
+          ? completeError.message
+          : "We could not complete this workout yet."
+      );
+      return null;
     } finally {
       setIsSaving(false);
     }
@@ -295,7 +341,19 @@ const WorkoutExercise = () => {
         : exerciseLog
     );
 
-    await persistExerciseLogs(nextExerciseLogs);
+    if (
+      session.status !== "completed" &&
+      areAllExercisesCompleted(nextExerciseLogs)
+    ) {
+      await completeSessionWithLogs(nextExerciseLogs);
+      return;
+    }
+
+    const savedSession = await persistExerciseLogs(nextExerciseLogs);
+
+    if (!savedSession) {
+      return;
+    }
 
     const restTime = activeExercise.prescriptionSnapshot.restSeconds;
 
@@ -304,7 +362,17 @@ const WorkoutExercise = () => {
     }
   };
 
-  const handleFinishExercise = () => {
+  const handleFinishExercise = async () => {
+    if (session.status === "completed") {
+      navigate(`/workout/${session._id}/summary`);
+      return;
+    }
+
+    if (areAllExercisesCompleted(session.exerciseLogs)) {
+      await completeSessionWithLogs(session.exerciseLogs);
+      return;
+    }
+
     const nextIncompleteIndex = session.exerciseLogs.findIndex(
       (exerciseLog, index) => index > activeExerciseIndex && !exerciseLog.completed
     );
@@ -363,10 +431,10 @@ const WorkoutExercise = () => {
             </span>
           </div>
 
-          <p className={styles.prescription}>
+          {/* <p className={styles.prescription}>
             Rest between sets:{" "}
             {formatTimer(activeExercise.prescriptionSnapshot.restSeconds)}
-          </p>
+          </p> */}
 
           <div className={styles.previousPerformance}>
             <p>Previous:</p>
@@ -419,7 +487,7 @@ const WorkoutExercise = () => {
               >
                 <header>
                   <span className={styles.setStatusIcon}>
-                    {setState === "completed" ? <Check size={18} /> : isActiveSet ? <ActiveSet /> : null}
+                    {setState === "completed" ? <Check size={18} /> : <ActiveSet />}
                   </span>
                   <h2>Set {setLog.setNumber}</h2>
                   <small>{setLog.targetReps}</small>
@@ -472,7 +540,13 @@ const WorkoutExercise = () => {
                         </button>
                       </div>
                     </div>
-
+                    <Button
+                      type="button"
+                      label="Add Note or Badge"
+                      tone="secondary"
+                      variant="outline"
+                    />
+                      
                     <Button
                       disabled={isSaving}
                       label="Log set"
@@ -480,12 +554,7 @@ const WorkoutExercise = () => {
                       tone="primary"
                       onClick={() => handleLogSet(setIndex)}
                     />
-                    <button
-                      type="button"
-                      className={styles.noteButton}
-                    >
-                      Add Note or Badge
-                    </button>
+                    
                   </>
                 ) : null}
               </section>
@@ -494,10 +563,14 @@ const WorkoutExercise = () => {
         </div>
 
         <Button
+          className={clsx(
+            styles.finishExerciseButton,
+            allSetsCompleted && styles.finishExerciseReady
+          )}
           disabled={isSaving}
-          label="Finish exercise"
+          label={finishExerciseLabel}
           size="large"
-          tone="black"
+          tone={allSetsCompleted ? "primary" : "black"}
           onClick={handleFinishExercise}
         />
       </article>

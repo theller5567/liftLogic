@@ -2,6 +2,7 @@ import Button from "../Button";
 import { Timer } from "lucide-react";
 import type { GeneratedWorkoutDayPreview } from "../../utils/generateWorkoutPreview";
 import styles from "../../styles/components/dashboard.module.scss";
+import { useNavigate } from "react-router-dom";
 
 type WorkoutCardProps = {
   actionLabel?: string;
@@ -10,9 +11,11 @@ type WorkoutCardProps = {
   date: Date;
   isStartingWorkout?: boolean;
   isWorkoutActive?: boolean;
+  isWorkoutCompleted?: boolean;
   onSelectWorkout: (workoutDayId: string) => void;
   onStartWorkout: () => void;
   workoutDay: GeneratedWorkoutDayPreview | null;
+  sessionId: string;
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -27,6 +30,8 @@ const WorkoutCard = ({
   date,
   isStartingWorkout = false,
   isWorkoutActive = false,
+  isWorkoutCompleted = false,
+  sessionId,
   onSelectWorkout,
   onStartWorkout,
   workoutDay,
@@ -34,6 +39,9 @@ const WorkoutCard = ({
   const swapOptions = availableWorkoutDays.filter(
     (availableWorkout) => availableWorkout.id !== workoutDay?.id
   );
+  const navigate = useNavigate();
+
+  const todaysDate = new Date();
 
   return (
     <section className={styles.workoutSection}>
@@ -65,9 +73,13 @@ const WorkoutCard = ({
               <div className={styles.lastSession}>
               <Timer className="text-secondary" />
               <div>
-              <p className={styles.lastSessionLabel}>Last Session:</p>
+              <p className={styles.lastSessionLabel}>Todays Session:</p>
               <p className={styles.emptyMetric}>
-                {isWorkoutActive ? "Workout in progress" : "No sessions logged yet"}
+                {isWorkoutCompleted
+                  ? "Workout completed"
+                  : isWorkoutActive
+                    ? "Workout in progress"
+                    : "No sessions logged yet"}
               </p>
               </div>
               </div>
@@ -93,14 +105,26 @@ const WorkoutCard = ({
             ) : null}
           </article>
           <div className={styles.startLink}>
-            <Button
-              disabled={isStartingWorkout}
-              label={isStartingWorkout ? "Opening..." : actionLabel}
+            {(!isWorkoutCompleted && (todaysDate.getDate() == date.getDate())) && <Button
+              disabled={isStartingWorkout || isWorkoutCompleted}
+              label={
+                isStartingWorkout
+                  ? "Opening..."
+                  : isWorkoutCompleted
+                    ? "Workout Completed"
+                    : actionLabel
+              }
               size="large"
               tone="primary"
               onClick={onStartWorkout}
-            />
+            />}
           </div>
+          {isWorkoutCompleted && (
+            <div className={styles.completedMessage}>
+              <p><span>Great work completing today's workout!</span>See you tomorrow for the next session.</p>
+              <Button label="View workout summary" size="large" tone="secondary" onClick={() => navigate(`/workout/${sessionId}/summary`)} />
+            </div>
+          )}
         </>
       ) : (
         <article className={styles.emptyWorkoutCard}>

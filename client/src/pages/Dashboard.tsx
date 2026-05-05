@@ -168,7 +168,18 @@ const Dashboard = () => {
     undefined,
     "in_progress"
   );
+  const completedSessionForSelectedDate = findWorkoutSessionForDate(
+    weekWorkoutSessions,
+    selectedDate,
+    undefined,
+    "completed"
+  );
+  const sessionForSelectedDate =
+    activeSessionForSelectedDate ?? completedSessionForSelectedDate;
   const workoutDay =
+    preview?.days.find(
+      (day) => day.id === sessionForSelectedDate?.programDayId
+    ) ??
     availableWorkoutDays.find((day) => day.id === selectedWorkoutId) ??
     availableWorkoutDays.find(
       (day) => day.id === activeSessionForSelectedDate?.programDayId
@@ -192,6 +203,11 @@ const Dashboard = () => {
       )
     : null;
   const currentWorkoutSession = activeWorkoutSession ?? completedWorkoutSession;
+  const workoutOptions = completedWorkoutSession
+    ? workoutDay
+      ? [workoutDay]
+      : []
+    : availableWorkoutDays;
 
   useEffect(() => {
     if (isLoading || error || (destination && destination !== "/dashboard")) {
@@ -248,8 +264,10 @@ const Dashboard = () => {
     setStartWorkoutError(null);
 
     try {
-      if (activeWorkoutSession) {
-        navigate(`/workout/${activeWorkoutSession._id}`);
+      if (currentWorkoutSession) {
+        if (currentWorkoutSession.status === "in_progress") {
+          navigate(`/workout/${currentWorkoutSession._id}`);
+        }
         return;
       }
 
@@ -300,14 +318,16 @@ const Dashboard = () => {
         />
         <WorkoutCard
           actionLabel={activeWorkoutSession ? "Resume Workout" : "Start Workout"}
-          availableWorkoutDays={availableWorkoutDays}
+          availableWorkoutDays={workoutOptions}
           completionPercentage={currentWorkoutSession?.completionPercentage ?? 0}
           date={selectedDate}
           isStartingWorkout={isStartingWorkout}
           isWorkoutActive={Boolean(activeWorkoutSession)}
+          isWorkoutCompleted={Boolean(completedWorkoutSession)}
           onSelectWorkout={handleWorkoutSelect}
           onStartWorkout={handleStartWorkout}
           workoutDay={workoutDay}
+          sessionId={currentWorkoutSession?._id}
         />
         {workoutSessionsError ? (
           <p className="text-muted">{workoutSessionsError}</p>

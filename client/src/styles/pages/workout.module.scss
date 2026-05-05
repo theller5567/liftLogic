@@ -74,8 +74,9 @@
 .exerciseItemComplete,
 .exerciseItemInactive {
   display: grid;
-  grid-template-columns: 1.5rem 1fr auto;
-  align-items: center;
+  grid-template-columns: min-content 1fr auto;
+  justify-content: start;
+  align-items: start;
   gap: 0.65rem;
   width: 100%;
   padding: 0.7rem;
@@ -88,17 +89,27 @@
   span:first-child {
     display: grid;
     place-items: center;
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 2rem;
+    height: 2rem;
     border-radius: 50%;
     background: hsl(var(--clr-neutral-900-b));
     color: hsl(var(--clr-primary-500-b));
+    svg {
+      max-width: 70%;
+      height: auto;
+      display: block;
+    }
   }
 
   strong,
   small,
   em {
     min-width: 0;
+  }
+  .exerciseLabel {
+    display: flex;
+    flex-direction: column;
+    justify-self: start;
   }
 
   strong {
@@ -110,6 +121,7 @@
 
   small {
     padding: 0.25rem 0.5rem;
+    justify-self: end;
     border-radius: 999px;
     background: var(--surface-panel);
     color: hsl(var(--clr-secondary-500-b));
@@ -144,12 +156,14 @@
 .exerciseItemComplete {
   border-color: hsl(var(--clr-primary-500-b) / 0.55);
   color: hsl(var(--clr-neutral-100-b) / 0.78);
+  span:first-child {color: hsl(var(--clr-neutral-100-b))}
 }
 
 .exerciseItemInactive {
   border-color: hsl(var(--clr-neutral-300-b) / 0.14);
   background: hsl(var(--clr-neutral-700-b) / 0.55);
   color: hsl(var(--clr-neutral-100-b) / 0.64);
+  span:first-child {color: hsl(var(--clr-neutral-700-b))}
 
   small {
     border-color: hsl(var(--clr-neutral-500-b));
@@ -175,8 +189,153 @@
   font-weight: 700;
 }
 
+.workoutSummary {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem 1rem 7rem;
+  color: hsl(var(--clr-neutral-100-b));
+}
+
+.summaryHero {
+  display: grid;
+  gap: 0.25rem;
+
+  p,
+  h1 {
+    margin: 0;
+  }
+
+  p {
+    color: hsl(var(--clr-primary-500-b));
+    font-size: 0.85rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 2rem;
+    line-height: 1;
+  }
+
+  span {
+    color: hsl(var(--clr-neutral-300-b));
+    font-weight: 700;
+  }
+}
+
+.summaryStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+
+  article {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.8rem;
+    border: 1px solid hsl(var(--clr-neutral-300-b) / 0.2);
+    border-radius: 0.45rem;
+    background: hsl(var(--clr-neutral-700-b) / 0.65);
+  }
+
+  strong {
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 1.2rem;
+  }
+
+  span {
+    color: hsl(var(--clr-neutral-300-b));
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+}
+
+.summaryExerciseList {
+  display: grid;
+  gap: 0.75rem;
+
+  h2 {
+    margin: 0;
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 1.1rem;
+  }
+}
+
+.summaryExercise {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.2);
+  border-radius: 0.45rem;
+  background: hsl(var(--clr-neutral-700-b));
+
+  > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  h3,
+  p,
+  ul {
+    margin: 0;
+  }
+
+  h3 {
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 0.95rem;
+  }
+
+  > div span {
+    flex: 0 0 auto;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--clr-secondary-500-b));
+    color: hsl(var(--clr-secondary-500-b));
+    font-size: 0.7rem;
+    font-weight: 800;
+  }
+
+  ul {
+    display: grid;
+    gap: 0.4rem;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    color: hsl(var(--clr-neutral-300-b));
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  li strong {
+    color: hsl(var(--clr-neutral-0-b));
+  }
+
+  p {
+    color: hsl(var(--clr-neutral-300-b));
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+}
+
+.summaryActions {
+  position: sticky;
+  bottom: 5rem;
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
 @media (min-width: 760px) {
-  .workout {
+  .workout,
+  .workoutSummary {
     max-width: 58rem;
     margin: 0 auto;
     padding-inline: 2rem;

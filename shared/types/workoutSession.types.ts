@@ -59,6 +59,7 @@ export type WorkoutSessionDto = {
   programDayId: string;
   programDayLabel: string;
   scheduledFor: string;
+  scheduledDateKey: string;
   startedAt: string;
   completedAt?: string | null;
   status: WorkoutSessionStatus;

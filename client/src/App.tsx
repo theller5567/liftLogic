@@ -13,6 +13,7 @@ import Settings from './pages/Settings'
 import Trends from './pages/Trends'
 import Workout from './pages/Workout'
 import WorkoutExercise from './pages/WorkoutExercise'
+import WorkoutSummary from './pages/WorkoutSummary'
 import WorkoutReview from './pages/WorkoutReview'
 import WorkoutSessionLayout from './pages/WorkoutSessionLayout'
 import Login from './pages/auth/Login'
@@ -109,6 +110,7 @@ function App() {
                 </ProtectedRoute>
               }
             >
+              <Route path="summary" element={<WorkoutSummary />} />
               <Route index element={<Workout />} />
               <Route path="exercise/:exerciseIndex" element={<WorkoutExercise />} />
             </Route>

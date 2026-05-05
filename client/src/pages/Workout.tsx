@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Button from "../components/Button";
+import Barbell from "../assets/icons/021-barbell.svg?react";
 import { completeWorkoutSession } from "../services/api";
 import { getMostRecentPriorWeekExerciseLog } from "../utils/workoutAdvisory";
 import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
@@ -70,8 +71,31 @@ const Workout = () => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const activeExerciseIndex = getActiveExerciseIndex(session.exerciseLogs);
   const activeExercise = session.exerciseLogs[activeExerciseIndex] ?? null;
+  const completedExerciseCount = session.exerciseLogs.filter(
+    (exerciseLog) => exerciseLog.completed
+  ).length;
+  const totalExerciseCount = session.exerciseLogs.length;
+  const allExercisesCompleted =
+    totalExerciseCount > 0 && completedExerciseCount === totalExerciseCount;
+  const completionPercentage =
+    totalExerciseCount > 0
+      ? Math.round((completedExerciseCount / totalExerciseCount) * 100)
+      : 0;
+  const isWorkoutCompleted =
+    session.status === "completed" || allExercisesCompleted;
 
   const handleCompleteWorkout = async () => {
+    if (session.status === "completed") {
+      navigate(`/workout/${session._id}/summary`);
+      return;
+    }
+
+    if (!allExercisesCompleted) {
+      const nextExerciseIndex = activeExerciseIndex >= 0 ? activeExerciseIndex : 0;
+      navigate(`/workout/${session._id}/exercise/${nextExerciseIndex}`);
+      return;
+    }
+
     setIsSaving(true);
     setSaveError(null);
 
@@ -80,6 +104,7 @@ const Workout = () => {
         exerciseLogs: session.exerciseLogs,
       });
       setSession(workoutSession);
+      navigate(`/workout/${workoutSession._id}/summary`);
     } catch (completeError) {
       setSaveError(
         completeError instanceof Error
@@ -98,15 +123,15 @@ const Workout = () => {
           <p>{session.programDayLabel},</p>
           <h1>{dateFormatter.format(new Date(session.scheduledFor))}</h1>
         </div>
-        <span>{session.completionPercentage}%</span>
+        <span>{completionPercentage}%</span>
       </header>
 
       <div className={styles.progressMeta}>
         <p>
-          {session.completedExerciseCount} of {session.totalExerciseCount} exercises completed
+          {completedExerciseCount} of {totalExerciseCount} exercises completed
         </p>
         <div className={styles.progressTrack}>
-          <span style={{ width: `${session.completionPercentage}%` }} />
+          <span style={{ width: `${completionPercentage}%` }} />
         </div>
       </div>
 
@@ -137,16 +162,20 @@ const Workout = () => {
               onClick={() => navigate(`/workout/${session._id}/exercise/${index}`)}
             >
               <span>
-                {exerciseLog.completed ? <Check size={16} /> : null}
+                {exerciseLog.completed ? <Check size={16} /> : <Barbell />}
               </span>
-              <strong>{exerciseLog.label}</strong>
-              <small>
-                {exerciseState === "active" ? "Active" : null}
-                {exerciseState !== "active"
-                  ? `${exerciseLog.prescriptionSnapshot.sets} x ${exerciseLog.prescriptionSnapshot.reps}`
-                  : null}
-              </small>
-              <em>{getPreviousLogSummary(previousExerciseLog)}</em>
+
+              <div className={styles.exerciseLabel}>
+                <strong>{exerciseLog.label}</strong>
+                <em>{getPreviousLogSummary(previousExerciseLog)}</em>
+              </div>
+              
+              <small className={styles.exercisePill}>
+                  {exerciseState === "active" ? "Active" : null}
+                  {exerciseState !== "active"
+                    ? `${exerciseLog.prescriptionSnapshot.sets} x ${exerciseLog.prescriptionSnapshot.reps}`
+                    : null}
+                </small>
             </button>
           );
         })}
@@ -154,10 +183,16 @@ const Workout = () => {
 
       <div className={styles.footerActions}>
         <Button
-          disabled={isSaving || session.status === "completed"}
-          label={session.status === "completed" ? "Workout completed" : "Finish workout"}
+          disabled={isSaving}
+          label={
+            session.status === "completed"
+              ? "View workout summary"
+              : isWorkoutCompleted
+                ? "Save and view summary"
+                : "Continue workout"
+          }
           size="large"
-          tone="black"
+          tone={isWorkoutCompleted ? "primary" : "black"}
           onClick={handleCompleteWorkout}
         />
       </div>

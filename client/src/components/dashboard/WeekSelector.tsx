@@ -22,6 +22,21 @@ const isSameDate = (left: Date, right: Date) =>
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate();
 
+const getWorkoutDotClassName = (
+  workoutStatus: WorkoutCompletionStatus,
+  isToday: boolean
+) => {
+  if (workoutStatus === "completed") {
+    return styles.workoutDotCompleted;
+  }
+
+  if (workoutStatus === "started") {
+    return isToday ? styles.workoutDotStartedToday : styles.workoutDotStarted;
+  }
+
+  return isToday ? styles.workoutDotToday : styles.workoutDotNotStarted;
+};
+
 const WeekSelector = ({ days, onSelectDate, selectedDate }: WeekSelectorProps) => (
   <section className={styles.weekPanel} aria-label="Schedule for this week">
     <div className={styles.sectionHeading}>
@@ -38,10 +53,10 @@ const WeekSelector = ({ days, onSelectDate, selectedDate }: WeekSelectorProps) =
       {days.map((day) => {
         const isSelected = isSameDate(day.date, selectedDate);
         const isToday = isSameDate(day.date, new Date());
-        const statusClass =
-          day.workoutStatus === "completed"
-            ? styles.workoutDotCompleted
-            : styles.workoutDotStarted;
+        const statusClass = getWorkoutDotClassName(
+          day.workoutStatus,
+          isToday
+        );
 
         return (
           <button
@@ -54,11 +69,10 @@ const WeekSelector = ({ days, onSelectDate, selectedDate }: WeekSelectorProps) =
             type="button"
             onClick={() => onSelectDate(day.date)}
           >
-            {day.workoutStatus !== "not-started" ? (
-              <span className={clsx(styles.workoutDot, statusClass)} />
-            ) : null}
+            
             <span>{dayFormatter.format(day.date)}</span>
             <strong>{day.date.getDate()}</strong>
+            <span className={clsx(styles.workoutDot, statusClass)} />
           </button>
         );
       })}

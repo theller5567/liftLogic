@@ -14,6 +14,7 @@ export type WorkoutSessionDocument = {
   programDayId: string;
   programDayLabel: string;
   scheduledFor: Date;
+  scheduledDateKey: string;
   startedAt: Date;
   completedAt?: Date | null;
   status: WorkoutSessionStatus;
@@ -63,6 +64,12 @@ const workoutSessionSchema = new Schema<WorkoutSessionDocument>(
       type: Date,
       required: true,
       index: true,
+    },
+    scheduledDateKey: {
+      type: String,
+      required: true,
+      index: true,
+      trim: true,
     },
     startedAt: {
       type: Date,
@@ -125,6 +132,21 @@ const workoutSessionSchema = new Schema<WorkoutSessionDocument>(
 
 workoutSessionSchema.index({ clientId: 1, scheduledFor: 1 });
 workoutSessionSchema.index({ clientId: 1, status: 1 });
+workoutSessionSchema.index(
+  {
+    clientId: 1,
+    workoutPlanId: 1,
+    programDayId: 1,
+    scheduledDateKey: 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      scheduledDateKey: { $type: "string" },
+      status: { $in: ["in_progress", "completed"] },
+    },
+  }
+);
 
 export const WorkoutSession = model<WorkoutSessionDocument>(
   "WorkoutSession",
