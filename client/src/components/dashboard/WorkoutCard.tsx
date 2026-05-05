@@ -15,7 +15,7 @@ type WorkoutCardProps = {
   onSelectWorkout: (workoutDayId: string) => void;
   onStartWorkout: () => void;
   workoutDay: GeneratedWorkoutDayPreview | null;
-  sessionId: string;
+  sessionId?: string;
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -122,7 +122,14 @@ const WorkoutCard = ({
           {isWorkoutCompleted && (
             <div className={styles.completedMessage}>
               <p><span>Great work completing today's workout!</span>See you tomorrow for the next session.</p>
-              <Button label="View workout summary" size="large" tone="secondary" onClick={() => navigate(`/workout/${sessionId}/summary`)} />
+              {sessionId ? (
+                <Button
+                  label="View workout summary"
+                  size="large"
+                  tone="secondary"
+                  onClick={() => navigate(`/workout/${sessionId}/summary`)}
+                />
+              ) : null}
             </div>
           )}
         </>
