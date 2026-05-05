@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import styles from "../../styles/components/dashboard.module.scss";
 import { CalendarDays } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export type WorkoutCompletionStatus = "not-started" | "started" | "completed";
 
@@ -45,7 +46,7 @@ const WeekSelector = ({ days, onSelectDate, selectedDate }: WeekSelectorProps) =
       <span>4 of 7 days scheduled</span>
       </div>
       <div className="flex flex-center gap-2 text-secondary">
-        <p>View calendar</p>
+        <Link to="/calendar">View calendar</Link>
       <CalendarDays/>
       </div>
     </div>

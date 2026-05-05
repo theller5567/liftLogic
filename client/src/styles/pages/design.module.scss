@@ -1,0 +1,256 @@
+.designPage {
+  width: min(100%, 72rem);
+  display: grid;
+  gap: 1.5rem;
+  padding: 2rem;
+  color: hsl(var(--clr-neutral-100-b));
+}
+
+.hero,
+.section {
+  display: grid;
+  gap: 1rem;
+}
+
+.hero {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid hsl(var(--clr-neutral-300-b) / 0.22);
+
+  p,
+  h1 {
+    margin: 0;
+  }
+
+  p {
+    color: hsl(var(--clr-primary-500-b));
+    font-size: 0.78rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 2.25rem;
+    line-height: 1;
+  }
+
+  span {
+    color: hsl(var(--clr-neutral-300-b));
+    font-weight: 700;
+  }
+}
+
+.section {
+  padding: 1rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.16);
+  border-radius: var(--br-8);
+  background: hsl(var(--clr-neutral-700-b) / 0.3);
+}
+
+.sectionHeading {
+  display: grid;
+  gap: 0.2rem;
+
+  p,
+  h2 {
+    margin: 0;
+  }
+
+  p {
+    color: hsl(var(--clr-secondary-500-b));
+    font-size: 0.7rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 1.2rem;
+  }
+}
+
+.swatchGrid,
+.buttonMatrix,
+.patternGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.swatch,
+.panelPreview,
+.emptyPreview,
+.errorPreview {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.16);
+  border-radius: var(--br-8);
+  background: hsl(var(--clr-neutral-900-b) / 0.35);
+}
+
+.swatch {
+  span {
+    min-height: 3.5rem;
+    border-radius: var(--br-6);
+  }
+
+  strong {
+    color: hsl(var(--clr-neutral-0-b));
+  }
+
+  code {
+    color: hsl(var(--clr-neutral-300-b));
+    font-size: 0.72rem;
+  }
+}
+
+.typeStack {
+  display: grid;
+  gap: 0.85rem;
+
+  article {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  span {
+    color: hsl(var(--clr-neutral-300-b));
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+}
+
+.typeDisplay,
+.typeHeading,
+.typeBody,
+.typeMeta {
+  margin: 0;
+}
+
+.typeDisplay {
+  color: hsl(var(--clr-neutral-0-b));
+  font-size: var(--fs-1000);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.typeHeading {
+  color: hsl(var(--clr-neutral-0-b));
+  font-size: var(--fs-800);
+  font-weight: 900;
+}
+
+.typeBody {
+  color: hsl(var(--clr-neutral-100-b));
+  font-size: var(--fs-500);
+}
+
+.typeMeta {
+  color: hsl(var(--clr-secondary-500-b));
+  font-size: var(--fs-400);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.buttonColumn {
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+
+  h3 {
+    margin: 0;
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 0.85rem;
+    text-transform: capitalize;
+  }
+}
+
+.componentRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.statusCompleted,
+.statusStarted,
+.statusEmpty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: hsl(var(--clr-neutral-100-b));
+  font-size: 0.78rem;
+  font-weight: 800;
+
+  &::before {
+    content: "";
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: var(--br-full);
+  }
+}
+
+.statusCompleted::before {
+  background: hsl(var(--clr-primary-500-b));
+}
+
+.statusStarted::before {
+  background: hsl(var(--clr-secondary-500-b));
+}
+
+.statusEmpty::before {
+  background: hsl(var(--clr-neutral-500-b) / 0.45);
+}
+
+.panelPreview {
+  p,
+  h3,
+  span {
+    margin: 0;
+  }
+
+  p {
+    color: hsl(var(--clr-secondary-500-b));
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  h3 {
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 1.25rem;
+  }
+
+  span {
+    color: hsl(var(--clr-neutral-300-b));
+  }
+}
+
+.emptyPreview,
+.errorPreview {
+  h3,
+  p {
+    margin: 0;
+  }
+
+  h3 {
+    color: hsl(var(--clr-neutral-0-b));
+  }
+
+  p {
+    color: hsl(var(--clr-neutral-300-b));
+    font-size: 0.85rem;
+  }
+}
+
+.errorPreview {
+  border-color: hsl(var(--clr-red-500-b) / 0.45);
+}
+
+@media (max-width: 42rem) {
+  .designPage {
+    padding: 1rem;
+  }
+}
