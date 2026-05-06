@@ -10,7 +10,7 @@ import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
 import styles from "../styles/pages/workout.module.scss";
 
-type ExerciseUiState = "active" | "completed" | "inactive";
+type ExerciseUiState = "available" | "completed";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
@@ -37,32 +37,21 @@ const getPreviousLogSummary = (
     .join(" | ")}`;
 };
 
-const getActiveExerciseIndex = (
-  exerciseLogs: ReturnType<typeof useWorkoutSessionRouteContext>["session"]["exerciseLogs"]
+const getNextIncompleteExerciseIndex = (
+  exerciseLogs: ReturnType<
+    typeof useWorkoutSessionRouteContext
+  >["session"]["exerciseLogs"]
 ) => exerciseLogs.findIndex((exerciseLog) => !exerciseLog.completed);
 
-const getExerciseUiState = (
-  isCompleted: boolean,
-  exerciseIndex: number,
-  activeExerciseIndex: number
-): ExerciseUiState => {
-  if (isCompleted) {
-    return "completed";
-  }
-
-  return exerciseIndex === activeExerciseIndex ? "active" : "inactive";
-};
+const getExerciseUiState = (isCompleted: boolean): ExerciseUiState =>
+  isCompleted ? "completed" : "available";
 
 const getExerciseClassName = (exerciseState: ExerciseUiState) => {
   if (exerciseState === "completed") {
     return styles.exerciseItemComplete;
   }
 
-  if (exerciseState === "active") {
-    return styles.exerciseItemActive;
-  }
-
-  return styles.exerciseItemInactive;
+  return styles.exerciseItem;
 };
 
 const Workout = () => {
@@ -70,8 +59,9 @@ const Workout = () => {
   const { priorSessions, session, setSession } = useWorkoutSessionRouteContext();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const activeExerciseIndex = getActiveExerciseIndex(session.exerciseLogs);
-  const activeExercise = session.exerciseLogs[activeExerciseIndex] ?? null;
+  const nextIncompleteExerciseIndex = getNextIncompleteExerciseIndex(
+    session.exerciseLogs
+  );
   const completedExerciseCount = session.exerciseLogs.filter(
     (exerciseLog) => exerciseLog.completed
   ).length;
@@ -84,6 +74,11 @@ const Workout = () => {
       : 0;
   const isWorkoutCompleted =
     session.status === "completed" || allExercisesCompleted;
+  const workoutActionLabel = isWorkoutCompleted
+    ? "Save and view summary"
+    : completedExerciseCount > 0
+      ? "Continue workout"
+      : "Choose an exercise";
 
   if (session.status === "completed") {
     return <Navigate to={`/workout/${session._id}/summary`} replace />;
@@ -91,7 +86,8 @@ const Workout = () => {
 
   const handleCompleteWorkout = async () => {
     if (!allExercisesCompleted) {
-      const nextExerciseIndex = activeExerciseIndex >= 0 ? activeExerciseIndex : 0;
+      const nextExerciseIndex =
+        nextIncompleteExerciseIndex >= 0 ? nextIncompleteExerciseIndex : 0;
       navigate(`/workout/${session._id}/exercise/${nextExerciseIndex}`);
       return;
     }
@@ -140,15 +136,12 @@ const Workout = () => {
 
       <article className={styles.exerciseList}>
         <p>
-          Active Exercise:{" "}
-          {activeExercise?.label ?? "All exercises complete"}
+          {allExercisesCompleted
+            ? "All exercises complete"
+            : "Choose an exercise"}
         </p>
         {session.exerciseLogs.map((exerciseLog, index) => {
-          const exerciseState = getExerciseUiState(
-            exerciseLog.completed,
-            index,
-            activeExerciseIndex
-          );
+          const exerciseState = getExerciseUiState(exerciseLog.completed);
           const previousExerciseLog = getMostRecentPriorWeekExerciseLog(
             exerciseLog,
             session,
@@ -170,13 +163,10 @@ const Workout = () => {
                 <strong>{exerciseLog.label}</strong>
                 <em>{getPreviousLogSummary(previousExerciseLog)}</em>
               </div>
-              
+
               <small className={styles.exercisePill}>
-                  {exerciseState === "active" ? "Active" : null}
-                  {exerciseState !== "active"
-                    ? `${exerciseLog.prescriptionSnapshot.sets} x ${exerciseLog.prescriptionSnapshot.reps}`
-                    : null}
-                </small>
+                {exerciseState === "completed" ? "Completed" : "Start"}
+              </small>
             </button>
           );
         })}
@@ -185,9 +175,7 @@ const Workout = () => {
       <div className={styles.footerActions}>
         <Button
           disabled={isSaving}
-          label={
-            isWorkoutCompleted ? "Save and view summary" : "Continue workout"
-          }
+          label={workoutActionLabel}
           size="large"
           tone={isWorkoutCompleted ? "primary" : "black"}
           onClick={handleCompleteWorkout}

@@ -1,9 +1,18 @@
-import { ArrowLeft, Check, Minus, Plus } from "lucide-react";
-import ActiveSet from '../assets/icons/activeSet.svg?react';
+import {
+  ArrowLeft,
+  Check,
+  ChevronRight,
+  ChevronUp,
+  Info,
+  Minus,
+  MoreVertical,
+  Plus,
+} from "lucide-react";
+import ActiveSet from "../assets/icons/activeSet.svg?react";
+import Target from "../assets/icons/target.svg?react";
 import clsx from "clsx";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import Pill from "../components/Pill";
 
 import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
@@ -19,6 +28,7 @@ import {
   getProgressionTargetReps,
   shouldShowWeightIncreaseAdvisory,
 } from "../utils/workoutAdvisory";
+import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
 import styles from "../styles/pages/exercisePage.module.scss";
 
@@ -61,12 +71,7 @@ const updateSetLog = (
 };
 
 const formatSetSummary = (setLog: WorkoutSetLog) =>
-  `${setLog.weight ?? 0}${setLog.weightUnit ?? ""} x ${setLog.actualReps ?? 0}`;
-
-const formatCurrentSetSummary = (
-  exerciseLog: WorkoutExerciseLog,
-  setLog: WorkoutSetLog
-) => `${getDefaultWeight(exerciseLog, setLog)} / ${getDefaultReps(setLog)}`;
+  `${setLog.weight ?? 0} ${setLog.weightUnit ?? ""} x ${setLog.actualReps ?? 0}`;
 
 const getActiveSetIndex = (sets: WorkoutSetLog[]) =>
   sets.findIndex((setLog) => !setLog.completed);
@@ -109,6 +114,8 @@ const WorkoutExercise = () => {
   const [advisoryAttempt, setAdvisoryAttempt] =
     useState<AdvisoryAttempt | null>(null);
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
+  const todaySetRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const [showRestTimer, _setShowRestTimer] = useState(false);
 
   useEffect(() => {
     if (restSeconds === null || restSeconds <= 0) {
@@ -140,6 +147,21 @@ const WorkoutExercise = () => {
   const activeSetIndex = activeExercise
     ? getActiveSetIndex(activeExercise.sets)
     : -1;
+  const displaySetIndex =
+    activeExercise && activeExercise.sets.length > 0
+      ? activeSetIndex >= 0
+        ? activeSetIndex
+        : activeExercise.sets.length - 1
+      : -1;
+  const displaySet =
+    activeExercise && displaySetIndex >= 0
+      ? activeExercise.sets[displaySetIndex]
+      : null;
+  const previousDisplaySet = displaySet
+    ? previousCompletedSets.find(
+        (setLog) => setLog.setNumber === displaySet.setNumber
+      )
+    : undefined;
   const setStates =
     activeExercise?.sets.map((setLog, setIndex) => ({
       setNumber: setLog.setNumber,
@@ -186,6 +208,18 @@ const WorkoutExercise = () => {
     },
   ];
   const showDevDataInspector = import.meta.env.DEV;
+
+  useEffect(() => {
+    if (activeSetIndex < 0) {
+      return;
+    }
+
+    todaySetRefs.current[activeSetIndex]?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [activeSetIndex]);
 
   if (session.status === "completed") {
     return <Navigate to={`/workout/${session._id}/summary`} replace />;
@@ -390,6 +424,14 @@ const WorkoutExercise = () => {
     navigate(`/workout/${session._id}`);
   };
 
+  const handleStartRestTimer = () => {
+    const restTime = activeExercise?.prescriptionSnapshot.restSeconds;
+
+    if (restTime) {
+      setRestSeconds(restTime);
+    }
+  };
+
   if (!Number.isInteger(activeExerciseIndex)) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -418,47 +460,63 @@ const WorkoutExercise = () => {
             onClick={() => navigate(`/workout/${session._id}`)}
           >
             <ArrowLeft size={16} />
-            Back
           </button>
-          <p>
-            Exercise {activeExerciseIndex + 1} / {session.exerciseLogs.length}
-          </p>
+          <div className={styles.exerciseProgress}>
+            <p>
+              Exercise {activeExerciseIndex + 1} of {session.exerciseLogs.length}
+            </p>
+            <div className={styles.progressBars}>
+              {session.exerciseLogs.map((exerciseLog, index) => (
+                <span
+                  key={exerciseLog.slotId}
+                  className={clsx(
+                    exerciseLog.completed && styles.progressComplete,
+                    index === activeExerciseIndex && styles.progressActive
+                  )}
+                />
+              ))}
+            </div>
+          </div>
           {showDevDataInspector ? (
             <DevDataInspector
               title="Workout exercise data"
               items={devDataItems}
             />
-          ) : null}
+          ) : (
+            <button type="button" aria-label="Exercise options">
+              <MoreVertical size={18} />
+            </button>
+          )}
         </header>
         <div className={styles.exerciseMeta}>
           <div className={styles.exerciseTitle}>
-            <h1>{activeExercise.label}</h1>
+            <div>
+              <h1>{activeExercise.label}</h1>
+              <p><Target /> {formatWorkoutDisplayLabel(session.programDayLabel)}</p>
+            </div>
             <span>
               {completedSetCount} / {activeExercise.sets.length} sets
             </span>
           </div>
 
-          {/* <p className={styles.prescription}>
-            Rest between sets:{" "}
-            {formatTimer(activeExercise.prescriptionSnapshot.restSeconds)}
-          </p> */}
-
-          <div className={styles.previousPerformance}>
-            <p>Previous:</p>
-            {previousCompletedSets.length > 0 ? (
-              <div>
-                {previousCompletedSets.map((setLog) => (
-                  <Pill key={setLog.setNumber} label={formatSetSummary(setLog)} size="small" />
-                ))}
-              </div>
-            ) : (
-              <Pill label="No previous completed sets" size="small" tone="dark" />
-            )}
-          </div>
-          <div className={styles.currentPerformance}>
-            <p>Current:</p>
-            {activeExercise.sets.length > 0 ? (
-              <div>
+          <div className={styles.performanceGrid}>
+            <section className={styles.previousPerformance}>
+              <p>Previous</p>
+              {previousDisplaySet ? (
+                <div className={styles.previousCard}>
+                  <span>Set {previousDisplaySet.setNumber}</span>
+                  <strong>{formatSetSummary(previousDisplaySet)}</strong>
+                </div>
+              ) : (
+                <div className={styles.previousCard}>
+                  
+                  <strong>N/A</strong>
+                </div>
+              )}
+            </section>
+            <section className={styles.currentPerformance}>
+              <p>Today</p>
+              <div className={styles.todaySetScroller}>
                 {activeExercise.sets.map((setLog, setIndex) => {
                   const setState = getSetUiState(
                     setLog,
@@ -467,19 +525,32 @@ const WorkoutExercise = () => {
                   );
 
                   return (
-                    <Pill
+                    <div
                       key={setLog.setNumber}
-                      size="small"
-                      label={formatCurrentSetSummary(activeExercise, setLog)}
-                      state={setState}
-                    />
+                      ref={(node) => {
+                        todaySetRefs.current[setIndex] = node;
+                      }}
+                      className={clsx(
+                        styles.todaySetTile,
+                        setState === "completed" && styles.todaySetComplete,
+                        setState === "active" && styles.todaySetActive
+                      )}
+                    >
+                      <span>Set {setLog.setNumber}</span>
+                      <strong>{getDefaultWeight(activeExercise, setLog)}</strong>
+                      <small>
+                        {setLog.weightUnit ??
+                          activeExercise.prescriptionSnapshot.weightUnit}
+                        {" x "}
+                        {getDefaultReps(setLog)}
+                      </small>
+                    </div>
                   );
                 })}
               </div>
-            ) : (
-              <span>No completed sets</span>
-            )}
+            </section>
           </div>
+          <small>We suggest a weight you can complete {activeExercise.prescriptionSnapshot.reps} reps with good form.</small>
         </div>
 
         <div className={styles.setList}>
@@ -496,8 +567,23 @@ const WorkoutExercise = () => {
                   <span className={styles.setStatusIcon}>
                     {setState === "completed" ? <Check size={18} /> : <ActiveSet />}
                   </span>
-                  <h2>Set {setLog.setNumber}</h2>
-                  <small>{setLog.targetReps}</small>
+                  <div>
+                    <h2>Set {setLog.setNumber}</h2>
+                    <small>{setLog.targetReps} reps</small>
+                  </div>
+                  {setState === "completed" ? (
+                    <>
+                      <strong>{formatSetSummary(setLog)}</strong>
+                      <ChevronRight size={22} />
+                    </>
+                  ) : null}
+                  {setState === "active" ? (
+                    <>
+                      <em>Current set</em>
+                      <ChevronUp size={22} />
+                    </>
+                  ) : null}
+                  {setState === "inactive" ? <ChevronRight size={22} /> : null}
                 </header>
 
                 {isActiveSet ? (
@@ -550,6 +636,8 @@ const WorkoutExercise = () => {
                     <Button
                       type="button"
                       label="Add Note or Badge"
+                      className={styles.noteAction}
+                      icon="edit"
                       tone="secondary"
                       variant="outline"
                     />
@@ -568,6 +656,32 @@ const WorkoutExercise = () => {
             );
           })}
         </div>
+
+        {showRestTimer &&<aside className={styles.restTimerCard}>
+          <span>
+            <Info size={18} />
+          </span>
+          <div>
+            <strong>
+              Rest Timer:{" "}
+              {restSeconds !== null && restSeconds > 0
+                ? formatTimer(restSeconds)
+                : formatTimer(activeExercise.prescriptionSnapshot.restSeconds)}
+            </strong>
+            <p>Take your time. Quality reps over rushing.</p>
+          </div>
+          <Button
+            label={
+              restSeconds !== null && restSeconds > 0
+                ? "Timer active"
+                : "Start timer"
+            }
+            size="medium"
+            tone="secondary"
+            variant="outline"
+            onClick={handleStartRestTimer}
+          />
+        </aside>}
 
         <Button
           className={clsx(

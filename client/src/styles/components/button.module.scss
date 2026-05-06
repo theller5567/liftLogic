@@ -35,8 +35,8 @@ $button-sizes: (
   ),
   medium: (
     min-height: 2rem,
-    padding: 0.5rem 1.35rem,
-    font-size: var(--fs-600),
+    padding: 0.9rem 1.35rem,
+    font-size: var(--fs-400),
     gap: 0.5rem,
   ),
   small: (
@@ -108,7 +108,8 @@ $button-variants: (
   'black': (
     'solid': (
       bg: hsl-token(--clr-neutral-900-b),
-      color: hsl-token(--clr-neutral-500-b),
+      color: hsl-token(--clr-neutral-100-b),
+      border: hsl-token(--clr-neutral-300-b, 0.22),
     ),
     'ghost': (
       bg: hsl-token(--clr-neutral-800-b),
