@@ -4,6 +4,7 @@ import type {
   WorkoutExerciseLog,
   WorkoutSessionDto,
 } from "../../../shared/types/workoutSession.types";
+import type { UserSettings } from "../../../shared/types/userSettings.types";
 import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWorkoutPreview";
 
 const CLIENT_ID_KEY = "liftlogic:client-id";
@@ -59,6 +60,13 @@ export type UserProfileDto = {
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type UserSettingsDto = UserSettings & {
+  _id?: string;
+  clientId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export const isApiEnabled = () => Boolean(API_BASE_URL);
@@ -161,6 +169,7 @@ export const getCurrentProfile = () =>
   apiRequest<{
     profile: UserProfileDto;
     workoutPlan: WorkoutPlanDto | null;
+    userSettings: UserSettingsDto;
   }>("/api/profile/current");
 
 export const submitOnboardingAnswers = (answers: OnboardingAnswers) =>
@@ -170,6 +179,12 @@ export const submitOnboardingAnswers = (answers: OnboardingAnswers) =>
   }>("/api/profile/onboarding", {
     method: "PUT",
     body: JSON.stringify({ answers }),
+  });
+
+export const saveUserSettings = (settings: UserSettings) =>
+  apiRequest<{ userSettings: UserSettingsDto }>("/api/profile/settings", {
+    method: "PUT",
+    body: JSON.stringify({ settings }),
   });
 
 export const getCurrentWorkoutPlan = () =>

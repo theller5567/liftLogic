@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useCallback, useMemo, useState } from "react";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
 import OnboardingFlow from "../components/OnboardingFlow";
 import { isApiEnabled, submitOnboardingAnswers } from "../services/api";
@@ -19,15 +19,24 @@ import { useUserFlow } from "../utils/userFlow";
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const { destination, error, isLoading } = useUserFlow();
+  const [searchParams] = useSearchParams();
+  const isRedoMode = searchParams.get("redo") === "1";
+  const { destination, error, isLoading, workoutPlan } = useUserFlow();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const [initialAnswers] = useState<OnboardingAnswers | undefined>(() =>
-    !isApiEnabled()
-      ? readDraftAnswers() ?? readSubmittedAnswers() ?? undefined
-      : undefined
+  const initialAnswers = useMemo<OnboardingAnswers | undefined>(
+    () =>
+      isRedoMode
+        ? workoutPlan?.onboardingAnswers ??
+          readSubmittedAnswers() ??
+          readDraftAnswers() ??
+          undefined
+        : !isApiEnabled()
+          ? readDraftAnswers() ?? readSubmittedAnswers() ?? undefined
+          : undefined,
+    [isRedoMode, workoutPlan]
   );
   const [initialStepIndex] = useState<number>(() =>
-    !isApiEnabled() ? readDraftStepIndex() : 0
+    isRedoMode ? 0 : !isApiEnabled() ? readDraftStepIndex() : 0
   );
 
   const handleAnswersChange = useCallback((answers: OnboardingAnswers) => {
@@ -67,7 +76,7 @@ const Onboarding = () => {
     return <p className="text-muted">We could not load your onboarding status. Please refresh.</p>;
   }
 
-  if (destination && destination !== "/onboarding") {
+  if (!isRedoMode && destination && destination !== "/onboarding") {
     return <Navigate to={destination} replace />;
   }
 

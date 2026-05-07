@@ -6,6 +6,7 @@ import type {
   WorkoutExerciseLog,
   WorkoutSetLog,
 } from "../../../shared/types/workoutSession.types";
+import type { UserSettings } from "../../../shared/types/userSettings.types";
 import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWorkoutPreview";
 
 const goalSchema = z.enum(["hypertrophy", "strength", "hybrid"]);
@@ -29,6 +30,7 @@ const workoutBadgeIdSchema = z.enum([
 ]) satisfies z.ZodType<WorkoutBadgeId>;
 const confidenceSchema = z.enum(["high", "medium", "low"]);
 const familiaritySchema = z.enum(["never", "some", "often"]);
+const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
 const nonNegativeOptionalNumber = z.number().finite().nonnegative().optional();
 
@@ -112,6 +114,41 @@ export const generatedWorkoutPreviewSchema = z
 export const onboardingSubmissionSchema = z
   .object({
     answers: onboardingAnswersSchema,
+  })
+  .strict();
+
+const weightStepsSchema = z
+  .object({
+    default: z.number().finite().positive().max(100),
+    barbell: z.number().finite().positive().max(100),
+    dumbbell: z.number().finite().positive().max(100),
+    machine: z.number().finite().positive().max(100),
+    cable: z.number().finite().positive().max(100),
+  })
+  .strict();
+
+export const userSettingsSchema = z
+  .object({
+    weightUnit: weightUnitSchema,
+    weightSteps: weightStepsSchema,
+    restTimer: z
+      .object({
+        autoStartAfterSet: z.boolean(),
+        defaultSeconds: z.number().finite().int().min(0).max(900).optional(),
+      })
+      .strict(),
+    theme: z
+      .object({
+        primaryColor: colorSchema,
+        secondaryColor: colorSchema,
+      })
+      .strict(),
+  })
+  .strict() satisfies z.ZodType<UserSettings>;
+
+export const userSettingsSubmissionSchema = z
+  .object({
+    settings: userSettingsSchema,
   })
   .strict();
 

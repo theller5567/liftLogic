@@ -9,6 +9,7 @@ import StepButton from "./StepButton";
 import styles from "../styles/components/workoutPreview.module.scss";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
+import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
 import type {
   GeneratedWorkoutExerciseAlternative,
   GeneratedWorkoutExercisePreview,
@@ -58,6 +59,7 @@ const WorkoutPreview = ({
   preview,
   onPreviewChange,
 }: WorkoutPreviewProps) => {
+  const { settings } = useUserSettings();
   const [workingPreview, setWorkingPreview] =
     useState<GeneratedWorkoutPreview>(preview);
   const [activeDayIndex, setActiveDayIndex] = useState(0);
@@ -102,8 +104,7 @@ const WorkoutPreview = ({
     ),
   ];
 
-  const getWeightStep = (weightUnit: SelectedEditExercise["weightUnit"]) =>
-    weightUnit === "kg" ? 2.5 : 5;
+  const getWeightStep = () => getWeightStepForKey(settings, "default");
 
   const updateDraftWeight = (amount: number) => {
     setDraftWeight((currentWeight) =>
@@ -321,7 +322,7 @@ const WorkoutPreview = ({
                 <div
                     className={clsx(styles.weightStepper)}
                   >
-                  <StepButton type="decrement" size="large" onClick={() => updateDraftWeight(-getWeightStep(selectedEditExercise.weightUnit))} />
+                  <StepButton type="decrement" size="large" onClick={() => updateDraftWeight(-getWeightStep())} />
                   <div className={clsx(styles.weightInputWrapper)}>
                     <div
                       id={`starting-weight-input-${selectedEditExercise.id}`}
@@ -332,7 +333,7 @@ const WorkoutPreview = ({
                       {selectedEditExercise.weightUnit}
                     </span>
                   </div>
-                  <StepButton type="increment" size="large" onClick={() => updateDraftWeight(+getWeightStep(selectedEditExercise.weightUnit))} />
+                  <StepButton type="increment" size="large" onClick={() => updateDraftWeight(+getWeightStep())} />
                 </div>
               </section>
             ) : null}

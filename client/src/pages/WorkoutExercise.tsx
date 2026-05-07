@@ -23,6 +23,9 @@ import type {
   WorkoutSessionDto,
   WorkoutSetLog,
 } from "../../../shared/types/workoutSession.types";
+import { weightEstimationRules } from "../../../shared/constants/weightEstimationRules";
+import type { WeightStepKey } from "../../../shared/types/userSettings.types";
+import { normalizeLibraryIdToEstimatorKey } from "../../../shared/utils/exerciseLibraryAdapter";
 import {
   getMostRecentPriorWeekExerciseLog,
   getProgressionTargetReps,
@@ -30,6 +33,7 @@ import {
 } from "../utils/workoutAdvisory";
 import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
+import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
 import styles from "../styles/pages/exercisePage.module.scss";
 
 type AdvisoryAttempt = {
@@ -51,8 +55,6 @@ const getDefaultReps = (set: WorkoutSetLog) =>
 
 const getDefaultWeight = (exerciseLog: WorkoutExerciseLog, set: WorkoutSetLog) =>
   set.weight ?? exerciseLog.prescriptionSnapshot.suggestedWeight ?? 0;
-
-const getWeightStep = (unit?: string) => (unit === "kg" ? 2.5 : 5);
 
 const updateSetLog = (
   exerciseLog: WorkoutExerciseLog,
@@ -104,18 +106,31 @@ const areAllExercisesCompleted = (exerciseLogs: WorkoutExerciseLog[]) =>
   exerciseLogs.length > 0 &&
   exerciseLogs.every((exerciseLog) => exerciseLog.completed);
 
+const getWeightStepKey = (exerciseId: string): WeightStepKey => {
+  const canonicalKey = normalizeLibraryIdToEstimatorKey(exerciseId);
+
+  if (!canonicalKey) {
+    return "default";
+  }
+
+  const equipmentType = weightEstimationRules.exerciseMeta[canonicalKey].equipmentType;
+
+  return equipmentType;
+};
+
 const WorkoutExercise = () => {
   const { exerciseIndex } = useParams();
   const navigate = useNavigate();
   const activeExerciseIndex = Number(exerciseIndex);
   const { priorSessions, session, setSession } = useWorkoutSessionRouteContext();
+  const { settings } = useUserSettings();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [advisoryAttempt, setAdvisoryAttempt] =
     useState<AdvisoryAttempt | null>(null);
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
   const todaySetRefs = useRef<Record<number, HTMLDivElement | null>>({});
-  const [showRestTimer, _setShowRestTimer] = useState(false);
+  const showRestTimer = false;
 
   useEffect(() => {
     if (restSeconds === null || restSeconds <= 0) {
@@ -176,6 +191,13 @@ const WorkoutExercise = () => {
     Boolean(activeExercise?.sets.length) &&
     completedSetCount === activeExercise?.sets.length;
   const allExercisesCompleted = areAllExercisesCompleted(session.exerciseLogs);
+  const activeExerciseStepKey = activeExercise
+    ? getWeightStepKey(activeExercise.exerciseId)
+    : "default";
+  const activeExerciseRestSeconds =
+    settings.restTimer.defaultSeconds ??
+    activeExercise?.prescriptionSnapshot.restSeconds ??
+    0;
   const finishExerciseLabel =
     session.status === "completed"
       ? "View workout summary"
@@ -303,9 +325,7 @@ const WorkoutExercise = () => {
     }
 
     const setLog = activeExercise.sets[setIndex];
-    const step = getWeightStep(
-      setLog.weightUnit ?? activeExercise.prescriptionSnapshot.weightUnit
-    );
+    const step = getWeightStepForKey(settings, activeExerciseStepKey);
     const previousWeight = getDefaultWeight(activeExercise, setLog);
     const nextWeight =
       direction === "increase"
@@ -394,9 +414,9 @@ const WorkoutExercise = () => {
       return;
     }
 
-    const restTime = activeExercise.prescriptionSnapshot.restSeconds;
+    const restTime = activeExerciseRestSeconds;
 
-    if (restTime) {
+    if (settings.restTimer.autoStartAfterSet && restTime) {
       setRestSeconds(restTime);
     }
   };
@@ -425,7 +445,7 @@ const WorkoutExercise = () => {
   };
 
   const handleStartRestTimer = () => {
-    const restTime = activeExercise?.prescriptionSnapshot.restSeconds;
+    const restTime = activeExerciseRestSeconds;
 
     if (restTime) {
       setRestSeconds(restTime);
@@ -666,7 +686,7 @@ const WorkoutExercise = () => {
               Rest Timer:{" "}
               {restSeconds !== null && restSeconds > 0
                 ? formatTimer(restSeconds)
-                : formatTimer(activeExercise.prescriptionSnapshot.restSeconds)}
+                : formatTimer(activeExerciseRestSeconds)}
             </strong>
             <p>Take your time. Quality reps over rushing.</p>
           </div>

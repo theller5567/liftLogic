@@ -1,4 +1,5 @@
 import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
+import type { UserSettings } from "../../../shared/types/userSettings.types";
 import type { GeneratedWorkoutPreview } from "./generateWorkoutPreview";
 
 const STORAGE_KEYS = {
@@ -7,6 +8,7 @@ const STORAGE_KEYS = {
   draftStepIndex: "liftlogic:onboarding:step",
   editedWorkoutPreview: "liftlogic:workout-preview:edited",
   workoutReviewed: "liftlogic:workout-review:reviewed",
+  userSettings: "liftlogic:user-settings",
 } as const;
 
 const canUseStorage = () => typeof window !== "undefined";
@@ -114,4 +116,11 @@ export const writeWorkoutReviewed = (reviewed: boolean) => {
   }
 
   window.localStorage.setItem(STORAGE_KEYS.workoutReviewed, "true");
+};
+
+export const readUserSettings = () =>
+  readStoredJson<UserSettings>(STORAGE_KEYS.userSettings);
+
+export const writeUserSettings = (settings: UserSettings | null) => {
+  writeStoredJson(STORAGE_KEYS.userSettings, settings);
 };
