@@ -525,7 +525,18 @@ const WorkoutExercise = () => {
               {previousDisplaySet ? (
                 <div className={styles.previousCard}>
                   <span>Set {previousDisplaySet.setNumber}</span>
-                  <strong>{formatSetSummary(previousDisplaySet)}</strong>
+                  <strong>
+                    {previousDisplaySet.weight ??
+                      previousExerciseLog?.prescriptionSnapshot.suggestedWeight ??
+                      0}
+                  </strong>
+                  <small>
+                    {previousDisplaySet.weightUnit ??
+                      previousExerciseLog?.prescriptionSnapshot.weightUnit ??
+                      activeExercise.prescriptionSnapshot.weightUnit}
+                    {" x "}
+                    {getDefaultReps(previousDisplaySet)}
+                  </small>
                 </div>
               ) : (
                 <div className={styles.previousCard}>

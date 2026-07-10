@@ -1,6 +1,9 @@
 import { type ChangeEvent, useState } from "react";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
+import { ClockIcon } from "lucide-react";
+import type { MuscleGroup } from "../../../shared/constants/exercise-library";
+import { getExerciseById } from "../../../shared/utils/exerciseLibraryAdapter";
 
 import BottomSheet from "./BottomSheet";
 import Button from "./Button";
@@ -10,6 +13,9 @@ import styles from "../styles/components/workoutPreview.module.scss";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
+import Weights from "../assets/icons/010-weights.svg?react";
+import LifeLine from "../assets/icons/047-life-line.svg?react";
+import TotalSets from "../assets/icons/total-sets.svg?react";
 import type {
   GeneratedWorkoutExerciseAlternative,
   GeneratedWorkoutExercisePreview,
@@ -28,6 +34,26 @@ type MovementOption = GeneratedWorkoutExerciseAlternative & {
 
 type DayNavigationDirection = 1 | -1;
 
+const muscleGroupLabels: Record<MuscleGroup, string> = {
+  chest: "Chest",
+  upper_chest: "Upper Chest",
+  lower_chest: "Lower Chest",
+  lats: "Lats",
+  upper_back: "Upper Back",
+  rear_delts: "Rear Delts",
+  lateral_delts: "Side Delts",
+  front_delts: "Front Delts",
+  triceps: "Triceps",
+  biceps: "Biceps",
+  forearms: "Forearms",
+  quadriceps: "Quads",
+  hamstrings: "Hamstrings",
+  glutes: "Glutes",
+  calves: "Calves",
+  lower_back: "Low Back",
+  scapular_stabilizers: "Scapula",
+};
+
 const formatRestLabel = (restSeconds: number) => {
   const minutes = Math.floor(restSeconds / 60);
   const seconds = restSeconds % 60;
@@ -41,6 +67,62 @@ const formatRestLabel = (restSeconds: number) => {
   }
 
   return `${seconds}s rest`;
+};
+
+const formatDurationLabel = (durationSeconds: number) => {
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = durationSeconds % 60;
+
+  if (minutes > 0 && seconds > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m`;
+  }
+
+  return `${seconds}s`;
+};
+
+const getExerciseMuscleTags = (exerciseId: string) =>
+  getExerciseById(exerciseId)?.primaryMuscles.slice(0, 3).map(
+    (muscleGroup) => muscleGroupLabels[muscleGroup]
+  ) ?? [];
+
+const WORKOUT_SET_EXECUTION_SECONDS = 45;
+
+const getRepValues = (reps: string) => reps.match(/\d+/g)?.map(Number) ?? [];
+
+const formatWorkoutRepRange = (
+  exercises: GeneratedWorkoutExercisePreview[]
+) => {
+  const repValues = exercises.flatMap((exercise) =>
+    getRepValues(exercise.prescription.reps)
+  );
+
+  if (repValues.length === 0) {
+    return "N/A";
+  }
+
+  const minReps = Math.min(...repValues);
+  const maxReps = Math.max(...repValues);
+
+  return minReps === maxReps ? `${minReps}` : `${minReps}-${maxReps}`;
+};
+
+const formatEstimatedWorkoutTime = (
+  exercises: GeneratedWorkoutExercisePreview[]
+) => {
+  const totalSeconds = exercises.reduce((total, exercise) => {
+    const { sets, restSeconds } = exercise.prescription;
+    const executionTime = sets * WORKOUT_SET_EXECUTION_SECONDS;
+    const restTime = Math.max(sets - 1, 0) * restSeconds;
+
+    return total + executionTime + restTime;
+  }, 0);
+  const roundedMinutes = Math.max(1, Math.round(totalSeconds / 60));
+
+  return `${roundedMinutes} min`;
 };
 
 const dayCardMotion = {
@@ -181,6 +263,10 @@ const WorkoutPreview = ({
   const activeDay =
     workingPreview.days[resolvedActiveDayIndex] ??
     workingPreview.days[0];
+  const estimatedTime = activeDay
+    ? formatEstimatedWorkoutTime(activeDay.exercises)
+    : "";
+  const repRange = activeDay ? formatWorkoutRepRange(activeDay.exercises) : "";
 
   return (
     <>
@@ -231,48 +317,114 @@ const WorkoutPreview = ({
                   </h2>
                   <p className={styles.dayFocus}>{activeDay.focus}</p>
                 </div>
-                <div className={clsx(styles.exerciseNum)}>{activeDay.exercises.length} Exercises</div>
               </header>
 
-              <div className="grid gap-3">
-                {activeDay.exercises.map((exercise) => (
+              <ul className={styles.workoutSummary}>
+              <li className={styles.totalExercises}>
+                <Weights className={styles.summaryIcons} aria-hidden="true" />
+                  <span className={styles.summaryLabel}>Total Exercises</span>
+                  <span className={styles.summaryValue}>{activeDay.exercises.length}</span>
+                </li>
+                <li className={styles.repRange}>
+                <LifeLine className={styles.summaryIcons} aria-hidden="true" />
+                  <span className={styles.summaryLabel}>Rep Range</span>
+                  <span className={styles.summaryValue}>{repRange}</span>
+                </li>
+                <li className={styles.totalSets}>
+                  <TotalSets className={styles.summaryIcons} aria-hidden="true" />
+                  <span className={styles.summaryLabel}>Total Sets</span>
+                  <span className={styles.summaryValue}>{activeDay.exercises.reduce((acc, exercise) => acc + exercise.prescription.sets, 0)}</span>
+                </li>
+                
+                <li className={styles.estimatedTime}>
+                  <ClockIcon className={styles.summaryIcons} aria-hidden="true" />
+                  <span className={styles.summaryLabel}>Estimated Time</span>
+                  <span className={styles.summaryValue}>{estimatedTime}</span>
+                </li>
+              </ul>
+
+              <div className="grid gap-5">
+                {activeDay.exercises.map((exercise, exerciseIndex) => {
+                  const muscleTags = getExerciseMuscleTags(exercise.exerciseId);
+
+                  return (
                   <article
                     key={exercise.id}
-                    className={clsx(styles.exerciseCard, "grid gap-2 border-subtle")}
+                    className={clsx(styles.exerciseCard, "border-subtle")}
                   >
-                    <div
-                      className={clsx(
-                        styles.exerciseHeading,
-                        "flex gap-4 flex-wrap justify-between"
-                      )}
-                    >
-                      <strong>{exercise.label}</strong>
-                      {exercise.suggestedWeight !== undefined ? (
-                        <span className={clsx(styles.weightSummary, "flex gap-2")}>
-                          Start at {exercise.suggestedWeight} {exercise.weightUnit}
-                        </span>
+                    <span className={styles.exerciseIndex}>
+                      {exerciseIndex + 1}
+                    </span>
+                    <div className={styles.exerciseCardBody}>
+                      <div className={styles.exerciseCardHeader}>
+                        <div className={styles.exerciseTitleGroup}>
+                        <div className={styles.exerciseTitleContent}>
+                          <strong>{exercise.label}</strong>
+                          {muscleTags.length > 0 ? (
+                            <div className={styles.muscleTags}>
+                              {muscleTags.map((muscleTag) => (
+                                <span key={`${exercise.id}-${muscleTag}`}>
+                                  {muscleTag}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                        <div className={styles.exerciseActions}>
+                          {exercise.suggestedWeight !== undefined ? (
+                            <span className={styles.weightSummary}>
+                              <span>Start at</span>
+                              <strong>
+                                {exercise.suggestedWeight} {exercise.weightUnit}
+                              </strong>
+                            </span>
+                          ) : null}
+                          
+                        </div>
+                        {exercise.suggestedWeight !== undefined ||
+                          exercise.exerciseAlternatives.length > 0 ? (
+                            <Button
+                              label="Edit"
+                              size="small"
+                              icon="edit"
+                              variant="outline"
+                              tone="gray"
+                              className={styles.exerciseEditButton}
+                              onClick={() => editExercise(exercise)}
+                            />
+                          ) : null}
+                      </div>
+                      <dl className={styles.exerciseStats}>
+                        <div>
+                          <dt>
+                            <TotalSets aria-hidden="true" />
+                            Sets
+                          </dt>
+                          <dd>{exercise.prescription.sets} sets</dd>
+                        </div>
+                        <div>
+                          <dt>
+                            <LifeLine aria-hidden="true" />
+                            Reps
+                          </dt>
+                          <dd>{exercise.prescription.reps} reps</dd>
+                        </div>
+                        <div>
+                          <dt>
+                            <ClockIcon aria-hidden="true" />
+                            Rest
+                          </dt>
+                          <dd>{formatDurationLabel(exercise.prescription.restSeconds)}</dd>
+                        </div>
+                      </dl>
+                      {exercise.notes ? (
+                        <p className={styles.exerciseCardNote}>{exercise.notes}</p>
                       ) : null}
                     </div>
-                    <p className={clsx(styles.setsReps, "flex gap-2")}>
-                      {exercise.prescription.sets} sets • {exercise.prescription.reps} reps •{" "}
-                      {formatRestLabel(exercise.prescription.restSeconds)}
-                    </p>
-                    {exercise.notes ? (
-                      <p className="text-muted">{exercise.notes}</p>
-                    ) : null}
-                    {exercise.suggestedWeight !== undefined ||
-                    exercise.exerciseAlternatives.length > 0 ? (
-                      <Button
-                        label="Edit exercise"
-                        size="medium"
-                        icon="edit"
-                        variant="outline"
-                        tone="gray"
-                        onClick={() => editExercise(exercise)}
-                      />
-                    ) : null}
                   </article>
-                ))}
+                );
+                })}
               </div>
             </motion.section>
           ) : null}

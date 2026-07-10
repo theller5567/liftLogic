@@ -131,6 +131,11 @@
     text-transform: uppercase;
   }
 }
+.currentPerformance {
+  > p {
+    color: hsl(var(--clr-neutral-0-b));
+  }
+}
 
 .currentPerformance {
   border-left: 1px solid hsl(var(--clr-neutral-300-b) / 0.24);
@@ -143,7 +148,7 @@
   align-content: center;
   gap: 0.25rem;
   padding: 0.85rem;
-  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.24);
+  border: px solid hsl(var(--clr-neutral-0-b));
   border-radius: var(--br-8);
   background: hsl(var(--clr-neutral-900-b) / 0.38);
 
