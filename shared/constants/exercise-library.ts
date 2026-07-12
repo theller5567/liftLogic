@@ -35,9 +35,11 @@ export type EquipmentType =
 export type MovementPattern =
   | "squat"
   | "lunge"
+  | "step_up"
   | "hinge"
   | "hip_thrust"
   | "calf_raise"
+  | "carry"
   | "vertical_pull"
   | "horizontal_pull"
   | "scapular_control"
@@ -122,9 +124,11 @@ export const exerciseLibrary: ExerciseLibrary = {
   "movementPatterns": [
     "squat",
     "lunge",
+    "step_up",
     "hinge",
     "hip_thrust",
     "calf_raise",
+    "carry",
     "vertical_pull",
     "horizontal_pull",
     "scapular_control",
@@ -186,6 +190,16 @@ export const exerciseLibrary: ExerciseLibrary = {
       ],
       "alternatives": [
         {
+          "exerciseId": "dumbbell_lunge"
+        },
+        {
+          "exerciseId": "barbell_lunge"
+        },
+        {
+          "exerciseId": "glute_focused_step_up",
+          "note": "More glute-focused if using a higher box and slight forward torso lean"
+        },
+        {
           "exerciseId": "reverse_lunge"
         },
         {
@@ -194,6 +208,132 @@ export const exerciseLibrary: ExerciseLibrary = {
         {
           "exerciseId": "smith_machine_stationary_lunge"
         }
+      ]
+    },
+    {
+      "id": "dumbbell_lunge",
+      "name": "Dumbbell Lunge",
+      "aliases": [
+        "DB Lunge"
+      ],
+      "equipmentType": "dumbbell",
+      "movementPattern": "lunge",
+      "primaryMuscles": [
+        "quadriceps",
+        "glutes"
+      ],
+      "secondaryMuscles": [
+        "hamstrings",
+        "calves"
+      ],
+      "alternatives": [
+        {
+          "exerciseId": "barbell_lunge"
+        },
+        {
+          "exerciseId": "walking_lunge"
+        },
+        {
+          "exerciseId": "reverse_lunge"
+        },
+        {
+          "exerciseId": "bulgarian_split_squat"
+        }
+      ],
+      "notes": [
+        "Use paired dumbbells or a goblet hold depending on balance and equipment."
+      ]
+    },
+    {
+      "id": "barbell_lunge",
+      "name": "Barbell Lunge",
+      "equipmentType": "barbell",
+      "movementPattern": "lunge",
+      "primaryMuscles": [
+        "quadriceps",
+        "glutes"
+      ],
+      "secondaryMuscles": [
+        "hamstrings",
+        "calves",
+        "lower_back"
+      ],
+      "alternatives": [
+        {
+          "exerciseId": "dumbbell_lunge",
+          "note": "Easier to bail out and easier on balance"
+        },
+        {
+          "exerciseId": "smith_machine_stationary_lunge"
+        },
+        {
+          "exerciseId": "reverse_lunge"
+        },
+        {
+          "exerciseId": "bulgarian_split_squat"
+        }
+      ]
+    },
+    {
+      "id": "glute_focused_step_up",
+      "name": "Glute-Focused Step-Up",
+      "aliases": [
+        "Glute Step-Up",
+        "Dumbbell Step-Up"
+      ],
+      "equipmentType": "dumbbell",
+      "movementPattern": "step_up",
+      "primaryMuscles": [
+        "glutes",
+        "quadriceps"
+      ],
+      "secondaryMuscles": [
+        "hamstrings",
+        "calves"
+      ],
+      "alternatives": [
+        {
+          "exerciseId": "bulgarian_split_squat"
+        },
+        {
+          "exerciseId": "dumbbell_lunge"
+        },
+        {
+          "exerciseId": "reverse_lunge"
+        },
+        {
+          "exerciseId": "barbell_hip_thrust",
+          "note": "More direct glute loading"
+        }
+      ],
+      "notes": [
+        "Use a box height that lets the front leg do most of the work.",
+        "Slightly lean forward and drive through the whole foot to bias glutes."
+      ]
+    },
+    {
+      "id": "farmer_carry",
+      "name": "Farmer Carry",
+      "aliases": [
+        "Farmer's Carry",
+        "Farmer Walk",
+        "Dumbbell Farmer Carry"
+      ],
+      "equipmentType": "mixed",
+      "movementPattern": "carry",
+      "primaryMuscles": [
+        "forearms",
+        "upper_back"
+      ],
+      "secondaryMuscles": [
+        "glutes",
+        "lower_back",
+        "scapular_stabilizers"
+      ],
+      "alternatives": [],
+      "notes": [
+        "Use dumbbells, kettlebells, trap bar handles, or farmer handles.",
+        "Track distance or time alongside load when logging carries."
       ]
     },
     {
@@ -768,6 +908,9 @@ export const exerciseLibrary: ExerciseLibrary = {
           "exerciseId": "barbell_seal_row"
         },
         {
+          "exerciseId": "dumbbell_seal_row"
+        },
+        {
           "exerciseId": "barbell_row"
         },
         {
@@ -1260,7 +1403,22 @@ export const exerciseLibrary: ExerciseLibrary = {
         "biceps",
         "rear_delts"
       ],
-      "alternatives": []
+      "alternatives": [
+        {
+          "exerciseId": "barbell_seal_row",
+          "note": "Chest-supported variation with less lower-back demand"
+        },
+        {
+          "exerciseId": "dumbbell_seal_row",
+          "note": "Chest-supported dumbbell variation"
+        },
+        {
+          "exerciseId": "chest_supported_row"
+        },
+        {
+          "exerciseId": "t_bar_row"
+        }
+      ]
     },
     {
       "id": "dumbbell_row",
@@ -1278,7 +1436,21 @@ export const exerciseLibrary: ExerciseLibrary = {
       "secondaryMuscles": [
         "biceps"
       ],
-      "alternatives": []
+      "alternatives": [
+        {
+          "exerciseId": "dumbbell_seal_row",
+          "note": "Chest-supported variation with stricter form"
+        },
+        {
+          "exerciseId": "barbell_seal_row"
+        },
+        {
+          "exerciseId": "chest_supported_row"
+        },
+        {
+          "exerciseId": "barbell_row"
+        }
+      ]
     },
     {
       "id": "bent_over_reverse_dumbbell_fly",
@@ -1660,7 +1832,49 @@ export const exerciseLibrary: ExerciseLibrary = {
         "biceps",
         "rear_delts"
       ],
-      "alternatives": []
+      "alternatives": [
+        {
+          "exerciseId": "dumbbell_seal_row",
+          "note": "More independent arm path"
+        },
+        {
+          "exerciseId": "chest_supported_row"
+        },
+        {
+          "exerciseId": "barbell_row",
+          "note": "Not chest-supported"
+        }
+      ]
+    },
+    {
+      "id": "dumbbell_seal_row",
+      "name": "Dumbbell Seal Row",
+      "aliases": [
+        "DB Seal Row"
+      ],
+      "equipmentType": "dumbbell",
+      "movementPattern": "horizontal_pull",
+      "primaryMuscles": [
+        "upper_back",
+        "lats"
+      ],
+      "secondaryMuscles": [
+        "biceps",
+        "rear_delts"
+      ],
+      "alternatives": [
+        {
+          "exerciseId": "barbell_seal_row",
+          "note": "Easier to load heavier"
+        },
+        {
+          "exerciseId": "chest_supported_row"
+        },
+        {
+          "exerciseId": "dumbbell_row",
+          "note": "Not chest-supported"
+        }
+      ]
     },
     {
       "id": "seated_dumbbell_barbell_overhead_press",

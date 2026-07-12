@@ -153,6 +153,10 @@
   background: hsl(var(--clr-neutral-500-b) / 0.45);
 }
 
+.workoutDotRest {
+  background: transparent;
+}
+
 .workoutSection {
   display: grid;
   gap: 1rem;

@@ -17,7 +17,7 @@ const DashboardHeader = ({ displayName, photoUrl }: DashboardHeaderProps) => (
     <div className={styles.profileSummary}>
       <p>Welcome back,</p>
       <strong>{getFirstName(displayName)}</strong>
-      <Avatar name={displayName} photoUrl={photoUrl} />
+      <Avatar name={displayName} photoUrl={photoUrl} linkToSettings={true} />
     </div>
   </header>
 );

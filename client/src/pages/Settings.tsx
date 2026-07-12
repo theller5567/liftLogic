@@ -1,5 +1,6 @@
-import { RotateCcw, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -40,6 +41,31 @@ type SettingsFormProps = {
   settingsError: Error | null;
   saveSettings: (settings: UserSettings) => Promise<UserSettings>;
 };
+
+type SettingsAccordionProps = {
+  children: ReactNode;
+  defaultOpen?: boolean;
+  icon: ReactNode;
+  title: string;
+};
+
+const SettingsAccordion = ({
+  children,
+  defaultOpen = false,
+  icon,
+  title,
+}: SettingsAccordionProps) => (
+  <details className={styles.settingsSection} open={defaultOpen}>
+    <summary className={styles.sectionHeader}>
+      <span className={styles.sectionHeaderTitle}>
+        {icon}
+        <h2>{title}</h2>
+      </span>
+      <ChevronDown className={styles.accordionIcon} aria-hidden="true" size={18} />
+    </summary>
+    <div className={styles.sectionContent}>{children}</div>
+  </details>
+);
 
 const SettingsForm = ({
   initialSettings,
@@ -171,12 +197,11 @@ const SettingsForm = ({
         {saveMessage ? <p className={styles.success}>{saveMessage}</p> : null}
 
         <div className={styles.sectionGrid}>
-          <section className={styles.settingsSection}>
-            <div className={styles.sectionHeader}>
-              <SlidersHorizontal size={18} />
-              <h2>Training</h2>
-            </div>
-
+          <SettingsAccordion
+            defaultOpen
+            icon={<SlidersHorizontal size={18} />}
+            title="Training"
+          >
             <label className={styles.field}>
               <span>Weight unit</span>
               <select
@@ -211,14 +236,12 @@ const SettingsForm = ({
                 </label>
               ))}
             </div>
-          </section>
+          </SettingsAccordion>
 
-          <section className={styles.settingsSection}>
-            <div className={styles.sectionHeader}>
-              <SlidersHorizontal size={18} />
-              <h2>Rest Timer</h2>
-            </div>
-
+          <SettingsAccordion
+            icon={<SlidersHorizontal size={18} />}
+            title="Rest Timer"
+          >
             <label className={styles.toggleRow}>
               <span>Auto-start after set</span>
               <input
@@ -263,14 +286,12 @@ const SettingsForm = ({
                 }}
               />
             </label>
-          </section>
+          </SettingsAccordion>
 
-          <section className={styles.settingsSection}>
-            <div className={styles.sectionHeader}>
-              <SlidersHorizontal size={18} />
-              <h2>Appearance</h2>
-            </div>
-
+          <SettingsAccordion
+            icon={<SlidersHorizontal size={18} />}
+            title="Appearance"
+          >
             <div className={styles.colorGrid}>
               <label className={styles.colorField}>
                 <span>Primary</span>
@@ -298,14 +319,9 @@ const SettingsForm = ({
               variant="outline"
               onClick={handleResetTheme}
             />
-          </section>
+          </SettingsAccordion>
 
-          <section className={styles.settingsSection}>
-            <div className={styles.sectionHeader}>
-              <RotateCcw size={18} />
-              <h2>Program</h2>
-            </div>
-
+          <SettingsAccordion icon={<RotateCcw size={18} />} title="Program">
             <div className={styles.summaryRow}>
               <span>Current goal</span>
               <strong>{workoutPlan?.onboardingAnswers.goal ?? "Not set"}</strong>
@@ -322,14 +338,12 @@ const SettingsForm = ({
               tone="secondary"
               onClick={handleRedoOnboarding}
             />
-          </section>
+          </SettingsAccordion>
 
-          <section className={styles.settingsSection}>
-            <div className={styles.sectionHeader}>
-              <SlidersHorizontal size={18} />
-              <h2>Account</h2>
-            </div>
-
+          <SettingsAccordion
+            icon={<SlidersHorizontal size={18} />}
+            title="Account"
+          >
             <div className={styles.summaryRow}>
               <span>Name</span>
               <strong>{accountLabel}</strong>
@@ -345,7 +359,7 @@ const SettingsForm = ({
               variant="outline"
               onClick={handleSignOut}
             />
-          </section>
+          </SettingsAccordion>
         </div>
 
         <div className={styles.footerActions}>

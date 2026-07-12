@@ -3,7 +3,7 @@ import styles from "../../styles/components/dashboard.module.scss";
 import { CalendarDays } from "lucide-react";
 import { Link } from "react-router-dom";
 
-export type WorkoutCompletionStatus = "not-started" | "started" | "completed";
+export type WorkoutCompletionStatus = "rest" | "not-started" | "started" | "completed";
 
 export type WeekDayOption = {
   date: Date;
@@ -13,6 +13,7 @@ export type WeekDayOption = {
 type WeekSelectorProps = {
   days: WeekDayOption[];
   onSelectDate: (date: Date) => void;
+  scheduleSummary?: string;
   selectedDate: Date;
 };
 
@@ -35,15 +36,24 @@ const getWorkoutDotClassName = (
     return isToday ? styles.workoutDotStartedToday : styles.workoutDotStarted;
   }
 
-  return isToday ? styles.workoutDotToday : styles.workoutDotNotStarted;
+  if (workoutStatus === "not-started") {
+    return isToday ? styles.workoutDotToday : styles.workoutDotNotStarted;
+  }
+
+  return styles.workoutDotRest;
 };
 
-const WeekSelector = ({ days, onSelectDate, selectedDate }: WeekSelectorProps) => (
+const WeekSelector = ({
+  days,
+  onSelectDate,
+  scheduleSummary = "This week's schedule",
+  selectedDate,
+}: WeekSelectorProps) => (
   <section className={styles.weekPanel} aria-label="Schedule for this week">
     <div className={styles.sectionHeading}>
       <div className="flex flex-column gap-1">
       <h2>This Week</h2>
-      <span>4 of 7 days scheduled</span>
+      <span>{scheduleSummary}</span>
       </div>
       <div className="flex flex-center gap-2 text-secondary">
         <Link to="/calendar">View calendar</Link>

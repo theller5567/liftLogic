@@ -38,25 +38,57 @@
 }
 
 .settingsSection {
-  display: grid;
-  gap: 0.85rem;
   padding: 0.9rem;
   border: 1px solid hsl(var(--clr-neutral-300-b) / 0.18);
   border-radius: var(--br-8);
   background: hsl(var(--clr-neutral-700-b) / 0.42);
+
+  &[open] {
+    background: hsl(var(--clr-neutral-700-b) / 0.54);
+  }
+
+  &[open] .accordionIcon {
+    transform: rotate(180deg);
+  }
 }
 
 .sectionHeader {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   color: hsl(var(--clr-primary-500-b));
+  cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
 
   h2 {
     margin: 0;
     color: hsl(var(--clr-neutral-0-b));
     font-size: 1rem;
   }
+}
+
+.sectionHeaderTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.accordionIcon {
+  flex: 0 0 auto;
+  color: hsl(var(--clr-neutral-100-b));
+  transition: transform 160ms ease;
+}
+
+.sectionContent {
+  display: grid;
+  gap: 0.85rem;
+  padding-block-start: 0.9rem;
 }
 
 .field,

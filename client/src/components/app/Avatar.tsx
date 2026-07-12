@@ -1,8 +1,10 @@
+import { Link } from "react-router-dom";
 import styles from "../../styles/components/appShell.module.scss";
 
 type AvatarProps = {
   name?: string;
   photoUrl?: string;
+  linkToSettings?: boolean;
 };
 
 const getInitials = (name?: string) => {
@@ -20,14 +22,26 @@ const getInitials = (name?: string) => {
   return initials || "LL";
 };
 
-const Avatar = ({ name, photoUrl }: AvatarProps) => (
-  <div className={styles.avatar} aria-label={name ? `${name} avatar` : "User avatar"}>
-    {photoUrl ? (
-      <img src={photoUrl} alt="" referrerPolicy="no-referrer" />
-    ) : (
-      <span>{getInitials(name)}</span>
-    )}
-  </div>
-);
+const avatarContent = (name?: string, photoUrl?: string) =>
+  photoUrl ? (
+    <img src={photoUrl} alt="" referrerPolicy="no-referrer" />
+  ) : (
+    <span>{getInitials(name)}</span>
+  );
+
+const Avatar = ({ name, photoUrl, linkToSettings = false }: AvatarProps) =>
+  linkToSettings ? (
+    <Link
+      to="/settings"
+      className={styles.avatar}
+      aria-label={name ? `${name} avatar` : "User avatar"}
+    >
+      {avatarContent(name, photoUrl)}
+    </Link>
+  ) : (
+    <div className={styles.avatar} aria-label={name ? `${name} avatar` : "User avatar"}>
+      {avatarContent(name, photoUrl)}
+    </div>
+  );
 
 export default Avatar;

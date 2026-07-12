@@ -11,6 +11,8 @@ type WorkoutCardProps = {
   completionPercentage?: number;
   date: Date;
   isStartingWorkout?: boolean;
+  isPlanCompleteForWeek?: boolean;
+  isSelectedDateScheduled?: boolean;
   isWorkoutActive?: boolean;
   isWorkoutCompleted?: boolean;
   onSelectWorkout: (workoutDayId: string) => void;
@@ -30,6 +32,8 @@ const WorkoutCard = ({
   completionPercentage = 0,
   date,
   isStartingWorkout = false,
+  isPlanCompleteForWeek = false,
+  isSelectedDateScheduled = false,
   isWorkoutActive = false,
   isWorkoutCompleted = false,
   sessionId,
@@ -58,7 +62,7 @@ const WorkoutCard = ({
     <section className={styles.workoutSection}>
       <div className={styles.workoutHeading}>
         <div>
-          <h2>Today's Workout</h2>
+          <h2>{isSelectedDateToday ? "Today's Workout" : "Selected Workout"}</h2>
           <span>{dateFormatter.format(date)}</span>
         </div>
         <p>{completionPercentage}% Completed</p>
@@ -151,8 +155,36 @@ const WorkoutCard = ({
         </>
       ) : (
         <article className={styles.emptyWorkoutCard}>
-          <h3>All workouts complete</h3>
-          <p>All workouts for this week are complete.</p>
+          <h3>
+            {isPlanCompleteForWeek
+              ? "All workouts complete"
+              : isSelectedDateScheduled
+                ? "No workout available"
+                : "No workout scheduled"}
+          </h3>
+          <p>
+            {isPlanCompleteForWeek
+              ? "All workouts for this week are complete."
+              : availableWorkoutDays.length > 0
+                ? "This is a rest day. Choose a workout below if you want to train anyway."
+                : "You do not have a workout assigned to this date yet."}
+          </p>
+          {!isPlanCompleteForWeek && availableWorkoutDays.length > 0 ? (
+            <div className={styles.switchWorkout}>
+              <p>Choose workout</p>
+              <div className={styles.switchWorkoutOptions}>
+                {availableWorkoutDays.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => onSelectWorkout(option.id)}
+                  >
+                    {formatWorkoutDisplayLabel(option.label)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </article>
       )}
     </section>

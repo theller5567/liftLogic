@@ -102,7 +102,7 @@ const WorkoutReview = () => {
     }
 
     writeWorkoutReviewed(true);
-    navigate("/dashboard");
+    navigate("/plan");
   };
 
   const handleContinue = () => {

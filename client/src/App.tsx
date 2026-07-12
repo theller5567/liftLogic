@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard'
 import Design from './pages/Design'
 import Home from './pages/Home'
 import Onboarding from './pages/Onboarding'
+import Plan from './pages/Plan'
 import Settings from './pages/Settings'
 import Trends from './pages/Trends'
 import Workout from './pages/Workout'
@@ -59,6 +60,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <WorkoutReview />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/plan"
+              element={
+                <ProtectedRoute>
+                  <Plan />
                 </ProtectedRoute>
               }
             />
