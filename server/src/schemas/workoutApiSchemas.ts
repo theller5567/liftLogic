@@ -7,6 +7,12 @@ import type {
   WorkoutSetLog,
 } from "../../../shared/types/workoutSession.types";
 import type { UserSettings } from "../../../shared/types/userSettings.types";
+import {
+  WORKOUT_FOCUS_AREAS,
+  WORKOUT_FOCUS_DURATION_WEEKS,
+  type WorkoutFocusArea,
+  type WorkoutFocusBlock,
+} from "../../../shared/types/workoutFocus.types";
 import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWorkoutPreview";
 
 const goalSchema = z.enum(["hypertrophy", "strength", "hybrid"]);
@@ -31,6 +37,15 @@ const workoutBadgeIdSchema = z.enum([
 const confidenceSchema = z.enum(["high", "medium", "low"]);
 const familiaritySchema = z.enum(["never", "some", "often"]);
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+const focusAreaSchema = z.enum(WORKOUT_FOCUS_AREAS) satisfies z.ZodType<WorkoutFocusArea>;
+const focusDurationWeeksSchema = z.union(
+  WORKOUT_FOCUS_DURATION_WEEKS.map((duration) => z.literal(duration)) as [
+    z.ZodLiteral<2>,
+    z.ZodLiteral<4>,
+    z.ZodLiteral<6>,
+    z.ZodLiteral<8>,
+  ]
+);
 
 const nonNegativeOptionalNumber = z.number().finite().nonnegative().optional();
 
@@ -155,6 +170,24 @@ export const userSettingsSubmissionSchema = z
 export const editedWorkoutPreviewSubmissionSchema = z
   .object({
     editedPreview: generatedWorkoutPreviewSchema,
+  })
+  .strict();
+
+export const workoutFocusBlockSchema = z
+  .object({
+    focusArea: focusAreaSchema,
+    durationWeeks: focusDurationWeeksSchema,
+    startedAt: z.string().datetime(),
+    endsAt: z.string().datetime(),
+    reviewedPreview: generatedWorkoutPreviewSchema.optional(),
+  })
+  .strict() satisfies z.ZodType<WorkoutFocusBlock>;
+
+export const workoutFocusSubmissionSchema = z
+  .object({
+    focusArea: focusAreaSchema,
+    durationWeeks: focusDurationWeeksSchema,
+    reviewedPreview: generatedWorkoutPreviewSchema.optional(),
   })
   .strict();
 

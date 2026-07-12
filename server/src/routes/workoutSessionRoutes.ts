@@ -10,6 +10,8 @@ import type {
   GeneratedWorkoutExercisePreview,
   GeneratedWorkoutPreview,
 } from "../../../shared/utils/generateWorkoutPreview";
+import type { WorkoutFocusBlock } from "../../../shared/types/workoutFocus.types";
+import { applyWorkoutFocusBlock } from "../../../shared/utils/workoutFocus";
 import {
   requireClientIdentity,
   type ClientIdentityRequest,
@@ -32,8 +34,13 @@ router.use(requireClientIdentity);
 
 const getActivePreview = (workoutPlan: {
   editedPreview?: GeneratedWorkoutPreview | null;
+  focusBlock?: WorkoutFocusBlock | null;
   suggestedPreview: GeneratedWorkoutPreview;
-}) => workoutPlan.editedPreview ?? workoutPlan.suggestedPreview;
+}) =>
+  applyWorkoutFocusBlock(
+    workoutPlan.editedPreview ?? workoutPlan.suggestedPreview,
+    workoutPlan.focusBlock
+  );
 
 const createSetLogs = (exercise: GeneratedWorkoutExercisePreview) =>
   Array.from({ length: exercise.prescription.sets }, (_, index) => ({

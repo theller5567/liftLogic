@@ -1,8 +1,18 @@
-import { ChevronDown, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, RotateCcw, SlidersHorizontal, Target } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
+import {
+  WORKOUT_FOCUS_AREA_LABELS,
+  WORKOUT_FOCUS_DURATION_WEEKS,
+  type WorkoutFocusArea,
+  type WorkoutFocusBlock,
+} from "../../../shared/types/workoutFocus.types";
+import {
+  getWorkoutFocusLabel,
+  isWorkoutFocusBlockActive,
+} from "../../../shared/utils/workoutFocus";
 import {
   DEFAULT_THEME_SETTINGS,
   createDefaultUserSettings,
@@ -13,12 +23,22 @@ import {
 import AppShell from "../components/app/AppShell";
 import Button from "../components/Button";
 import { useAuth } from "../context/useAuth";
+import {
+  clearWorkoutFocusBlock,
+  isApiEnabled,
+  type WorkoutPlanDto,
+} from "../services/api";
 import { useUserFlow } from "../utils/userFlow";
 import {
   applyUserTheme,
   resetUserTheme,
   useUserSettings,
 } from "../utils/userSettings";
+import {
+  readWorkoutFocusBlock,
+  writePendingWorkoutFocusBlock,
+  writeWorkoutFocusBlock,
+} from "../utils/workoutStorage";
 import styles from "../styles/pages/settings.module.scss";
 
 const weightStepFields: Array<{
@@ -34,6 +54,19 @@ const weightStepFields: Array<{
 
 const toNumberInputValue = (value: number | undefined) =>
   value === undefined ? "" : String(value);
+
+const focusAreaOptions = Object.entries(WORKOUT_FOCUS_AREA_LABELS).map(
+  ([value, label]) => ({
+    label,
+    value: value as WorkoutFocusArea,
+  })
+);
+
+const formatFocusDate = (value: string) =>
+  new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
 
 type SettingsFormProps = {
   initialSettings: UserSettings;
@@ -74,17 +107,35 @@ const SettingsForm = ({
   settingsError,
 }: SettingsFormProps) => {
   const navigate = useNavigate();
+  const apiEnabled = isApiEnabled();
   const { signOut, user } = useAuth();
   const { profile, workoutPlan } = useUserFlow();
+  const [currentWorkoutPlan, setCurrentWorkoutPlan] =
+    useState<WorkoutPlanDto | null>(workoutPlan);
   const [draftSettings, setDraftSettings] =
     useState<UserSettings>(initialSettings);
+  const [selectedFocusArea, setSelectedFocusArea] =
+    useState<WorkoutFocusArea>("glutes");
+  const [selectedFocusDuration, setSelectedFocusDuration] =
+    useState<WorkoutFocusBlock["durationWeeks"]>(4);
+  const [focusMessage, setFocusMessage] = useState<string | null>(null);
+  const [focusError, setFocusError] = useState<string | null>(null);
+  const [isSavingFocus, setIsSavingFocus] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  const localFocusBlock = apiEnabled ? null : readWorkoutFocusBlock();
+  const activeFocusBlock = currentWorkoutPlan?.focusBlock ?? localFocusBlock;
+  const isFocusActive = isWorkoutFocusBlockActive(activeFocusBlock);
+
   useEffect(() => {
     applyUserTheme(draftSettings);
   }, [draftSettings]);
+
+  useEffect(() => {
+    setCurrentWorkoutPlan(workoutPlan);
+  }, [workoutPlan]);
 
   const accountLabel = useMemo(
     () =>
@@ -164,6 +215,41 @@ const SettingsForm = ({
 
   const handleRedoOnboarding = () => {
     navigate("/onboarding?redo=1");
+  };
+
+  const handleStartFocusBlock = () => {
+    setFocusError(null);
+    setFocusMessage(null);
+    writePendingWorkoutFocusBlock({
+      durationWeeks: selectedFocusDuration,
+      focusArea: selectedFocusArea,
+    });
+    navigate("/focus-review");
+  };
+
+  const handleClearFocusBlock = async () => {
+    setIsSavingFocus(true);
+    setFocusError(null);
+    setFocusMessage(null);
+
+    try {
+      if (apiEnabled) {
+        const { workoutPlan: nextWorkoutPlan } = await clearWorkoutFocusBlock();
+        setCurrentWorkoutPlan(nextWorkoutPlan);
+      } else {
+        writeWorkoutFocusBlock(null);
+      }
+
+      setFocusMessage("Specialization block cleared.");
+    } catch (error) {
+      setFocusError(
+        error instanceof Error
+          ? error.message
+          : "We could not clear your focus block."
+      );
+    } finally {
+      setIsSavingFocus(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -324,13 +410,91 @@ const SettingsForm = ({
           <SettingsAccordion icon={<RotateCcw size={18} />} title="Program">
             <div className={styles.summaryRow}>
               <span>Current goal</span>
-              <strong>{workoutPlan?.onboardingAnswers.goal ?? "Not set"}</strong>
+              <strong>
+                {currentWorkoutPlan?.onboardingAnswers.goal ?? "Not set"}
+              </strong>
             </div>
             <div className={styles.summaryRow}>
               <span>Equipment</span>
               <strong>
-                {workoutPlan?.onboardingAnswers.equipmentAccess ?? "Not set"}
+                {currentWorkoutPlan?.onboardingAnswers.equipmentAccess ??
+                  "Not set"}
               </strong>
+            </div>
+            <div className={styles.focusPanel}>
+              <div className={styles.focusHeader}>
+                <span>
+                  <Target size={16} aria-hidden="true" />
+                  Specialization block
+                </span>
+                {isFocusActive && activeFocusBlock ? (
+                  <strong>
+                    {getWorkoutFocusLabel(activeFocusBlock.focusArea)} until{" "}
+                    {formatFocusDate(activeFocusBlock.endsAt)}
+                  </strong>
+                ) : (
+                  <strong>Off</strong>
+                )}
+              </div>
+              <p className={styles.focusDescription}>
+                Priority muscle groups are trained at least 3 times per week, or
+                every workout on shorter plans.
+              </p>
+              <div className={styles.focusControls}>
+                <label className={styles.field}>
+                  <span>Focus area</span>
+                  <select
+                    value={selectedFocusArea}
+                    onChange={(event) =>
+                      setSelectedFocusArea(event.target.value as WorkoutFocusArea)
+                    }
+                  >
+                    {focusAreaOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  <span>Duration</span>
+                  <select
+                    value={selectedFocusDuration}
+                    onChange={(event) =>
+                      setSelectedFocusDuration(
+                        Number(event.target.value) as WorkoutFocusBlock["durationWeeks"]
+                      )
+                    }
+                  >
+                    {WORKOUT_FOCUS_DURATION_WEEKS.map((duration) => (
+                      <option key={duration} value={duration}>
+                        {duration} weeks
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className={styles.focusActions}>
+                <Button
+                  disabled={isSavingFocus}
+                  label={isFocusActive ? "Replace block" : "Start block"}
+                  size="medium"
+                  tone="primary"
+                  onClick={handleStartFocusBlock}
+                />
+                <Button
+                  disabled={isSavingFocus || !isFocusActive}
+                  label="Clear"
+                  size="medium"
+                  tone="gray"
+                  variant="outline"
+                  onClick={handleClearFocusBlock}
+                />
+              </div>
+              {focusError ? <p className={styles.error}>{focusError}</p> : null}
+              {focusMessage ? (
+                <p className={styles.success}>{focusMessage}</p>
+              ) : null}
             </div>
             <Button
               label="Redo onboarding"

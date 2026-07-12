@@ -5,14 +5,26 @@ import AppShell from "../components/app/AppShell";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import WeekSelector, { type WeekDayOption } from "../components/dashboard/WeekSelector";
 import WorkoutCard from "../components/dashboard/WorkoutCard";
+import Button from "../components/Button";
 import {
+  clearWorkoutFocusBlock,
   createWorkoutSession,
   getWorkoutSessions,
+  isApiEnabled,
 } from "../services/api";
 import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
+import {
+  getWorkoutFocusLabel,
+  isWorkoutFocusBlockActive,
+} from "../../../shared/utils/workoutFocus";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import { useUserFlow } from "../utils/userFlow";
-import { resolveCurrentWorkoutPreview } from "../utils/workoutPlanPreview";
+import {
+  resolveBaseWorkoutPreview,
+  resolveCurrentWorkoutFocusBlock,
+  resolveCurrentWorkoutPreview,
+} from "../utils/workoutPlanPreview";
+import { writeWorkoutFocusBlock } from "../utils/workoutStorage";
 import {
   findWorkoutSessionForDate,
   getDateKey,
@@ -109,17 +121,32 @@ const getWeekDays = (
 const Dashboard = () => {
   const { destination, error, isLoading, profile, workoutPlan } = useUserFlow();
   const navigate = useNavigate();
+  const apiEnabled = isApiEnabled();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [startWorkoutError, setStartWorkoutError] = useState<string | null>(null);
   const [workoutSessionsError, setWorkoutSessionsError] = useState<string | null>(null);
+  const [stopSpecializationError, setStopSpecializationError] = useState<string | null>(null);
   const [weekWorkoutSessions, setWeekWorkoutSessions] = useState<WorkoutSessionDto[]>([]);
   const [isStartingWorkout, setIsStartingWorkout] = useState(false);
+  const [isStoppingSpecialization, setIsStoppingSpecialization] = useState(false);
+  const [hasStoppedSpecialization, setHasStoppedSpecialization] = useState(false);
   const [selectedWorkoutByDate, setSelectedWorkoutByDate] =
     useState<SelectedWorkoutByDate>({});
-  const preview = useMemo(
+  const focusedPreview = useMemo(
     () => resolveCurrentWorkoutPreview(workoutPlan),
     [workoutPlan]
   );
+  const basePreview = useMemo(
+    () => resolveBaseWorkoutPreview(workoutPlan),
+    [workoutPlan]
+  );
+  const preview = hasStoppedSpecialization ? basePreview : focusedPreview;
+  const activeFocusBlock = useMemo(
+    () => resolveCurrentWorkoutFocusBlock(workoutPlan),
+    [workoutPlan]
+  );
+  const isSpecializationActive =
+    !hasStoppedSpecialization && isWorkoutFocusBlockActive(activeFocusBlock);
   const weekDays = useMemo(
     () => getWeekDays(selectedDate, weekWorkoutSessions, preview),
     [preview, selectedDate, weekWorkoutSessions]
@@ -287,6 +314,30 @@ const Dashboard = () => {
     }
   };
 
+  const stopSpecialization = async () => {
+    setIsStoppingSpecialization(true);
+    setStopSpecializationError(null);
+
+    try {
+      if (apiEnabled) {
+        await clearWorkoutFocusBlock();
+      } else {
+        writeWorkoutFocusBlock(null);
+      }
+
+      setHasStoppedSpecialization(true);
+      setSelectedWorkoutByDate({});
+    } catch (stopError) {
+      setStopSpecializationError(
+        stopError instanceof Error
+          ? stopError.message
+          : "We could not stop this specialization block."
+      );
+    } finally {
+      setIsStoppingSpecialization(false);
+    }
+  };
+
   if (isLoading) {
     return <p className="text-muted notificationMessage">Loading dashboard...</p>;
   }
@@ -314,6 +365,25 @@ const Dashboard = () => {
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
         />
+        {isSpecializationActive && activeFocusBlock ? (
+          <div className={styles.focusNotice}>
+            <span>
+              {getWorkoutFocusLabel(activeFocusBlock.focusArea)} specialization active until{" "}
+              {new Intl.DateTimeFormat(undefined, {
+                month: "short",
+                day: "numeric",
+              }).format(new Date(activeFocusBlock.endsAt))}
+            </span>
+            <Button
+              disabled={isStoppingSpecialization}
+              label={isStoppingSpecialization ? "Stopping..." : "Stop block"}
+              size="small"
+              tone="gray"
+              variant="outline"
+              onClick={stopSpecialization}
+            />
+          </div>
+        ) : null}
         <WorkoutCard
           actionLabel={activeWorkoutSession ? "Resume Workout" : "Start Workout"}
           availableWorkoutDays={workoutOptions}
@@ -334,6 +404,9 @@ const Dashboard = () => {
         ) : null}
         {startWorkoutError ? (
           <p className="text-muted">{startWorkoutError}</p>
+        ) : null}
+        {stopSpecializationError ? (
+          <p className="text-muted">{stopSpecializationError}</p>
         ) : null}
       </section>
     </AppShell>

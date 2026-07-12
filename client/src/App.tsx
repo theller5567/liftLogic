@@ -7,6 +7,7 @@ import PublicOnlyRoute from './components/PublicOnlyRoute'
 import Calendar from './pages/Calendar'
 import Dashboard from './pages/Dashboard'
 import Design from './pages/Design'
+import FocusReview from './pages/FocusReview'
 import Home from './pages/Home'
 import Onboarding from './pages/Onboarding'
 import Plan from './pages/Plan'
@@ -68,6 +69,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Plan />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/focus-review"
+              element={
+                <ProtectedRoute>
+                  <FocusReview />
                 </ProtectedRoute>
               }
             />

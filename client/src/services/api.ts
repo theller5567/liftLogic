@@ -5,6 +5,10 @@ import type {
   WorkoutSessionDto,
 } from "../../../shared/types/workoutSession.types";
 import type { UserSettings } from "../../../shared/types/userSettings.types";
+import type {
+  WorkoutFocusArea,
+  WorkoutFocusBlock,
+} from "../../../shared/types/workoutFocus.types";
 import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWorkoutPreview";
 
 const CLIENT_ID_KEY = "liftlogic:client-id";
@@ -43,6 +47,7 @@ export type WorkoutPlanDto = {
   onboardingAnswers: OnboardingAnswers;
   suggestedPreview: GeneratedWorkoutPreview;
   editedPreview?: GeneratedWorkoutPreview | null;
+  focusBlock?: WorkoutFocusBlock | null;
   workoutReviewed: boolean;
   createdAt: string;
   updatedAt: string;
@@ -201,6 +206,25 @@ export const saveEditedWorkoutPreview = (
 export const markWorkoutPlanReviewed = () =>
   apiRequest<{ workoutPlan: WorkoutPlanDto }>("/api/workout-plan/review", {
     method: "POST",
+  });
+
+export const saveWorkoutFocusBlock = ({
+  durationWeeks,
+  focusArea,
+  reviewedPreview,
+}: {
+  durationWeeks: WorkoutFocusBlock["durationWeeks"];
+  focusArea: WorkoutFocusArea;
+  reviewedPreview?: GeneratedWorkoutPreview;
+}) =>
+  apiRequest<{ workoutPlan: WorkoutPlanDto }>("/api/workout-plan/focus", {
+    method: "PUT",
+    body: JSON.stringify({ durationWeeks, focusArea, reviewedPreview }),
+  });
+
+export const clearWorkoutFocusBlock = () =>
+  apiRequest<{ workoutPlan: WorkoutPlanDto }>("/api/workout-plan/focus", {
+    method: "DELETE",
   });
 
 export type CreateWorkoutSessionInput = {

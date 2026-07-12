@@ -22,8 +22,9 @@ import type {
 } from "../utils/generateWorkoutPreview";
 
 type WorkoutPreviewProps = {
+  editableExerciseIds?: Set<string>;
   preview: GeneratedWorkoutPreview;
-  onPreviewChange: (preview: GeneratedWorkoutPreview) => void;
+  onPreviewChange?: (preview: GeneratedWorkoutPreview) => void;
 };
 
 type SelectedEditExercise = GeneratedWorkoutExercisePreview;
@@ -138,6 +139,7 @@ const dayCardMotion = {
 };
 
 const WorkoutPreview = ({
+  editableExerciseIds,
   preview,
   onPreviewChange,
 }: WorkoutPreviewProps) => {
@@ -188,6 +190,14 @@ const WorkoutPreview = ({
 
   const getWeightStep = () => getWeightStepForKey(settings, "default");
 
+  const canEditExercise = (exercise: GeneratedWorkoutExercisePreview) =>
+    Boolean(
+      onPreviewChange &&
+        (!editableExerciseIds || editableExerciseIds.has(exercise.id)) &&
+        (exercise.suggestedWeight !== undefined ||
+          exercise.exerciseAlternatives.length > 0)
+    );
+
   const updateDraftWeight = (amount: number) => {
     setDraftWeight((currentWeight) =>
       Math.max(0, Number((currentWeight + amount).toFixed(1)))
@@ -200,7 +210,7 @@ const WorkoutPreview = ({
   };
 
   const saveExerciseEdits = () => {
-    if (!selectedEditExercise) {
+    if (!selectedEditExercise || !onPreviewChange) {
       return;
     }
 
@@ -382,8 +392,7 @@ const WorkoutPreview = ({
                           ) : null}
                           
                         </div>
-                        {exercise.suggestedWeight !== undefined ||
-                          exercise.exerciseAlternatives.length > 0 ? (
+                        {canEditExercise(exercise) ? (
                             <Button
                               label="Edit"
                               size="small"

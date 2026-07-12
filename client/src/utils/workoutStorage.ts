@@ -1,12 +1,20 @@
 import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
 import type { UserSettings } from "../../../shared/types/userSettings.types";
+import type { WorkoutFocusBlock } from "../../../shared/types/workoutFocus.types";
 import type { GeneratedWorkoutPreview } from "./generateWorkoutPreview";
+
+export type PendingWorkoutFocusBlock = Pick<
+  WorkoutFocusBlock,
+  "durationWeeks" | "focusArea"
+>;
 
 const STORAGE_KEYS = {
   submittedAnswers: "liftlogic:onboarding:submitted",
   draftAnswers: "liftlogic:onboarding:draft",
   draftStepIndex: "liftlogic:onboarding:step",
   editedWorkoutPreview: "liftlogic:workout-preview:edited",
+  pendingWorkoutFocusBlock: "liftlogic:workout-focus:pending",
+  workoutFocusBlock: "liftlogic:workout-focus:block",
   workoutReviewed: "liftlogic:workout-review:reviewed",
   userSettings: "liftlogic:user-settings",
 } as const;
@@ -95,6 +103,24 @@ export const writeEditedWorkoutPreview = (
   preview: GeneratedWorkoutPreview | null
 ) => {
   writeStoredJson(STORAGE_KEYS.editedWorkoutPreview, preview);
+};
+
+export const readWorkoutFocusBlock = () =>
+  readStoredJson<WorkoutFocusBlock>(STORAGE_KEYS.workoutFocusBlock);
+
+export const writeWorkoutFocusBlock = (focusBlock: WorkoutFocusBlock | null) => {
+  writeStoredJson(STORAGE_KEYS.workoutFocusBlock, focusBlock);
+};
+
+export const readPendingWorkoutFocusBlock = () =>
+  readStoredJson<PendingWorkoutFocusBlock>(
+    STORAGE_KEYS.pendingWorkoutFocusBlock
+  );
+
+export const writePendingWorkoutFocusBlock = (
+  focusBlock: PendingWorkoutFocusBlock | null
+) => {
+  writeStoredJson(STORAGE_KEYS.pendingWorkoutFocusBlock, focusBlock);
 };
 
 export const readWorkoutReviewed = () => {
