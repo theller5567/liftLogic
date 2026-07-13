@@ -50,7 +50,12 @@ const SingleSelectStep = <TFieldValues extends FieldValues>({
                 }}
                 className={`onboarding-option border-control ${selected ? "is-selected" : ""}`}
               >
-                {option.label}
+                <span className="onboarding-option-label">{option.label}</span>
+                {"description" in option && option.description ? (
+                  <span className="onboarding-option-description">
+                    {option.description}
+                  </span>
+                ) : null}
               </button>
             );
           })}

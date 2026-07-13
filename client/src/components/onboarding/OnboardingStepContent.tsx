@@ -4,16 +4,19 @@ import type { OnboardingAnswers } from "../../../../shared/types/onboarding.type
 
 import NumberStep from "./steps/NumberStep";
 import SingleSelectStep from "./steps/SingleSelectStep";
+import WorkoutTemplateBrowserStep from "./steps/WorkoutTemplateBrowserStep";
 import type { OnboardingStep } from "./types";
 import { getValueByPath } from "./utils";
 
 type OnboardingStepContentProps = {
+  answers: OnboardingAnswers;
   control: Control<OnboardingAnswers>;
   errors: FieldErrors<OnboardingAnswers>;
   step: OnboardingStep;
 };
 
 const OnboardingStepContent = ({
+  answers,
   control,
   errors,
   step,
@@ -37,6 +40,16 @@ const OnboardingStepContent = ({
           {step.type === "number" ? (
             <NumberStep
               key={step.id}
+              control={control}
+              step={step}
+              fieldName={step.field as Path<OnboardingAnswers>}
+            />
+          ) : null}
+
+          {step.type === "workout_template_browser" ? (
+            <WorkoutTemplateBrowserStep
+              key={step.id}
+              answers={answers}
               control={control}
               step={step}
               fieldName={step.field as Path<OnboardingAnswers>}

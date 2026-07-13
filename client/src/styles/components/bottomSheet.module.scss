@@ -20,7 +20,7 @@
 .sheet {
   position: relative;
   z-index: 1;
-  width: min(100%, 28rem);
+  width: min(100%, 32rem);
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 1rem;

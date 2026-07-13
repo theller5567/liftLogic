@@ -17,7 +17,10 @@ import {
   getWorkoutFocusLabel,
   isWorkoutFocusBlockActive,
 } from "../../../shared/utils/workoutFocus";
-import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
+import {
+  resolvePreviewWeeklySchedule,
+  type GeneratedWorkoutPreview,
+} from "../utils/generateWorkoutPreview";
 import { useUserFlow } from "../utils/userFlow";
 import {
   resolveBaseWorkoutPreview,
@@ -70,6 +73,15 @@ const resolveScheduledWorkoutDayId = (
   const selectedDayIndex = Math.round(
     (selectedDateStart.getTime() - weekStart.getTime()) / 86_400_000
   );
+  const weeklySchedule = resolvePreviewWeeklySchedule(preview);
+  const scheduleDay = weeklySchedule.find(
+    (day) => day.day === selectedDayIndex + 1
+  );
+
+  if (scheduleDay) {
+    return scheduleDay.type === "workout" ? scheduleDay.workoutDayId : null;
+  }
+
   const scheduledWeekdays = getScheduledWeekdayIndexes(preview.daysPerWeek);
   const scheduledWorkoutIndex = scheduledWeekdays.indexOf(selectedDayIndex);
 
@@ -230,6 +242,13 @@ const Dashboard = () => {
       : []
     : availableWorkoutDays;
   const selectedDateHasScheduledWorkout = Boolean(scheduledWorkoutDayId);
+  const previewWeeklySchedule = preview
+    ? resolvePreviewWeeklySchedule(preview)
+    : [];
+  const scheduledRestDayCount = preview
+    ? previewWeeklySchedule.filter((day) => day.type === "rest").length ||
+      Math.max(0, 7 - preview.daysPerWeek)
+    : 0;
 
   useEffect(() => {
     if (isLoading || error || (destination && destination !== "/dashboard")) {
@@ -360,7 +379,9 @@ const Dashboard = () => {
         <WeekSelector
           days={weekDays}
           scheduleSummary={
-            preview ? `${preview.daysPerWeek} of 7 days scheduled` : undefined
+            preview
+              ? `${preview.daysPerWeek} workouts • ${scheduledRestDayCount} rest days`
+              : undefined
           }
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}

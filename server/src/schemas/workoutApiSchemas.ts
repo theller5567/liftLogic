@@ -17,7 +17,18 @@ import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWork
 
 const goalSchema = z.enum(["hypertrophy", "strength", "hybrid"]);
 const goalPrioritySchema = z.enum(["hypertrophy", "strength"]);
+const onboardingModeSchema = z.enum(["guided", "browse"]);
 const experienceLevelSchema = z.enum(["beginner", "intermediate", "advanced"]);
+const availableTrainingDaysSchema = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+  z.literal(6),
+]);
+const genderSchema = z.enum(["male", "female"]);
+const ageRangeSchema = z.enum(["7_15", "16_18", "19_29", "30_39", "40_49", "50_plus"]);
 const equipmentAccessSchema = z.enum([
   "full_gym",
   "home_gym",
@@ -61,10 +72,17 @@ const anchorAnswerSchema = z
 
 export const onboardingAnswersSchema = z
   .object({
+    onboardingMode: onboardingModeSchema.optional(),
+    selectedWorkoutTemplateId: z.string().min(1).max(160).optional(),
     goal: goalSchema.optional(),
     goalPriority: goalPrioritySchema.optional(),
     experienceLevel: experienceLevelSchema.optional(),
     equipmentAccess: equipmentAccessSchema.optional(),
+    availableTrainingDays: availableTrainingDaysSchema.optional(),
+    gender: genderSchema.optional(),
+    ageRange: ageRangeSchema.optional(),
+    focusArea: focusAreaSchema.optional(),
+    focusDurationWeeks: focusDurationWeeksSchema.optional(),
     weightUnit: weightUnitSchema.optional(),
     bodyWeight: nonNegativeOptionalNumber,
     benchPress: anchorAnswerSchema.optional(),
@@ -113,6 +131,25 @@ const dayPreviewSchema = z
   })
   .strict();
 
+const scheduleDayPreviewSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      day: z.number().finite().int().min(1).max(7),
+      type: z.literal("workout"),
+      id: z.string().min(1).max(160),
+      label: z.string().min(1).max(160),
+      workoutDayId: z.string().min(1).max(160),
+    })
+    .strict(),
+  z
+    .object({
+      day: z.number().finite().int().min(1).max(7),
+      type: z.literal("rest"),
+      label: z.string().min(1).max(160),
+    })
+    .strict(),
+]);
+
 export const generatedWorkoutPreviewSchema = z
   .object({
     programId: z.string().min(1).max(160),
@@ -123,6 +160,7 @@ export const generatedWorkoutPreviewSchema = z
     daysPerWeek: z.number().finite().int().min(1).max(7),
     weightUnit: weightUnitSchema,
     days: z.array(dayPreviewSchema).min(1).max(7),
+    weeklySchedule: z.array(scheduleDayPreviewSchema).min(1).max(7).optional(),
   })
   .strict() satisfies z.ZodType<GeneratedWorkoutPreview>;
 

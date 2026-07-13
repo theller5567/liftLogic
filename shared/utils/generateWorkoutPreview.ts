@@ -1,24 +1,40 @@
 import type { ExerciseKey, WeightUnit } from "../constants/weightEstimationRules";
 import { weightEstimationRules } from "../constants/weightEstimationRules";
+import {
+  exerciseLibrary,
+  type MovementPattern,
+  type WorkoutTemplate,
+  type WorkoutTemplateWorkoutDay,
+} from "../constants/exercise-library";
 import type { OnboardingAnswers } from "../types/onboarding.types";
 import type { OnboardingAnchorKey } from "./onboardingExerciseMapping";
 import { onboardingAnchorDefinitions } from "./onboardingExerciseMapping";
-import { getExerciseById } from "./exerciseLibraryAdapter";
+import { getExerciseById, normalizeLibraryIdToEstimatorKey } from "./exerciseLibraryAdapter";
 
 import {
+  applyMinimum,
+  getExerciseEquipmentType,
   resolveStartingWeight,
+  roundToIncrement,
   type EstimateDirectWeightParams,
 } from "./weightEstimation";
 import {
-  workoutPrograms,
-  type WorkoutDayTemplate,
+  getRequestedEquipment,
+  getRequestedLevel,
+  getSelectedWorkoutTemplate,
+  getTemplateGoal,
+  getTemplateWorkoutDays,
   type WorkoutEquipment,
-  type WorkoutExerciseSlot,
   type WorkoutGoal,
   type WorkoutLevel,
-  type WorkoutProgramTemplate,
-  type WorkoutSetPrescription,
-} from "./workoutProgramTemplate";
+} from "./workoutTemplateRecommendations";
+
+export type WorkoutSetPrescription = {
+  sets: number;
+  reps: string;
+  restSeconds: number;
+  intensity?: "easy" | "moderate" | "hard";
+};
 
 export type GeneratedWorkoutExercisePreview = {
   id: string;
@@ -44,6 +60,20 @@ export type GeneratedWorkoutDayPreview = {
   exercises: GeneratedWorkoutExercisePreview[];
 };
 
+export type GeneratedWorkoutScheduleDayPreview =
+  | {
+      day: number;
+      type: "workout";
+      id: string;
+      label: string;
+      workoutDayId: string;
+    }
+  | {
+      day: number;
+      type: "rest";
+      label: string;
+    };
+
 export type GeneratedWorkoutPreview = {
   programId: string;
   label: string;
@@ -53,6 +83,7 @@ export type GeneratedWorkoutPreview = {
   daysPerWeek: number;
   weightUnit: WeightUnit;
   days: GeneratedWorkoutDayPreview[];
+  weeklySchedule?: GeneratedWorkoutScheduleDayPreview[];
 };
 
 type AnchorAnswer = NonNullable<
@@ -62,20 +93,58 @@ type AnchorAnswer = NonNullable<
   | OnboardingAnswers["barbellDeadlift"]
 >;
 
-function getRequestedGoal(answers: OnboardingAnswers): WorkoutGoal {
-  return (answers.goalPriority ?? answers.goal ?? "hypertrophy") as WorkoutGoal;
-}
-
-function getRequestedLevel(answers: OnboardingAnswers): WorkoutLevel {
-  return answers.experienceLevel ?? "beginner";
-}
-
-function getRequestedEquipment(answers: OnboardingAnswers): WorkoutEquipment {
-  return answers.equipmentAccess ?? "full_gym";
-}
+const ISOLATION_MOVEMENTS = new Set<MovementPattern>([
+  "calf_raise",
+  "curl",
+  "fly",
+  "lateral_raise",
+  "pullover",
+  "scapular_control",
+  "triceps_extension",
+  "triceps_pushdown",
+]);
 
 function getWeightUnit(answers: OnboardingAnswers): WeightUnit {
   return answers.weightUnit ?? "lb";
+}
+
+function getProfileWeightMultiplier(answers: OnboardingAnswers): number {
+  let multiplier = 1;
+
+  if (answers.ageRange === "7_15") {
+    multiplier *= 0.55;
+  } else if (answers.ageRange === "16_18") {
+    multiplier *= 0.82;
+  } else if (answers.ageRange === "40_49") {
+    multiplier *= 0.95;
+  } else if (answers.ageRange === "50_plus") {
+    multiplier *= 0.9;
+  }
+
+  if (answers.gender === "female") {
+    multiplier *= 0.85;
+  }
+
+  return multiplier;
+}
+
+function applyProfileWeightGuidance(
+  weight: number,
+  exerciseKey: ExerciseKey,
+  answers: OnboardingAnswers
+) {
+  const multiplier = getProfileWeightMultiplier(answers);
+
+  if (multiplier === 1) {
+    return weight;
+  }
+
+  const weightUnit = getWeightUnit(answers);
+  const equipmentType = getExerciseEquipmentType(exerciseKey);
+  const increment = weightEstimationRules.rounding[weightUnit][equipmentType];
+  const rounded = roundToIncrement(weight * multiplier, increment);
+
+  return applyMinimum(rounded, weightUnit, equipmentType);
 }
 
 function getAnchorAnswer(
@@ -129,27 +198,6 @@ function getDirectEstimateForExercise(
   };
 }
 
-function selectStarterProgram(answers: OnboardingAnswers): WorkoutProgramTemplate {
-  const requestedGoal = getRequestedGoal(answers);
-  const requestedLevel = getRequestedLevel(answers);
-  const requestedEquipment = getRequestedEquipment(answers);
-
-  return (
-    workoutPrograms.find(
-      (program) =>
-        program.goal === requestedGoal &&
-        program.level.includes(requestedLevel) &&
-        program.equipmentAccess.includes(requestedEquipment)
-    ) ??
-    workoutPrograms.find(
-      (program) =>
-        program.goal === requestedGoal && program.level.includes(requestedLevel)
-    ) ??
-    workoutPrograms.find((program) => program.goal === requestedGoal) ??
-    workoutPrograms[0]
-  );
-}
-
 function resolveSuggestedWeightForExercise(
   exerciseKey: ExerciseKey,
   answers: OnboardingAnswers,
@@ -167,8 +215,9 @@ function resolveSuggestedWeightForExercise(
       weightUnit: getWeightUnit(answers),
       experienceLevel: getRequestedLevel(answers),
     });
-    cache.set(exerciseKey, fallback);
-    return fallback;
+    const guidedFallback = applyProfileWeightGuidance(fallback, exerciseKey, answers);
+    cache.set(exerciseKey, guidedFallback);
+    return guidedFallback;
   }
 
   stack.add(exerciseKey);
@@ -213,20 +262,103 @@ function resolveSuggestedWeightForExercise(
     }
   }
 
+  suggestedWeight = applyProfileWeightGuidance(suggestedWeight, exerciseKey, answers);
+
   cache.set(exerciseKey, suggestedWeight);
   stack.delete(exerciseKey);
 
   return suggestedWeight;
 }
 
+function getPrescriptionForExercise(
+  exerciseId: string,
+  goal: WorkoutGoal,
+  answers: OnboardingAnswers
+): WorkoutSetPrescription {
+  const exercise = getExerciseById(exerciseId);
+  const isIsolation = exercise
+    ? ISOLATION_MOVEMENTS.has(exercise.movementPattern)
+    : false;
+  const isYouth = answers.ageRange === "7_15";
+  const isOlder = answers.ageRange === "40_49" || answers.ageRange === "50_plus";
+  const prefersHigherReps = answers.gender === "female" || isYouth || isOlder;
+
+  if (isYouth) {
+    return {
+      sets: isIsolation ? 2 : 3,
+      reps: isIsolation ? "12-15" : "10-12",
+      restSeconds: isIsolation ? 60 : 120,
+      intensity: "easy",
+    };
+  }
+
+  if (goal === "strength" && !isIsolation) {
+    return {
+      sets: 3,
+      reps: prefersHigherReps ? "6-8" : "3-5",
+      restSeconds: 180,
+      intensity: isOlder ? "moderate" : "hard",
+    };
+  }
+
+  if (goal === "strength" && isIsolation) {
+    return {
+      sets: 2,
+      reps: "10-15",
+      restSeconds: 60,
+      intensity: "moderate",
+    };
+  }
+
+  if (goal === "hybrid" && !isIsolation) {
+    return {
+      sets: 3,
+      reps: prefersHigherReps ? "8-10" : "5-8",
+      restSeconds: 150,
+      intensity: "moderate",
+    };
+  }
+
+  return {
+    sets: isIsolation ? 3 : 4,
+    reps: isIsolation ? "12-15" : "8-12",
+    restSeconds: isIsolation ? 60 : 120,
+    intensity: "moderate",
+  };
+}
+
+function getExerciseNotes(
+  exerciseId: string,
+  answers: OnboardingAnswers
+): string | undefined {
+  if (answers.ageRange === "7_15") {
+    return "Prioritize perfect form and control before adding substantial weight.";
+  }
+
+  const estimatorKey = normalizeLibraryIdToEstimatorKey(exerciseId);
+  const derivedRules = weightEstimationRules.derivedFrom as Partial<
+    Record<ExerciseKey, { note?: string }>
+  >;
+  const derivedNote = estimatorKey ? derivedRules[estimatorKey]?.note : undefined;
+
+  if (derivedNote) {
+    return derivedNote;
+  }
+
+  return undefined;
+}
+
 function buildExercisePreview(
-  slot: WorkoutExerciseSlot,
+  exerciseId: string,
+  dayId: string,
+  exerciseIndex: number,
+  goal: WorkoutGoal,
   answers: OnboardingAnswers,
   cache: Map<ExerciseKey, number>
 ): GeneratedWorkoutExercisePreview {
-  const exercise = getExerciseById(slot.exerciseId);
-  const label = slot.label ?? exercise?.displayName ?? exercise?.name ?? slot.exerciseId;
-  const exerciseAlternatives = (slot.exerciseAlternatives ?? exercise?.alternatives ?? []).map(
+  const exercise = getExerciseById(exerciseId);
+  const label = exercise?.displayName ?? exercise?.name ?? exerciseId;
+  const exerciseAlternatives = (exercise?.alternatives ?? []).map(
     (alternative) => {
       const alternativeExercise = getExerciseById(alternative.exerciseId);
 
@@ -240,63 +372,104 @@ function buildExercisePreview(
       };
     }
   );
+  const estimateFrom = normalizeLibraryIdToEstimatorKey(exerciseId);
+  const notes = getExerciseNotes(exerciseId, answers);
+  const basePreview = {
+    id: `${dayId}_${exerciseIndex + 1}_${exerciseId}`,
+    exerciseId,
+    label,
+    prescription: getPrescriptionForExercise(exerciseId, goal, answers),
+    ...(notes ? { notes } : {}),
+    exerciseAlternatives,
+  };
 
-  if (!slot.estimateFrom) {
-    return {
-      id: slot.id,
-      exerciseId: slot.exerciseId,
-      label,
-      prescription: slot.prescription,
-      ...(slot.notes ? { notes: slot.notes } : {}),
-      exerciseAlternatives,
-    };
+  if (!estimateFrom) {
+    return basePreview;
   }
 
   return {
-    id: slot.id,
-    exerciseId: slot.exerciseId,
-    label,
-    prescription: slot.prescription,
+    ...basePreview,
     suggestedWeight: resolveSuggestedWeightForExercise(
-      slot.estimateFrom,
+      estimateFrom,
       answers,
       cache,
       new Set()
     ),
     weightUnit: getWeightUnit(answers),
-    ...(slot.notes ? { notes: slot.notes } : {}),
-    exerciseAlternatives,
   };
 }
 
 function buildDayPreview(
-  day: WorkoutDayTemplate,
+  day: WorkoutTemplateWorkoutDay,
+  template: WorkoutTemplate,
   answers: OnboardingAnswers,
   cache: Map<ExerciseKey, number>
 ): GeneratedWorkoutDayPreview {
+  const goal = getTemplateGoal(template);
+
   return {
     id: day.id,
     label: day.label,
-    focus: day.focus,
-    exercises: day.exercises.map((slot) => buildExercisePreview(slot, answers, cache)),
+    focus: template.focus,
+    exercises: day.exerciseIds.map((exerciseId, exerciseIndex) =>
+      buildExercisePreview(exerciseId, day.id, exerciseIndex, goal, answers, cache)
+    ),
   };
+}
+
+function buildWeeklySchedule(
+  template: WorkoutTemplate
+): GeneratedWorkoutScheduleDayPreview[] {
+  return template.workoutDays.map((day) =>
+    day.type === "workout"
+      ? {
+          day: day.day,
+          type: "workout",
+          id: day.id,
+          label: day.label,
+          workoutDayId: day.id,
+        }
+      : {
+          day: day.day,
+          type: "rest",
+          label: day.label,
+      }
+  );
+}
+
+export function resolvePreviewWeeklySchedule(
+  preview: Pick<GeneratedWorkoutPreview, "programId" | "weeklySchedule">
+): GeneratedWorkoutScheduleDayPreview[] {
+  if (preview.weeklySchedule?.length) {
+    return preview.weeklySchedule;
+  }
+
+  const template = exerciseLibrary.workoutTemplates.find(
+    (workoutTemplate) => workoutTemplate.id === preview.programId
+  );
+
+  return template ? buildWeeklySchedule(template) : [];
 }
 
 export function generateWorkoutPreview(
   answers: OnboardingAnswers
 ): GeneratedWorkoutPreview {
-  const selectedProgram = selectStarterProgram(answers);
+  const selectedTemplate = getSelectedWorkoutTemplate(answers);
   const weightCache = new Map<ExerciseKey, number>();
   const weightUnit = getWeightUnit(answers);
+  const workoutDays = getTemplateWorkoutDays(selectedTemplate);
 
   return {
-    programId: selectedProgram.id,
-    label: selectedProgram.label,
-    goal: selectedProgram.goal,
-    level: selectedProgram.level,
-    equipmentAccess: selectedProgram.equipmentAccess,
-    daysPerWeek: selectedProgram.daysPerWeek,
+    programId: selectedTemplate.id,
+    label: selectedTemplate.name,
+    goal: getTemplateGoal(selectedTemplate),
+    level: [selectedTemplate.experienceLevel],
+    equipmentAccess: [getRequestedEquipment(answers)],
+    daysPerWeek: selectedTemplate.daysRequired,
     weightUnit,
-    days: selectedProgram.days.map((day) => buildDayPreview(day, answers, weightCache)),
+    days: workoutDays.map((day) =>
+      buildDayPreview(day, selectedTemplate, answers, weightCache)
+    ),
+    weeklySchedule: buildWeeklySchedule(selectedTemplate),
   };
 }

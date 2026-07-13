@@ -1,4 +1,4 @@
-import { type ChangeEvent, useState } from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import { ClockIcon } from "lucide-react";
@@ -153,6 +153,7 @@ const WorkoutPreview = ({
     useState<SelectedEditExercise | null>(null);
   const [draftExerciseId, setDraftExerciseId] = useState<string | null>(null);
   const [draftWeight, setDraftWeight] = useState(0);
+  const dayTabRefs = useRef<Record<number, HTMLButtonElement | null>>({});
 
   const editExercise = (exercise: GeneratedWorkoutExercisePreview) => {
     setSelectedEditExercise(exercise);
@@ -278,29 +279,42 @@ const WorkoutPreview = ({
     : "";
   const repRange = activeDay ? formatWorkoutRepRange(activeDay.exercises) : "";
 
+  useEffect(() => {
+    dayTabRefs.current[resolvedActiveDayIndex]?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [resolvedActiveDayIndex]);
+
   return (
     <>
-     <div className={styles.dayTabs} role="tablist" aria-label="Workout days">
-      {workingPreview.days.map((day, dayIndex) => {
-        const isActive = dayIndex === resolvedActiveDayIndex;
+     <div className={styles.dayTabsContainer}>
+      <div className={styles.dayTabs} role="tablist" aria-label="Workout days">
+        {workingPreview.days.map((day, dayIndex) => {
+          const isActive = dayIndex === resolvedActiveDayIndex;
 
-        return (
-          <button
-            key={day.id}
-            id={`workout-day-tab-${day.id}`}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            aria-controls={`workout-day-panel-${day.id}`}
-            className={clsx(styles.dayTab, isActive && styles.active)}
-            onClick={() => selectDay(dayIndex)}
-          >
-            <span className={styles.dayTabLabel}>
-              {formatWorkoutDisplayLabel(day.label)}
-            </span>
-          </button>
-        );
-      })}
+          return (
+            <button
+              key={day.id}
+              ref={(node) => {
+                dayTabRefs.current[dayIndex] = node;
+              }}
+              id={`workout-day-tab-${day.id}`}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-controls={`workout-day-panel-${day.id}`}
+              className={clsx(styles.dayTab, isActive && styles.active)}
+              onClick={() => selectDay(dayIndex)}
+            >
+              <span className={styles.dayTabLabel}>
+                {formatWorkoutDisplayLabel(day.label)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
     <section className={clsx(styles.preview, "grid gap-5")}>
       <div className={styles.dayPanelViewport}>

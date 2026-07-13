@@ -283,8 +283,110 @@ const SettingsForm = ({
         {saveMessage ? <p className={styles.success}>{saveMessage}</p> : null}
 
         <div className={styles.sectionGrid}>
+        <SettingsAccordion defaultOpen icon={<RotateCcw size={18} />} title="Program">
+          <div className={styles.summaryRow}>
+              <span>Workout Plan</span>
+              <strong>
+                {currentWorkoutPlan?.suggestedPreview.label ?? "Not set"}
+              </strong>
+            </div>
+            <div className={styles.summaryRow}>
+              <span>Current goal</span>
+              <strong>
+                {currentWorkoutPlan?.onboardingAnswers.goal ?? "Not set"}
+              </strong>
+            </div>
+            <div className={styles.summaryRow}>
+              <span>Equipment</span>
+              <strong>
+                {currentWorkoutPlan?.onboardingAnswers.equipmentAccess ??
+                  "Not set"}
+              </strong>
+            </div>
+            <div className={styles.focusPanel}>
+              <div className={styles.focusHeader}>
+                <span>
+                  <Target size={16} aria-hidden="true" />
+                  Specialization block
+                </span>
+                {isFocusActive && activeFocusBlock ? (
+                  <strong>
+                    {getWorkoutFocusLabel(activeFocusBlock.focusArea)} until{" "}
+                    {formatFocusDate(activeFocusBlock.endsAt)}
+                  </strong>
+                ) : (
+                  <strong>Off</strong>
+                )}
+              </div>
+              <p className={styles.focusDescription}>
+                Priority muscle groups are trained at least 3 times per week, or
+                every workout on shorter plans.
+              </p>
+              <div className={styles.focusControls}>
+                <label className={styles.field}>
+                  <span>Focus area</span>
+                  <select
+                    value={selectedFocusArea}
+                    onChange={(event) =>
+                      setSelectedFocusArea(event.target.value as WorkoutFocusArea)
+                    }
+                  >
+                    {focusAreaOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  <span>Duration</span>
+                  <select
+                    value={selectedFocusDuration}
+                    onChange={(event) =>
+                      setSelectedFocusDuration(
+                        Number(event.target.value) as WorkoutFocusBlock["durationWeeks"]
+                      )
+                    }
+                  >
+                    {WORKOUT_FOCUS_DURATION_WEEKS.map((duration) => (
+                      <option key={duration} value={duration}>
+                        {duration} weeks
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className={styles.focusActions}>
+                <Button
+                  disabled={isSavingFocus}
+                  label={isFocusActive ? "Replace block" : "Start block"}
+                  size="medium"
+                  tone="primary"
+                  onClick={handleStartFocusBlock}
+                />
+                <Button
+                  disabled={isSavingFocus || !isFocusActive}
+                  label="Clear"
+                  size="medium"
+                  tone="gray"
+                  variant="outline"
+                  onClick={handleClearFocusBlock}
+                />
+              </div>
+              {focusError ? <p className={styles.error}>{focusError}</p> : null}
+              {focusMessage ? (
+                <p className={styles.success}>{focusMessage}</p>
+              ) : null}
+            </div>
+            <Button
+              label="Redo onboarding"
+              size="large"
+              tone="secondary"
+              onClick={handleRedoOnboarding}
+            />
+          </SettingsAccordion>
+
           <SettingsAccordion
-            defaultOpen
             icon={<SlidersHorizontal size={18} />}
             title="Training"
           >
@@ -404,103 +506,6 @@ const SettingsForm = ({
               tone="gray"
               variant="outline"
               onClick={handleResetTheme}
-            />
-          </SettingsAccordion>
-
-          <SettingsAccordion icon={<RotateCcw size={18} />} title="Program">
-            <div className={styles.summaryRow}>
-              <span>Current goal</span>
-              <strong>
-                {currentWorkoutPlan?.onboardingAnswers.goal ?? "Not set"}
-              </strong>
-            </div>
-            <div className={styles.summaryRow}>
-              <span>Equipment</span>
-              <strong>
-                {currentWorkoutPlan?.onboardingAnswers.equipmentAccess ??
-                  "Not set"}
-              </strong>
-            </div>
-            <div className={styles.focusPanel}>
-              <div className={styles.focusHeader}>
-                <span>
-                  <Target size={16} aria-hidden="true" />
-                  Specialization block
-                </span>
-                {isFocusActive && activeFocusBlock ? (
-                  <strong>
-                    {getWorkoutFocusLabel(activeFocusBlock.focusArea)} until{" "}
-                    {formatFocusDate(activeFocusBlock.endsAt)}
-                  </strong>
-                ) : (
-                  <strong>Off</strong>
-                )}
-              </div>
-              <p className={styles.focusDescription}>
-                Priority muscle groups are trained at least 3 times per week, or
-                every workout on shorter plans.
-              </p>
-              <div className={styles.focusControls}>
-                <label className={styles.field}>
-                  <span>Focus area</span>
-                  <select
-                    value={selectedFocusArea}
-                    onChange={(event) =>
-                      setSelectedFocusArea(event.target.value as WorkoutFocusArea)
-                    }
-                  >
-                    {focusAreaOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  <span>Duration</span>
-                  <select
-                    value={selectedFocusDuration}
-                    onChange={(event) =>
-                      setSelectedFocusDuration(
-                        Number(event.target.value) as WorkoutFocusBlock["durationWeeks"]
-                      )
-                    }
-                  >
-                    {WORKOUT_FOCUS_DURATION_WEEKS.map((duration) => (
-                      <option key={duration} value={duration}>
-                        {duration} weeks
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div className={styles.focusActions}>
-                <Button
-                  disabled={isSavingFocus}
-                  label={isFocusActive ? "Replace block" : "Start block"}
-                  size="medium"
-                  tone="primary"
-                  onClick={handleStartFocusBlock}
-                />
-                <Button
-                  disabled={isSavingFocus || !isFocusActive}
-                  label="Clear"
-                  size="medium"
-                  tone="gray"
-                  variant="outline"
-                  onClick={handleClearFocusBlock}
-                />
-              </div>
-              {focusError ? <p className={styles.error}>{focusError}</p> : null}
-              {focusMessage ? (
-                <p className={styles.success}>{focusMessage}</p>
-              ) : null}
-            </div>
-            <Button
-              label="Redo onboarding"
-              size="large"
-              tone="secondary"
-              onClick={handleRedoOnboarding}
             />
           </SettingsAccordion>
 

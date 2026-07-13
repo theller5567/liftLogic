@@ -62,3 +62,11 @@
     color: hsl(var(--clr-primary-500-b));
   }
 }
+
+.checkmarkIcon, .reminder {
+  width: 0.8rem;
+  height: auto;
+  flex: 0 0 auto;
+  fill: hsl(var(--clr-secondary-500-b));
+  margin-right: 0.25rem;
+}

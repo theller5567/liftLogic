@@ -1,19 +1,22 @@
 import clsx from 'clsx'
 import type { ButtonHTMLAttributes, ComponentType, SVGProps } from 'react'
-import IconChevronLeft from '../assets/icons/chevron-left.svg?react'
+import IconChevronLeft from '../assets/icons/left-chevron.svg?react'
+import IconChevronRight from '../assets/icons/right-chevron.svg?react'
 import IconRefresh from '../assets/icons/refresh.svg?react'
 import IconEdit from '../assets/icons/edit.svg?react'
 import IconPlus from '../assets/icons/plus-c.svg?react'
 import IconMinus from '../assets/icons/minus-c.svg?react'
 import IconGoogle from '../assets/icons/Google.svg?react'
+import IconReminder from '../assets/icons/051-reminder.svg?react'
 
 import styles from '../styles/components/button.module.scss'
 
 type ButtonTone = 'primary' | 'white' | 'gray' | 'black' | 'secondary'
 type ButtonVariant = 'outline' | 'ghost' | 'iconOnly'
 type ButtonSize = 'small' | 'medium' | 'large'
+type ButtonIconSize = 'small' | 'medium' | 'large'
 type ButtonIconPosition = 'left' | 'right'
-type ButtonIcon = 'chevronLeft' | 'refresh' | 'edit' | 'plus' | 'minus' | 'google'
+type ButtonIcon = 'chevronLeft' | 'chevronRight' | 'chevronRight' | 'refresh' | 'edit' | 'plus' | 'minus' | 'google' | 'reminder'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   label?: string
@@ -23,6 +26,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   disabled?: boolean
   size?: ButtonSize
   icon?: ButtonIcon
+  iconSize?: ButtonIconSize
   iconPosition?: ButtonIconPosition
   onClick?: ButtonHTMLAttributes<HTMLButtonElement>['onClick']
   type?: ButtonHTMLAttributes<HTMLButtonElement>['type']
@@ -31,11 +35,13 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const ICONS: Record<ButtonIcon, ComponentType<SVGProps<SVGSVGElement>>> = {
   chevronLeft: IconChevronLeft,
+  chevronRight: IconChevronRight,
   refresh: IconRefresh,
   edit: IconEdit,
   plus: IconPlus,
   minus: IconMinus,
   google: IconGoogle,
+  reminder: IconReminder,
 }
 
 const Button = ({
@@ -45,6 +51,7 @@ const Button = ({
   rounded,
   size = 'medium',
   icon,
+  iconSize,
   iconPosition = 'left',
   className,
   disabled,
@@ -64,13 +71,14 @@ const Button = ({
     variantClass,
     roundedVariantClass,
     styles[`button--${size}`],
+    iconSize && styles[`button--icon-size-${iconSize}`],
     className,
   )
 
   const IconComponent = icon ? ICONS[icon] : null
   const iconMarkup = IconComponent ? (
     <span aria-hidden="true" className={styles.iconWrapper}>
-      <IconComponent className={styles.icon} />
+      <IconComponent className={clsx(styles.icon, icon === 'reminder' && styles.tintIcon)} />
     </span>
   ) : null
 

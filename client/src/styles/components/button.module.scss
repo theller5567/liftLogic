@@ -251,6 +251,18 @@ $button-variants: (
   }
 }
 
+.button--icon-size-small {
+  --button-icon-size: 0.85rem;
+}
+
+.button--icon-size-medium {
+  --button-icon-size: 1rem;
+}
+
+.button--icon-size-large {
+  --button-icon-size: 1.2rem;
+}
+
 .iconWrapper {
   display: inline-flex;
   align-items: center;
@@ -266,6 +278,17 @@ $button-variants: (
   height: var(--button-icon-size);
 }
 
+.tintIcon {
+  color: currentColor;
+
+  :global(path),
+  :global(circle),
+  :global(rect),
+  :global(polygon),
+  :global(polyline) {
+    fill: currentColor;
+  }
+}
 
 .label {
   line-height: 1;

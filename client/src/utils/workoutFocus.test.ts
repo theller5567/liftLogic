@@ -88,20 +88,20 @@ const createWorkoutPlan = (
   }) as WorkoutPlanDto;
 
 describe("workout focus blocks", () => {
-  it("prioritizes glutes on every day of a three-day specialization block", () => {
+  it("prioritizes lateral delts on every day of a three-day specialization block", () => {
     const preview = createPreview();
     const originalPreview = structuredClone(preview);
     const focusBlock = createWorkoutFocusBlock({
       durationWeeks: 4,
-      focusArea: "glutes",
+      focusArea: "lateral_delts",
       now,
     });
     const focusedPreview = applyWorkoutFocusBlock(preview, focusBlock, now);
 
-    expect(countFocusExercises(focusedPreview, "glutes")).toBeGreaterThan(
-      countFocusExercises(preview, "glutes")
+    expect(countFocusExercises(focusedPreview, "lateral_delts")).toBeGreaterThan(
+      countFocusExercises(preview, "lateral_delts")
     );
-    expect(countFocusDays(focusedPreview, "glutes")).toBe(3);
+    expect(countFocusDays(focusedPreview, "lateral_delts")).toBe(3);
     expect(getExerciseCountByDay(focusedPreview)).toEqual(
       getExerciseCountByDay(preview)
     );
@@ -208,7 +208,7 @@ describe("workout focus blocks", () => {
     const preview = createPreview();
     const focusBlock = createWorkoutFocusBlock({
       durationWeeks: 4,
-      focusArea: "glutes",
+      focusArea: "lateral_delts",
       now,
     });
     const focusedPreview = applyWorkoutFocusBlock(preview, focusBlock, now);

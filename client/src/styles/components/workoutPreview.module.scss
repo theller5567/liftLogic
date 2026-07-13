@@ -2,11 +2,17 @@
   width: min(100%, 64rem);
 }
 
+.dayTabsContainer {
+  display: flex;
+  margin-inline: 1rem;
+  overflow-x: auto;
+  scroll-padding-inline: 1rem;
+}
 .dayTabs {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0.75rem;
+  min-width: max-content;
   .dayTab {
     display: flex;
     align-items: center;

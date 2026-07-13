@@ -19,10 +19,17 @@ type OnboardingFlowProps = {
 };
 
 const emptyAnswers: OnboardingAnswers = {
+  onboardingMode: undefined,
+  selectedWorkoutTemplateId: undefined,
   goal: undefined,
   goalPriority: undefined,
   experienceLevel: undefined,
   equipmentAccess: undefined,
+  availableTrainingDays: undefined,
+  gender: undefined,
+  ageRange: undefined,
+  focusArea: undefined,
+  focusDurationWeeks: undefined,
   weightUnit: undefined,
   bodyWeight: undefined,
   benchPress: {
@@ -151,6 +158,31 @@ const OnboardingFlow = ({
     }
   }, [answers.goal, setValue]);
 
+  useEffect(() => {
+    if (answers.onboardingMode === "guided" && answers.selectedWorkoutTemplateId) {
+      setValue("selectedWorkoutTemplateId", undefined, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+
+    if (answers.onboardingMode === "browse" && answers.goal) {
+      setValue("goal", undefined, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("goalPriority", undefined, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  }, [
+    answers.goal,
+    answers.onboardingMode,
+    answers.selectedWorkoutTemplateId,
+    setValue,
+  ]);
+
   const lastStepIndex = Math.max(visibleSteps.length - 1, 0);
   const activeStepIndex = Math.min(currentStepIndex, lastStepIndex);
 
@@ -220,6 +252,7 @@ const OnboardingFlow = ({
         />
 
         <OnboardingStepContent
+          answers={answers}
           control={control}
           errors={errors}
           step={currentStep}

@@ -7,7 +7,11 @@ export type {
   EquipmentType as CatalogEquipmentType,
   MovementPattern,
   MuscleGroup,
-  WorkoutTemplateReference,
+  WorkoutExperienceLevel,
+  WorkoutTemplate,
+  WorkoutTemplateDay,
+  WorkoutTemplateRestDay,
+  WorkoutTemplateWorkoutDay,
 } from "../../../shared/constants/exercise-library";
 export type {
   ConfidenceLevel,
