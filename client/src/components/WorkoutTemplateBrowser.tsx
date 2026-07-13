@@ -4,6 +4,7 @@ import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
 import {
   getRankedWorkoutTemplateRecommendations,
   getTemplateGoal,
+  type WorkoutGoal,
 } from "../../../shared/utils/workoutTemplateRecommendations";
 import "../styles/components/onboarding.scss";
 
@@ -13,21 +14,30 @@ type WorkoutTemplateBrowserProps = {
   selectedTemplateId?: string;
 };
 
-const goalLabels = {
-  hybrid: "Muscle + strength",
-  hypertrophy: "Muscle",
-  strength: "Strength",
-} as const;
+type GoalFilter = "all" | WorkoutGoal;
+type LevelFilter = "all" | "beginner" | "intermediate" | "advanced";
+
+const goalFilterOptions: Array<{ label: string; value: GoalFilter }> = [
+  { label: "All goals", value: "all" },
+  { label: "Muscle", value: "hypertrophy" },
+  { label: "Strength", value: "strength" },
+  { label: "Muscle + strength", value: "hybrid" },
+];
+
+const levelFilterOptions: Array<{ label: string; value: LevelFilter }> = [
+  { label: "All levels", value: "all" },
+  { label: "Beginner", value: "beginner" },
+  { label: "Intermediate", value: "intermediate" },
+  { label: "Advanced", value: "advanced" },
+];
 
 const WorkoutTemplateBrowser = ({
   answers,
   onSelectTemplate,
   selectedTemplateId,
 }: WorkoutTemplateBrowserProps) => {
-  const [goalFilter, setGoalFilter] = useState<"all" | keyof typeof goalLabels>("all");
-  const [levelFilter, setLevelFilter] = useState<
-    "all" | "beginner" | "intermediate" | "advanced"
-  >("all");
+  const [goalFilter, setGoalFilter] = useState<GoalFilter>("all");
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
   const [query, setQuery] = useState("");
   const recommendations = useMemo(
     () => getRankedWorkoutTemplateRecommendations(answers),
@@ -62,25 +72,27 @@ const WorkoutTemplateBrowser = ({
           aria-label="Filter by goal"
           value={goalFilter}
           onChange={(event) =>
-            setGoalFilter(event.currentTarget.value as typeof goalFilter)
+            setGoalFilter(event.currentTarget.value as GoalFilter)
           }
         >
-          <option value="all">All goals</option>
-          <option value="hypertrophy">Muscle</option>
-          <option value="strength">Strength</option>
-          <option value="hybrid">Muscle + strength</option>
+          {goalFilterOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
         <select
           aria-label="Filter by experience"
           value={levelFilter}
           onChange={(event) =>
-            setLevelFilter(event.currentTarget.value as typeof levelFilter)
+            setLevelFilter(event.currentTarget.value as LevelFilter)
           }
         >
-          <option value="all">All levels</option>
-          <option value="beginner">Beginner</option>
-          <option value="intermediate">Intermediate</option>
-          <option value="advanced">Advanced</option>
+          {levelFilterOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
 

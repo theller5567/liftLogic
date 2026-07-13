@@ -110,8 +110,8 @@ const SettingsForm = ({
   const apiEnabled = isApiEnabled();
   const { signOut, user } = useAuth();
   const { profile, workoutPlan } = useUserFlow();
-  const [currentWorkoutPlan, setCurrentWorkoutPlan] =
-    useState<WorkoutPlanDto | null>(workoutPlan);
+  const [workoutPlanOverride, setWorkoutPlanOverride] =
+    useState<WorkoutPlanDto | null>(null);
   const [draftSettings, setDraftSettings] =
     useState<UserSettings>(initialSettings);
   const [selectedFocusArea, setSelectedFocusArea] =
@@ -125,6 +125,7 @@ const SettingsForm = ({
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  const currentWorkoutPlan = workoutPlanOverride ?? workoutPlan;
   const localFocusBlock = apiEnabled ? null : readWorkoutFocusBlock();
   const activeFocusBlock = currentWorkoutPlan?.focusBlock ?? localFocusBlock;
   const isFocusActive = isWorkoutFocusBlockActive(activeFocusBlock);
@@ -132,10 +133,6 @@ const SettingsForm = ({
   useEffect(() => {
     applyUserTheme(draftSettings);
   }, [draftSettings]);
-
-  useEffect(() => {
-    setCurrentWorkoutPlan(workoutPlan);
-  }, [workoutPlan]);
 
   const accountLabel = useMemo(
     () =>
@@ -235,7 +232,7 @@ const SettingsForm = ({
     try {
       if (apiEnabled) {
         const { workoutPlan: nextWorkoutPlan } = await clearWorkoutFocusBlock();
-        setCurrentWorkoutPlan(nextWorkoutPlan);
+        setWorkoutPlanOverride(nextWorkoutPlan);
       } else {
         writeWorkoutFocusBlock(null);
       }
