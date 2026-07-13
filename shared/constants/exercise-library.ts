@@ -172,6 +172,10 @@ export const exerciseLibrary: ExerciseLibrary = {
       "aliases": [
         "Barbell Back Squat"
       ],
+      "canonicalEstimatorKey": "squat",
+      "displayName": "Back Squat",
+      "pluralDisplayName": "Back Squats",
+      "verbPhrase": "Back Squat",
       "equipmentType": "barbell",
       "movementPattern": "squat",
       "primaryMuscles": [
@@ -436,6 +440,10 @@ export const exerciseLibrary: ExerciseLibrary = {
     {
       "id": "front_squat",
       "name": "Front Squat",
+      "canonicalEstimatorKey": "front_squat",
+      "displayName": "Front Squat",
+      "pluralDisplayName": "Front Squats",
+      "verbPhrase": "Front Squat",
       "equipmentType": "barbell",
       "movementPattern": "squat",
       "primaryMuscles": [
@@ -498,6 +506,10 @@ export const exerciseLibrary: ExerciseLibrary = {
     {
       "id": "barbell_hip_thrust",
       "name": "Barbell Hip Thrust",
+      "canonicalEstimatorKey": "barbell_hip_thrust",
+      "displayName": "Barbell Hip Thrust",
+      "pluralDisplayName": "Barbell Hip Thrusts",
+      "verbPhrase": "Barbell Hip Thrust",
       "equipmentType": "barbell",
       "movementPattern": "hip_thrust",
       "primaryMuscles": [
@@ -525,6 +537,10 @@ export const exerciseLibrary: ExerciseLibrary = {
     {
       "id": "single_leg_weighted_calf_raise",
       "name": "Single Leg Weighted Calf Raise",
+      "canonicalEstimatorKey": "single_leg_weighted_calf_raise",
+      "displayName": "Single Leg Weighted Calf Raise",
+      "pluralDisplayName": "Single Leg Weighted Calf Raises",
+      "verbPhrase": "Single Leg Weighted Calf Raise",
       "equipmentType": "dumbbell",
       "movementPattern": "calf_raise",
       "primaryMuscles": [
@@ -544,6 +560,10 @@ export const exerciseLibrary: ExerciseLibrary = {
     {
       "id": "leg_press_calf_raise",
       "name": "Leg Press Calf Raise",
+      "canonicalEstimatorKey": "leg_press_calf_raise",
+      "displayName": "Leg Press Calf Raise",
+      "pluralDisplayName": "Leg Press Calf Raises",
+      "verbPhrase": "Leg Press Calf Raise",
       "equipmentType": "machine",
       "movementPattern": "calf_raise",
       "primaryMuscles": [

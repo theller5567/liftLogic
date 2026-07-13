@@ -22,12 +22,16 @@ export type ExerciseKey =
   | "seated_cable_row"
   | "lat_pulldown"
   | "squat"
+  | "front_squat"
   | "goblet_squat"
   | "leg_press"
   | "deadlift"
   | "romanian_deadlift"
   | "stiff_leg_deadlift"
   | "split_squat"
+  | "barbell_hip_thrust"
+  | "single_leg_weighted_calf_raise"
+  | "leg_press_calf_raise"
   | "bicep_curl"
   | "tricep_pushdown";
 
@@ -131,6 +135,7 @@ export const weightEstimationRules = {
       lat_pulldown: { beginner: 40, intermediate: 70, advanced: 110 },
 
       squat: { beginner: 45, intermediate: 95, advanced: 145 },
+      front_squat: { beginner: 45, intermediate: 75, advanced: 115 },
       goblet_squat: { beginner: 20, intermediate: 35, advanced: 50 },
       leg_press: { beginner: 90, intermediate: 180, advanced: 270 },
       split_squat: { beginner: 15, intermediate: 25, advanced: 40 },
@@ -138,6 +143,9 @@ export const weightEstimationRules = {
       deadlift: { beginner: 65, intermediate: 135, advanced: 225 },
       romanian_deadlift: { beginner: 55, intermediate: 105, advanced: 165 },
       stiff_leg_deadlift: { beginner: 55, intermediate: 95, advanced: 155 },
+      barbell_hip_thrust: { beginner: 65, intermediate: 115, advanced: 185 },
+      single_leg_weighted_calf_raise: { beginner: 10, intermediate: 20, advanced: 35 },
+      leg_press_calf_raise: { beginner: 45, intermediate: 90, advanced: 135 },
 
       bicep_curl: { beginner: 15, intermediate: 25, advanced: 35 },
       tricep_pushdown: { beginner: 30, intermediate: 50, advanced: 80 },
@@ -160,6 +168,7 @@ export const weightEstimationRules = {
       lat_pulldown: { beginner: 18, intermediate: 32, advanced: 50 },
 
       squat: { beginner: 20, intermediate: 42.5, advanced: 65 },
+      front_squat: { beginner: 20, intermediate: 35, advanced: 52.5 },
       goblet_squat: { beginner: 10, intermediate: 16, advanced: 22.5 },
       leg_press: { beginner: 40, intermediate: 80, advanced: 120 },
       split_squat: { beginner: 6, intermediate: 12, advanced: 18 },
@@ -167,6 +176,9 @@ export const weightEstimationRules = {
       deadlift: { beginner: 30, intermediate: 60, advanced: 100 },
       romanian_deadlift: { beginner: 25, intermediate: 47.5, advanced: 75 },
       stiff_leg_deadlift: { beginner: 25, intermediate: 42.5, advanced: 70 },
+      barbell_hip_thrust: { beginner: 30, intermediate: 52.5, advanced: 82.5 },
+      single_leg_weighted_calf_raise: { beginner: 5, intermediate: 10, advanced: 16 },
+      leg_press_calf_raise: { beginner: 20, intermediate: 40, advanced: 60 },
 
       bicep_curl: { beginner: 6, intermediate: 10, advanced: 16 },
       tricep_pushdown: { beginner: 14, intermediate: 24, advanced: 36 },
@@ -217,6 +229,11 @@ export const weightEstimationRules = {
       equipmentType: "dumbbell",
       note: "Single dumbbell",
     },
+    front_squat: {
+      source: "squat",
+      multiplier: 0.75,
+      equipmentType: "barbell",
+    },
     leg_press: {
       source: "squat",
       multiplier: 1.8,
@@ -238,6 +255,22 @@ export const weightEstimationRules = {
       multiplier: 0.75,
       equipmentType: "barbell",
     },
+    barbell_hip_thrust: {
+      source: "deadlift",
+      multiplier: 0.8,
+      equipmentType: "barbell",
+    },
+    single_leg_weighted_calf_raise: {
+      source: "squat",
+      multiplier: 0.15,
+      equipmentType: "dumbbell",
+      note: "Per dumbbell weight",
+    },
+    leg_press_calf_raise: {
+      source: "leg_press",
+      multiplier: 0.5,
+      equipmentType: "machine",
+    },
   } satisfies Partial<Record<ExerciseKey, DerivedExerciseRule>>,
 
   exerciseMeta: {
@@ -257,6 +290,7 @@ export const weightEstimationRules = {
     lat_pulldown: { equipmentType: "machine", category: "compound" },
 
     squat: { equipmentType: "barbell", category: "compound" },
+    front_squat: { equipmentType: "barbell", category: "compound" },
     goblet_squat: { equipmentType: "dumbbell", category: "compound" },
     leg_press: { equipmentType: "machine", category: "compound" },
     split_squat: { equipmentType: "dumbbell", category: "compound" },
@@ -264,6 +298,12 @@ export const weightEstimationRules = {
     deadlift: { equipmentType: "barbell", category: "compound" },
     romanian_deadlift: { equipmentType: "barbell", category: "compound" },
     stiff_leg_deadlift: { equipmentType: "barbell", category: "compound" },
+    barbell_hip_thrust: { equipmentType: "barbell", category: "compound" },
+    single_leg_weighted_calf_raise: {
+      equipmentType: "dumbbell",
+      category: "isolation",
+    },
+    leg_press_calf_raise: { equipmentType: "machine", category: "isolation" },
 
     bicep_curl: { equipmentType: "dumbbell", category: "isolation" },
     tricep_pushdown: { equipmentType: "cable", category: "isolation" },
