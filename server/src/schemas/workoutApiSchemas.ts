@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
+import { equipmentItemIds } from "../../../shared/constants/equipmentCatalog";
 import type {
   WorkoutBadgeId,
   WorkoutExerciseLog,
@@ -35,6 +36,7 @@ const equipmentAccessSchema = z.enum([
   "dumbbells_only",
   "basic_equipment",
 ]);
+const equipmentItemSchema = z.enum(equipmentItemIds);
 const weightUnitSchema = z.enum(["lb", "kg"]);
 const workoutBadgeIdSchema = z.enum([
   "pr",
@@ -78,6 +80,7 @@ export const onboardingAnswersSchema = z
     goalPriority: goalPrioritySchema.optional(),
     experienceLevel: experienceLevelSchema.optional(),
     equipmentAccess: equipmentAccessSchema.optional(),
+    availableEquipment: z.array(equipmentItemSchema).max(80).optional(),
     availableTrainingDays: availableTrainingDaysSchema.optional(),
     gender: genderSchema.optional(),
     ageRange: ageRangeSchema.optional(),
@@ -190,6 +193,7 @@ export const userSettingsSchema = z
         defaultSeconds: z.number().finite().int().min(0).max(900).optional(),
       })
       .strict(),
+    equipmentInventory: z.array(equipmentItemSchema).max(80).optional(),
     theme: z
       .object({
         primaryColor: colorSchema,

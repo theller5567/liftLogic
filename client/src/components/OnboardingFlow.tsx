@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch, type Path, type SubmitHandler } from "react-hook-form";
 
 import { onboardingConfig } from "../utils/onboardingConfig";
+import { getPresetEquipmentItems } from "../../../shared/constants/equipmentCatalog";
 import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
 import OnboardingStepActions from "./onboarding/OnboardingStepActions";
 import OnboardingStepContent from "./onboarding/OnboardingStepContent";
@@ -25,6 +26,7 @@ const emptyAnswers: OnboardingAnswers = {
   goalPriority: undefined,
   experienceLevel: undefined,
   equipmentAccess: undefined,
+  availableEquipment: undefined,
   availableTrainingDays: undefined,
   gender: undefined,
   ageRange: undefined,
@@ -115,6 +117,7 @@ const OnboardingFlow = ({
   });
 
   const [currentStepIndex, setCurrentStepIndex] = useState(initialStepIndex);
+  const previousEquipmentAccessRef = useRef(defaultAnswers.equipmentAccess);
   const watchedValues = useWatch({
     control,
     defaultValue: defaultAnswers,
@@ -157,6 +160,24 @@ const OnboardingFlow = ({
       });
     }
   }, [answers.goal, setValue]);
+
+  useEffect(() => {
+    if (!answers.equipmentAccess) {
+      return;
+    }
+
+    const equipmentAccessChanged =
+      previousEquipmentAccessRef.current !== answers.equipmentAccess;
+
+    if (equipmentAccessChanged || !answers.availableEquipment?.length) {
+      setValue("availableEquipment", getPresetEquipmentItems(answers.equipmentAccess), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+
+    previousEquipmentAccessRef.current = answers.equipmentAccess;
+  }, [answers.availableEquipment?.length, answers.equipmentAccess, setValue]);
 
   useEffect(() => {
     if (answers.onboardingMode === "guided" && answers.selectedWorkoutTemplateId) {

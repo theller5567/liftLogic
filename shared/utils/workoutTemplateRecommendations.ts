@@ -1,10 +1,18 @@
 import {
   exerciseLibrary,
-  type EquipmentType as LibraryEquipmentType,
   type WorkoutTemplate,
   type WorkoutTemplateWorkoutDay,
 } from "../constants/exercise-library";
 import type { OnboardingAnswers } from "../types/onboarding.types";
+import {
+  getAvailableEquipmentFromAnswers,
+  getEquipmentCompatibilityRatio,
+  getMissingEquipmentLabels,
+} from "./equipmentRequirements";
+import {
+  isExerciseTooAdvancedForLevel,
+  summarizeExercisePool,
+} from "./exerciseIntelligence";
 import { getExerciseById } from "./exerciseLibraryAdapter";
 
 export type WorkoutGoal = "hypertrophy" | "strength" | "hybrid";
@@ -22,52 +30,6 @@ export type WorkoutTemplateRecommendation = {
   tags: string[];
   template: WorkoutTemplate;
   warnings: string[];
-};
-
-const EQUIPMENT_ACCESS_SCORES: Record<
-  WorkoutEquipment,
-  Partial<Record<LibraryEquipmentType, number>>
-> = {
-  full_gym: {
-    assisted_machine: 3,
-    barbell: 3,
-    bench: 3,
-    bodyweight: 3,
-    cable: 3,
-    dumbbell: 3,
-    machine: 3,
-    mixed: 3,
-    other: 2,
-    smith_machine: 3,
-    swiss_ball: 3,
-  },
-  home_gym: {
-    barbell: 3,
-    bench: 3,
-    bodyweight: 3,
-    cable: 2,
-    dumbbell: 3,
-    mixed: 2,
-    other: 2,
-    smith_machine: 1,
-    swiss_ball: 2,
-  },
-  dumbbells_only: {
-    bench: 2,
-    bodyweight: 3,
-    dumbbell: 3,
-    mixed: 1,
-    other: 1,
-    swiss_ball: 1,
-  },
-  basic_equipment: {
-    bench: 1,
-    bodyweight: 3,
-    dumbbell: 1,
-    mixed: 1,
-    other: 2,
-    swiss_ball: 2,
-  },
 };
 
 export function getRequestedGoal(answers: OnboardingAnswers): WorkoutGoal {
@@ -113,28 +75,34 @@ export function getTemplateWorkoutDays(template: WorkoutTemplate) {
 
 export function getEquipmentCompatibilityScore(
   template: WorkoutTemplate,
-  requestedEquipment: WorkoutEquipment
+  answers: Pick<OnboardingAnswers, "availableEquipment" | "equipmentAccess">
 ) {
   const workoutExerciseIds = getTemplateWorkoutDays(template).flatMap(
     (day) => day.exerciseIds
   );
 
-  if (workoutExerciseIds.length === 0) {
-    return 0;
-  }
+  return getEquipmentCompatibilityRatio(
+    workoutExerciseIds,
+    getAvailableEquipmentFromAnswers(answers)
+  );
+}
 
-  const totalScore = workoutExerciseIds.reduce((score, exerciseId) => {
-    const exercise = getExerciseById(exerciseId);
+function getTemplateExercises(template: WorkoutTemplate) {
+  return getTemplateWorkoutDays(template)
+    .flatMap((day) => day.exerciseIds)
+    .map((exerciseId) => getExerciseById(exerciseId))
+    .filter((exercise): exercise is NonNullable<typeof exercise> => Boolean(exercise));
+}
 
-    return (
-      score +
-      (exercise
-        ? EQUIPMENT_ACCESS_SCORES[requestedEquipment][exercise.equipmentType] ?? 0
-        : 0)
-    );
-  }, 0);
-
-  return totalScore / workoutExerciseIds.length;
+export function getTemplateExerciseProfile(
+  template: WorkoutTemplate,
+  answers: OnboardingAnswers
+) {
+  return summarizeExercisePool(
+    getTemplateExercises(template),
+    answers,
+    getAvailableEquipmentFromAnswers(answers)
+  );
 }
 
 export function getTemplateRecommendationScore(
@@ -143,12 +111,12 @@ export function getTemplateRecommendationScore(
 ) {
   const requestedGoal = getRequestedGoal(answers);
   const requestedLevel = getRequestedLevel(answers);
-  const requestedEquipment = getRequestedEquipment(answers);
   const requestedTrainingDays = getRequestedTrainingDays(answers);
   const templateGoal = getTemplateGoal(template);
   const dayDifference = requestedTrainingDays - template.daysRequired;
   const isOverRequestedDays = dayDifference < 0;
-  const equipmentScore = getEquipmentCompatibilityScore(template, requestedEquipment);
+  const equipmentScore = getEquipmentCompatibilityScore(template, answers);
+  const exerciseProfile = getTemplateExerciseProfile(template, answers);
   let score = 0;
 
   if (template.daysRequired === requestedTrainingDays) {
@@ -179,7 +147,24 @@ export function getTemplateRecommendationScore(
     score += 120;
   }
 
-  score += equipmentScore * 90;
+  score += equipmentScore * 270;
+  score += exerciseProfile.difficultyFitAverage * 220;
+  score += exerciseProfile.goalFitAverage * 180;
+  score += exerciseProfile.equipmentFitRatio * 140;
+
+  if (requestedGoal === "strength") {
+    score += exerciseProfile.compoundRatio * 170;
+  } else if (requestedGoal === "hypertrophy") {
+    score += exerciseProfile.accessoryRatio * 170;
+    score += exerciseProfile.compoundRatio > 0.35 ? 70 : 0;
+  } else {
+    score += exerciseProfile.compoundRatio > 0.4 ? 80 : 0;
+    score += exerciseProfile.accessoryRatio > 0.25 ? 80 : 0;
+  }
+
+  if (requestedLevel === "beginner" && exerciseProfile.advancedRatio > 0.15) {
+    score -= exerciseProfile.advancedRatio * 350;
+  }
 
   if (answers.ageRange === "7_15") {
     if (template.experienceLevel === "beginner") {
@@ -232,7 +217,9 @@ export function getWorkoutTemplateWarnings(
   const warnings: string[] = [];
   const requestedTrainingDays = answers.availableTrainingDays;
   const requestedLevel = answers.experienceLevel;
-  const requestedEquipment = answers.equipmentAccess;
+  const hasEquipmentAnswers = Boolean(
+    answers.equipmentAccess || answers.availableEquipment?.length
+  );
   const templateGoal = getTemplateGoal(template);
 
   if (requestedTrainingDays && template.daysRequired > requestedTrainingDays) {
@@ -252,10 +239,33 @@ export function getWorkoutTemplateWarnings(
   }
 
   if (
-    requestedEquipment &&
-    getEquipmentCompatibilityScore(template, requestedEquipment) < 2
+    requestedLevel &&
+    getTemplateExercises(template).some((exercise) =>
+      isExerciseTooAdvancedForLevel(exercise, requestedLevel)
+    )
   ) {
-    warnings.push("May need equipment you did not select");
+    warnings.push("Includes advanced exercise options");
+  }
+
+  if (
+    hasEquipmentAnswers &&
+    getEquipmentCompatibilityScore(template, answers) < 0.75
+  ) {
+    const missingEquipment = getTemplateWorkoutDays(template)
+      .flatMap((day) => day.exerciseIds)
+      .flatMap((exerciseId) =>
+        getMissingEquipmentLabels(
+          exerciseId,
+          getAvailableEquipmentFromAnswers(answers)
+        )
+      );
+    const uniqueMissingEquipment = [...new Set(missingEquipment)].slice(0, 3);
+
+    warnings.push(
+      uniqueMissingEquipment.length
+        ? `May need: ${uniqueMissingEquipment.join(", ")}`
+        : "May need equipment you did not select"
+    );
   }
 
   if (
@@ -275,9 +285,12 @@ export function getWorkoutTemplateMatchReasons(
   const reasons: string[] = [];
   const requestedGoal = answers.goalPriority ?? answers.goal;
   const requestedLevel = answers.experienceLevel;
-  const requestedEquipment = answers.equipmentAccess;
+  const hasEquipmentAnswers = Boolean(
+    answers.equipmentAccess || answers.availableEquipment?.length
+  );
   const requestedTrainingDays = answers.availableTrainingDays;
   const templateGoal = getTemplateGoal(template);
+  const exerciseProfile = getTemplateExerciseProfile(template, answers);
 
   if (requestedTrainingDays && template.daysRequired === requestedTrainingDays) {
     reasons.push(`Matches your ${requestedTrainingDays}-day weekly schedule`);
@@ -296,10 +309,30 @@ export function getWorkoutTemplateMatchReasons(
   }
 
   if (
-    requestedEquipment &&
-    getEquipmentCompatibilityScore(template, requestedEquipment) >= 2
+    hasEquipmentAnswers &&
+    getEquipmentCompatibilityScore(template, answers) >= 0.75
   ) {
     reasons.push("Fits most of your equipment access");
+  }
+
+  if (exerciseProfile.equipmentFitRatio >= 0.9) {
+    reasons.push("Strong equipment match");
+  }
+
+  if (requestedLevel && exerciseProfile.beginnerFriendlyRatio >= 0.85) {
+    reasons.push("Mostly beginner-friendly exercises");
+  }
+
+  if (templateGoal === "strength" && exerciseProfile.compoundRatio >= 0.6) {
+    reasons.push("Compound-heavy strength structure");
+  }
+
+  if (
+    templateGoal === "hypertrophy" &&
+    exerciseProfile.compoundRatio >= 0.35 &&
+    exerciseProfile.accessoryRatio >= 0.25
+  ) {
+    reasons.push("Balances compound lifts with accessory volume");
   }
 
   if (answers.ageRange === "7_15" && template.experienceLevel === "beginner") {

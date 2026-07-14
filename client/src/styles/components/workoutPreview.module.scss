@@ -208,6 +208,24 @@
   }
 }
 
+.exerciseDetailTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+
+  span {
+    padding: 0.2rem 0.5rem;
+    border: 1px solid hsl(var(--clr-neutral-300-b) / 0.08);
+    border-radius: 999px;
+    background: hsl(var(--clr-neutral-900-b) / 0.45);
+    color: hsl(var(--clr-neutral-100-b));
+    font-size: 0.58rem;
+    font-weight: 750;
+    line-height: 1;
+    white-space: nowrap;
+  }
+}
+
 .exerciseActions {
   display: flex;
   align-items: center;

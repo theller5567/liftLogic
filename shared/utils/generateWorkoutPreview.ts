@@ -2,7 +2,6 @@ import type { ExerciseKey, WeightUnit } from "../constants/weightEstimationRules
 import { weightEstimationRules } from "../constants/weightEstimationRules";
 import {
   exerciseLibrary,
-  type MovementPattern,
   type WorkoutTemplate,
   type WorkoutTemplateWorkoutDay,
 } from "../constants/exercise-library";
@@ -10,6 +9,17 @@ import type { OnboardingAnswers } from "../types/onboarding.types";
 import type { OnboardingAnchorKey } from "./onboardingExerciseMapping";
 import { onboardingAnchorDefinitions } from "./onboardingExerciseMapping";
 import { getExerciseById, normalizeLibraryIdToEstimatorKey } from "./exerciseLibraryAdapter";
+import {
+  canPerformExercise,
+  getAvailableEquipmentFromAnswers,
+  getMissingEquipmentLabels,
+} from "./equipmentRequirements";
+import {
+  getBestCompatibleAlternative,
+  getExerciseDetailTags,
+  getExerciseSelectionNotes,
+  isIsolationExercise,
+} from "./exerciseIntelligence";
 
 import {
   applyMinimum,
@@ -44,6 +54,7 @@ export type GeneratedWorkoutExercisePreview = {
   suggestedWeight?: number;
   weightUnit?: WeightUnit;
   notes?: string;
+  detailTags?: string[];
   exerciseAlternatives: GeneratedWorkoutExerciseAlternative[];
 };
 
@@ -92,17 +103,6 @@ type AnchorAnswer = NonNullable<
   | OnboardingAnswers["squat"]
   | OnboardingAnswers["barbellDeadlift"]
 >;
-
-const ISOLATION_MOVEMENTS = new Set<MovementPattern>([
-  "calf_raise",
-  "curl",
-  "fly",
-  "lateral_raise",
-  "pullover",
-  "scapular_control",
-  "triceps_extension",
-  "triceps_pushdown",
-]);
 
 function getWeightUnit(answers: OnboardingAnswers): WeightUnit {
   return answers.weightUnit ?? "lb";
@@ -276,9 +276,7 @@ function getPrescriptionForExercise(
   answers: OnboardingAnswers
 ): WorkoutSetPrescription {
   const exercise = getExerciseById(exerciseId);
-  const isIsolation = exercise
-    ? ISOLATION_MOVEMENTS.has(exercise.movementPattern)
-    : false;
+  const isIsolation = isIsolationExercise(exercise);
   const isYouth = answers.ageRange === "7_15";
   const isOlder = answers.ageRange === "40_49" || answers.ageRange === "50_plus";
   const prefersHigherReps = answers.gender === "female" || isYouth || isOlder;
@@ -356,8 +354,22 @@ function buildExercisePreview(
   answers: OnboardingAnswers,
   cache: Map<ExerciseKey, number>
 ): GeneratedWorkoutExercisePreview {
-  const exercise = getExerciseById(exerciseId);
-  const label = exercise?.displayName ?? exercise?.name ?? exerciseId;
+  const availableEquipment = getAvailableEquipmentFromAnswers(answers);
+  const originalExercise = getExerciseById(exerciseId);
+  const compatibleAlternative = getBestCompatibleAlternative({
+    answers,
+    availableEquipment,
+    exerciseId,
+  });
+  const shouldSubstitute =
+    originalExercise &&
+    !canPerformExercise(exerciseId, availableEquipment) &&
+    compatibleAlternative;
+  const resolvedExerciseId = shouldSubstitute
+    ? compatibleAlternative.alternative.exerciseId
+    : exerciseId;
+  const exercise = getExerciseById(resolvedExerciseId);
+  const label = exercise?.displayName ?? exercise?.name ?? resolvedExerciseId;
   const exerciseAlternatives = (exercise?.alternatives ?? []).map(
     (alternative) => {
       const alternativeExercise = getExerciseById(alternative.exerciseId);
@@ -372,14 +384,34 @@ function buildExercisePreview(
       };
     }
   );
-  const estimateFrom = normalizeLibraryIdToEstimatorKey(exerciseId);
-  const notes = getExerciseNotes(exerciseId, answers);
+  const estimateFrom = normalizeLibraryIdToEstimatorKey(resolvedExerciseId);
+  const missingEquipment = getMissingEquipmentLabels(exerciseId, availableEquipment);
+  const substitutionNote =
+    shouldSubstitute && originalExercise
+      ? `Substituted for ${originalExercise.displayName ?? originalExercise.name} because your equipment list does not include: ${missingEquipment.join(", ")}.`
+      : undefined;
+  const missingEquipmentNote =
+    !shouldSubstitute && missingEquipment.length
+      ? `Missing equipment: ${missingEquipment.join(", ")}.`
+      : undefined;
+  const notes = [
+    substitutionNote,
+    ...getExerciseSelectionNotes({
+      exercise,
+      originalExercise: shouldSubstitute ? originalExercise : null,
+    }),
+    missingEquipmentNote,
+    getExerciseNotes(resolvedExerciseId, answers),
+  ]
+    .filter(Boolean)
+    .join(" ");
   const basePreview = {
-    id: `${dayId}_${exerciseIndex + 1}_${exerciseId}`,
-    exerciseId,
+    id: `${dayId}_${exerciseIndex + 1}_${resolvedExerciseId}`,
+    exerciseId: resolvedExerciseId,
     label,
-    prescription: getPrescriptionForExercise(exerciseId, goal, answers),
+    prescription: getPrescriptionForExercise(resolvedExerciseId, goal, answers),
     ...(notes ? { notes } : {}),
+    detailTags: getExerciseDetailTags(exercise),
     exerciseAlternatives,
   };
 

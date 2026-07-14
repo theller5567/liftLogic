@@ -194,4 +194,42 @@ describe("generateWorkoutPreview", () => {
 
     expect(missingWeights).toEqual([]);
   });
+
+  it("substitutes exercises when exact equipment is missing", () => {
+    const preview = generateWorkoutPreview({
+      ageRange: "19_29",
+      availableEquipment: ["dumbbells", "flat_bench", "bodyweight_space"],
+      availableTrainingDays: 3,
+      equipmentAccess: "dumbbells_only",
+      experienceLevel: "beginner",
+      gender: "male",
+      goal: "strength",
+      selectedWorkoutTemplateId: "starting_strength",
+      weightUnit: "lb",
+    });
+
+    const firstExercise = preview.days[0].exercises[0];
+
+    expect(firstExercise.exerciseId).toBe("goblet_squat");
+    expect(firstExercise.notes).toContain("Substituted for Back Squat");
+    expect(firstExercise.notes).toContain("Keeps the same primary training target");
+  });
+
+  it("falls back to preset equipment for older onboarding answers", () => {
+    const preview = generateWorkoutPreview({
+      ageRange: "19_29",
+      availableTrainingDays: 5,
+      equipmentAccess: "full_gym",
+      experienceLevel: "intermediate",
+      gender: "male",
+      goal: "hybrid",
+      selectedWorkoutTemplateId: "strength_hypertrophy_5_day",
+      weightUnit: "lb",
+    });
+
+    expect(preview.days[0].exercises[0].exerciseId).toBe("front_squat");
+    expect(preview.days[0].exercises[0].notes ?? "").not.toContain(
+      "Missing equipment"
+    );
+  });
 });

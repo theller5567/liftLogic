@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Navigate, Routes, Route } from 'react-router-d
 import { AuthProvider } from './context/AuthProvider'
 import ProtectedRoute from './components/ProtectedRoute'
 import PublicOnlyRoute from './components/PublicOnlyRoute'
+import LoadingSpinner from './components/LoadingSpinner'
 
 const Calendar = lazy(() => import('./pages/Calendar'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -29,7 +30,7 @@ function App() {
     <main>
       <AuthProvider>
         <Router>
-          <Suspense fallback={<div className="sub-text">Loading...</div>}>
+          <Suspense fallback={<LoadingSpinner fullScreen label="Loading page..." />}>
             <Routes>
               <Route
                 path="/"

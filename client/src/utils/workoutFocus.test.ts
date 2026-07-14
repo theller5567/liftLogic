@@ -215,4 +215,24 @@ describe("workout focus blocks", () => {
 
     expect(getIntroducedFocusExerciseIds(preview, focusedPreview).size).toBeGreaterThan(0);
   });
+
+  it("adds focus swap guidance and metadata for introduced exercises", () => {
+    const preview = createPreview();
+    const focusBlock = createWorkoutFocusBlock({
+      durationWeeks: 4,
+      focusArea: "lateral_delts",
+      now,
+    });
+    const focusedPreview = applyWorkoutFocusBlock(preview, focusBlock, now);
+    const introducedExerciseIds = getIntroducedFocusExerciseIds(
+      preview,
+      focusedPreview
+    );
+    const introducedExercise = focusedPreview.days
+      .flatMap((day) => day.exercises)
+      .find((exercise) => introducedExerciseIds.has(exercise.id));
+
+    expect(introducedExercise?.notes).toContain("focus block");
+    expect(introducedExercise?.detailTags?.length).toBeGreaterThan(0);
+  });
 });

@@ -53,6 +53,14 @@ const muscleGroupLabels: Record<MuscleGroup, string> = {
   calves: "Calves",
   lower_back: "Low Back",
   scapular_stabilizers: "Scapula",
+  abductors: "Abductors",
+  adductors: "Adductors",
+  core: "Core",
+  hip_flexors: "Hip Flexors",
+  obliques: "Obliques",
+  shoulders: "Shoulders",
+  tibialis_anterior: "Tibialis",
+  traps: "Traps",
 };
 
 const formatRestLabel = (restSeconds: number) => {
@@ -178,16 +186,36 @@ const WorkoutPreview = ({
 
   const getMovementOptions = (
     exercise: GeneratedWorkoutExercisePreview
-  ): MovementOption[] => [
-    {
-      exerciseId: exercise.exerciseId,
-      label: exercise.label,
-      isCurrent: true,
-    },
-    ...exercise.exerciseAlternatives.filter(
-      (alternative) => alternative.exerciseId !== exercise.exerciseId
-    ),
-  ];
+  ): MovementOption[] => {
+    const currentLibraryExercise = getExerciseById(exercise.exerciseId);
+    const libraryAlternatives =
+      currentLibraryExercise?.alternatives.map((alternative) => {
+        const alternativeExercise = getExerciseById(alternative.exerciseId);
+
+        return {
+          exerciseId: alternative.exerciseId,
+          label:
+            alternativeExercise?.displayName ??
+            alternativeExercise?.name ??
+            alternative.exerciseId,
+          ...(alternative.note ? { note: alternative.note } : {}),
+        };
+      }) ?? [];
+    const alternativesById = new Map(
+      [...exercise.exerciseAlternatives, ...libraryAlternatives]
+        .filter((alternative) => alternative.exerciseId !== exercise.exerciseId)
+        .map((alternative) => [alternative.exerciseId, alternative])
+    );
+
+    return [
+      {
+        exerciseId: exercise.exerciseId,
+        label: exercise.label,
+        isCurrent: true,
+      },
+      ...alternativesById.values(),
+    ];
+  };
 
   const getWeightStep = () => getWeightStepForKey(settings, "default");
 
@@ -196,7 +224,7 @@ const WorkoutPreview = ({
       onPreviewChange &&
         (!editableExerciseIds || editableExerciseIds.has(exercise.id)) &&
         (exercise.suggestedWeight !== undefined ||
-          exercise.exerciseAlternatives.length > 0)
+          getMovementOptions(exercise).length > 1)
     );
 
   const updateDraftWeight = (amount: number) => {
@@ -389,6 +417,15 @@ const WorkoutPreview = ({
                               {muscleTags.map((muscleTag) => (
                                 <span key={`${exercise.id}-${muscleTag}`}>
                                   {muscleTag}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                          {exercise.detailTags?.length ? (
+                            <div className={styles.exerciseDetailTags}>
+                              {exercise.detailTags.map((detailTag) => (
+                                <span key={`${exercise.id}-${detailTag}`}>
+                                  {detailTag}
                                 </span>
                               ))}
                             </div>

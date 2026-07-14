@@ -13,6 +13,7 @@ import {
 } from "../../../shared/types/workoutFocus.types";
 import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
+import LoadingSpinner from "../components/LoadingSpinner";
 import WorkoutTemplateBrowser from "../components/WorkoutTemplateBrowser";
 import WorkoutPreview from "../components/WorkoutPreview";
 import {
@@ -108,7 +109,7 @@ const WorkoutReview = () => {
     : [];
 
   if (isLoading) {
-    return <p className="text-muted">Loading workout review...</p>;
+    return <LoadingSpinner fullScreen label="Loading workout review..." />;
   }
 
   if (error) {
@@ -319,11 +320,11 @@ const WorkoutReview = () => {
         onClose={() => setShowFocusOffer(false)}
         eyebrow="Optional"
         title="Add a muscle focus block?"
-        description="A focus block adds extra work for one muscle group for a short period while the rest of your program stays near maintenance."
+        description="A focus block is a planned training phase that emphasizes one muscle group with additional volume and recovery while keeping the rest of your program at maintenance."
         actions={[
           {
             label: "Skip for now",
-            tone: "gray",
+            tone: "white",
             variant: "outline",
             onClick: completeReview,
             closeOnClick: false,

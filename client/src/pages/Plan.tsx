@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 
 import AppShell from "../components/app/AppShell";
 import Button from "../components/Button";
+import LoadingSpinner from "../components/LoadingSpinner";
 import WorkoutPreview from "../components/WorkoutPreview";
 import {
   clearWorkoutFocusBlock,
@@ -65,7 +66,7 @@ const Plan = () => {
     !hasStoppedSpecialization && isWorkoutFocusBlockActive(activeFocusBlock);
 
   if (isLoading) {
-    return <p className="text-muted notificationMessage">Loading plan...</p>;
+    return <LoadingSpinner fullScreen label="Loading plan..." />;
   }
 
   if (error) {

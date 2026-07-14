@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 
+import LoadingSpinner from "./LoadingSpinner";
 import { useAuth } from "../context/useAuth";
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
@@ -8,7 +9,7 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
 
   if (isLoading) {
-    return <p className="text-muted">Loading...</p>;
+    return <LoadingSpinner fullScreen label="Checking session..." />;
   }
 
   if (!user) {

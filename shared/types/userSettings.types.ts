@@ -1,3 +1,4 @@
+import type { EquipmentItemId } from "../constants/equipmentCatalog";
 import type { WeightUnit } from "../constants/weightEstimationRules";
 import type { OnboardingAnswers } from "./onboarding.types";
 
@@ -10,6 +11,7 @@ export type UserSettings = {
     autoStartAfterSet: boolean;
     defaultSeconds?: number;
   };
+  equipmentInventory?: EquipmentItemId[];
   theme: {
     primaryColor: string;
     secondaryColor: string;
@@ -24,7 +26,10 @@ export const DEFAULT_THEME_SETTINGS = {
 const getDefaultStep = (weightUnit: WeightUnit) => (weightUnit === "kg" ? 2.5 : 5);
 
 export const createDefaultUserSettings = (
-  onboardingAnswers?: Pick<OnboardingAnswers, "weightUnit">
+  onboardingAnswers?: Pick<
+    OnboardingAnswers,
+    "availableEquipment" | "equipmentAccess" | "weightUnit"
+  >
 ): UserSettings => {
   const weightUnit = onboardingAnswers?.weightUnit ?? "lb";
   const defaultStep = getDefaultStep(weightUnit);
@@ -42,6 +47,7 @@ export const createDefaultUserSettings = (
       autoStartAfterSet: true,
       defaultSeconds: undefined,
     },
+    equipmentInventory: onboardingAnswers?.availableEquipment,
     theme: {
       ...DEFAULT_THEME_SETTINGS,
     },
@@ -65,6 +71,8 @@ export const mergeUserSettings = (
       ...defaults.restTimer,
       ...settings?.restTimer,
     },
+    equipmentInventory:
+      settings?.equipmentInventory ?? defaults.equipmentInventory,
     theme: {
       ...defaults.theme,
       ...settings?.theme,
