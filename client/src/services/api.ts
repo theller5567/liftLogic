@@ -9,6 +9,7 @@ import type {
   WorkoutFocusArea,
   WorkoutFocusBlock,
 } from "../../../shared/types/workoutFocus.types";
+import type { ExerciseMediaResponse } from "../../../shared/types/exerciseMedia.types";
 import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWorkoutPreview";
 
 const CLIENT_ID_KEY = "liftlogic:client-id";
@@ -226,6 +227,11 @@ export const clearWorkoutFocusBlock = () =>
   apiRequest<{ workoutPlan: WorkoutPlanDto }>("/api/workout-plan/focus", {
     method: "DELETE",
   });
+
+export const getExerciseMedia = (exerciseId: string) =>
+  apiRequest<ExerciseMediaResponse>(
+    `/api/exercise-media/${encodeURIComponent(exerciseId)}`
+  );
 
 export type CreateWorkoutSessionInput = {
   programDayId: string;

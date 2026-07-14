@@ -41,6 +41,8 @@ Production setup:
   - `FIREBASE_PROJECT_ID`
   - `FIREBASE_CLIENT_EMAIL`
   - `FIREBASE_PRIVATE_KEY`
+  - `YMOVE_API_KEY` for exercise media videos
+  - `YMOVE_API_BASE_URL` if overriding the default YMove API URL
 - Set Netlify `VITE_API_BASE_URL` to the Render API URL.
 - Run a Render API smoke test locally with:
   - `API_BASE_URL=https://your-render-api.onrender.com npm --prefix server run smoke`

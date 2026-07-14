@@ -256,6 +256,28 @@
   --button-icon-size: 0.85rem;
 }
 
+.mediaButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid hsl(var(--clr-secondary-500-b) / 0.5);
+  border-radius: var(--br-4);
+  background: hsl(var(--clr-secondary-500-b) / 0.12);
+  color: hsl(var(--clr-neutral-0-b));
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  cursor: pointer;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+    color: hsl(var(--clr-secondary-500-b));
+  }
+}
+
 .exerciseStats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -468,4 +490,82 @@
 
 span.activePill {
   color: hsl(var(--clr-secondary-500-b)) !important;
+}
+
+.mediaSheet {
+  display: grid;
+  gap: 1rem;
+}
+
+.exerciseVideo {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.85rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.12);
+  background: hsl(var(--clr-neutral-900-b));
+}
+
+.mediaStatus,
+.mediaError,
+.mediaAttribution {
+  margin: 0;
+  color: hsl(var(--clr-neutral-100-b));
+  font-size: 0.82rem;
+}
+
+.mediaError {
+  color: hsl(var(--clr-primary-500-b));
+}
+
+.mediaUnavailable {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.12);
+  border-radius: 0.85rem;
+  background: hsl(var(--clr-neutral-300-b) / 0.05);
+
+  svg {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    color: hsl(var(--clr-secondary-500-b));
+  }
+
+  h3,
+  p {
+    margin: 0;
+  }
+
+  h3 {
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 0.95rem;
+  }
+
+  p {
+    padding-block-start: 0.25rem;
+    color: hsl(var(--clr-neutral-100-b));
+    font-size: 0.82rem;
+  }
+}
+
+.instructionList {
+  display: grid;
+  gap: 0.65rem;
+
+  h3 {
+    margin: 0;
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 0.95rem;
+  }
+
+  ol {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0;
+    padding-inline-start: 1.2rem;
+    color: hsl(var(--clr-neutral-100-b));
+    font-size: 0.85rem;
+  }
 }

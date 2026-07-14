@@ -8,6 +8,7 @@ import helmet from "helmet";
 import { ZodError } from "zod";
 
 import { env } from "./config/env";
+import exerciseMediaRoutes from "./routes/exerciseMediaRoutes";
 import profileRoutes from "./routes/profileRoutes";
 import workoutPlanRoutes from "./routes/workoutPlanRoutes";
 import workoutSessionRoutes from "./routes/workoutSessionRoutes";
@@ -28,6 +29,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 });
 
 app.use("/api/profile", profileRoutes);
+app.use("/api/exercise-media", exerciseMediaRoutes);
 app.use("/api/workout-plan", workoutPlanRoutes);
 app.use("/api/workout-sessions", workoutSessionRoutes);
 

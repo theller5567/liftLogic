@@ -16,4 +16,7 @@ export const env = {
   firebaseClientEmail: process.env.FIREBASE_CLIENT_EMAIL,
   firebasePrivateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
   firebaseServiceAccountJson: process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
+  ymoveApiBaseUrl:
+    process.env.YMOVE_API_BASE_URL ?? "https://exercise-api.ymove.app/api/v2",
+  ymoveApiKey: process.env.YMOVE_API_KEY,
 };

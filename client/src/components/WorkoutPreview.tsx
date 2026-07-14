@@ -1,9 +1,14 @@
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
-import { ClockIcon } from "lucide-react";
+import { ClockIcon, PlayCircleIcon } from "lucide-react";
 import type { MuscleGroup } from "../../../shared/constants/exercise-library";
 import { getExerciseById } from "../../../shared/utils/exerciseLibraryAdapter";
+import {
+  canShowExerciseMediaAction,
+  createUnavailableExerciseMediaResponse,
+} from "../../../shared/utils/exerciseMedia";
+import type { ExerciseMediaResponse } from "../../../shared/types/exerciseMedia.types";
 
 import BottomSheet from "./BottomSheet";
 import Button from "./Button";
@@ -11,6 +16,7 @@ import Pill from "./Pill";
 import StepButton from "./StepButton";
 import styles from "../styles/components/workoutPreview.module.scss";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
+import { getExerciseMedia, isApiEnabled } from "../services/api";
 import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
 import Weights from "../assets/icons/010-weights.svg?react";
@@ -159,6 +165,12 @@ const WorkoutPreview = ({
     useState<DayNavigationDirection>(1);
   const [selectedEditExercise, setSelectedEditExercise] =
     useState<SelectedEditExercise | null>(null);
+  const [selectedMediaExercise, setSelectedMediaExercise] =
+    useState<GeneratedWorkoutExercisePreview | null>(null);
+  const [exerciseMedia, setExerciseMedia] =
+    useState<ExerciseMediaResponse | null>(null);
+  const [isMediaLoading, setIsMediaLoading] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const [draftExerciseId, setDraftExerciseId] = useState<string | null>(null);
   const [draftWeight, setDraftWeight] = useState(0);
   const dayTabRefs = useRef<Record<number, HTMLButtonElement | null>>({});
@@ -167,6 +179,13 @@ const WorkoutPreview = ({
     setSelectedEditExercise(exercise);
     setDraftExerciseId(exercise.exerciseId);
     setDraftWeight(exercise.suggestedWeight ?? 0);
+  };
+
+  const openExerciseMedia = (exercise: GeneratedWorkoutExercisePreview) => {
+    setSelectedMediaExercise(exercise);
+    setExerciseMedia(null);
+    setIsMediaLoading(true);
+    setMediaError(null);
   };
 
   const selectDay = (dayIndex: number) => {
@@ -182,6 +201,13 @@ const WorkoutPreview = ({
     setSelectedEditExercise(null);
     setDraftExerciseId(null);
     setDraftWeight(0);
+  };
+
+  const closeMediaSheet = () => {
+    setSelectedMediaExercise(null);
+    setExerciseMedia(null);
+    setIsMediaLoading(false);
+    setMediaError(null);
   };
 
   const getMovementOptions = (
@@ -315,6 +341,53 @@ const WorkoutPreview = ({
     });
   }, [resolvedActiveDayIndex]);
 
+  useEffect(() => {
+    if (!selectedMediaExercise) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadExerciseMedia = async () => {
+      try {
+        const media = isApiEnabled()
+          ? await getExerciseMedia(selectedMediaExercise.exerciseId)
+          : createUnavailableExerciseMediaResponse(
+              selectedMediaExercise.exerciseId,
+              "not_configured"
+            );
+
+        if (isMounted) {
+          setExerciseMedia(media);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setMediaError(
+            error instanceof Error
+              ? error.message
+              : "We could not load this exercise video."
+          );
+          setExerciseMedia(
+            createUnavailableExerciseMediaResponse(
+              selectedMediaExercise.exerciseId,
+              "provider_error"
+            )
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsMediaLoading(false);
+        }
+      }
+    };
+
+    void loadExerciseMedia();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedMediaExercise]);
+
   return (
     <>
      <div className={styles.dayTabsContainer}>
@@ -441,7 +514,16 @@ const WorkoutPreview = ({
                               </strong>
                             </span>
                           ) : null}
-                          
+                          {canShowExerciseMediaAction(exercise.exerciseId) ? (
+                            <button
+                              type="button"
+                              className={styles.mediaButton}
+                              onClick={() => openExerciseMedia(exercise)}
+                            >
+                              <PlayCircleIcon aria-hidden="true" />
+                              <span>Watch form</span>
+                            </button>
+                          ) : null}
                         </div>
                         {canEditExercise(exercise) ? (
                             <Button
@@ -620,6 +702,64 @@ const WorkoutPreview = ({
         </>
 
         ) : null}
+      </BottomSheet>
+      <BottomSheet
+        open={selectedMediaExercise !== null}
+        onClose={closeMediaSheet}
+        variant="full"
+        eyebrow="Exercise Guide"
+        title={selectedMediaExercise?.label}
+        description="Watch the movement and review the key cues before you start."
+      >
+        <div className={styles.mediaSheet}>
+          {isMediaLoading ? (
+            <p className={styles.mediaStatus}>Loading exercise guide...</p>
+          ) : null}
+
+          {!isMediaLoading && exerciseMedia?.status === "available" ? (
+            <>
+              <video
+                className={styles.exerciseVideo}
+                controls
+                playsInline
+                poster={exerciseMedia.thumbnailUrl}
+                src={exerciseMedia.videoUrl}
+              >
+                Your browser cannot play this video.
+              </video>
+              {exerciseMedia.attribution ? (
+                <p className={styles.mediaAttribution}>
+                  Source: {exerciseMedia.attribution}
+                </p>
+              ) : null}
+            </>
+          ) : null}
+
+          {!isMediaLoading && exerciseMedia?.status === "unavailable" ? (
+            <div className={styles.mediaUnavailable}>
+              <PlayCircleIcon aria-hidden="true" />
+              <div>
+                <h3>Video not available yet</h3>
+                <p>
+                  We will add a video for this movement as the media library grows.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {mediaError ? <p className={styles.mediaError}>{mediaError}</p> : null}
+
+          {exerciseMedia?.instructions?.length ? (
+            <section className={styles.instructionList}>
+              <h3>Form cues</h3>
+              <ol>
+                {exerciseMedia.instructions.map((instruction) => (
+                  <li key={instruction}>{instruction}</li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
+        </div>
       </BottomSheet>
     </section>
     </>

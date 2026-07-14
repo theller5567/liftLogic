@@ -1,4 +1,5 @@
 import type { ExerciseKey } from "./weightEstimationRules";
+import type { ExerciseMedia } from "../types/exerciseMedia.types";
 
 export type MuscleGroup =
   | "chest"
@@ -129,6 +130,7 @@ export interface ExerciseDefinition {
   isCompound?: boolean;
   primaryEquipment?: string;
   secondaryEquipment?: string[];
+  media?: ExerciseMedia;
 }
 
 export interface WorkoutTemplateWorkoutDay {
