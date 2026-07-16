@@ -14,6 +14,7 @@ import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWork
 const CLIENT_ID_KEY = "liftlogic:client-id";
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)
   ?.replace(/\/$/, "");
+export const API_REQUEST_TIMEOUT_MS = 12_000;
 let authTokenProvider: (() => Promise<string>) | null = null;
 let authExpiredHandler: ((error: ApiError) => void | Promise<void>) | null = null;
 
@@ -40,6 +41,19 @@ export const isAuthSessionExpiredError = (error: unknown) =>
   AUTH_EXPIRED_CODES.includes(
     error.code as (typeof AUTH_EXPIRED_CODES)[number]
   );
+
+export const createConnectionApiError = (reason: "network" | "timeout") =>
+  reason === "timeout"
+    ? new ApiError(
+        "Connection is taking longer than expected. Please try again.",
+        408,
+        "REQUEST_TIMEOUT"
+      )
+    : new ApiError(
+        "We could not reach LiftLogic. Check your connection and try again.",
+        0,
+        "NETWORK_ERROR"
+      );
 
 export type WorkoutPlanDto = {
   _id: string;
@@ -124,16 +138,38 @@ async function apiRequest<TResponse>(
     throw new Error("VITE_API_BASE_URL is not configured.");
   }
 
-  const makeRequest = async (authToken: string | null) => fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(authToken
-        ? { Authorization: `Bearer ${authToken}` }
-        : { "x-liftlogic-client-id": getLiftLogicClientId() }),
-      ...options.headers,
-    },
-  });
+  const makeRequest = async (authToken: string | null) => {
+    const timeoutController = new AbortController();
+    const timeoutId = window.setTimeout(
+      () => timeoutController.abort(),
+      API_REQUEST_TIMEOUT_MS
+    );
+
+    try {
+      return await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        signal: options.signal ?? timeoutController.signal,
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken
+            ? { Authorization: `Bearer ${authToken}` }
+            : { "x-liftlogic-client-id": getLiftLogicClientId() }),
+          ...options.headers,
+        },
+      });
+    } catch (requestError) {
+      if (
+        requestError instanceof DOMException &&
+        requestError.name === "AbortError"
+      ) {
+        throw createConnectionApiError("timeout");
+      }
+
+      throw createConnectionApiError("network");
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
 
   let authToken: string | null = null;
 

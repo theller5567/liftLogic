@@ -8,6 +8,7 @@ import {
 
 import AppShell from "../components/app/AppShell";
 import Button from "../components/Button";
+import PageLoadingState from "../components/PageLoadingState";
 import { getWorkoutSession, getWorkoutSessions } from "../services/api";
 import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
 import { getStartOfWeek } from "../utils/workoutSessionDates";
@@ -20,6 +21,8 @@ const WorkoutSessionLayout = () => {
   const [priorSessions, setPriorSessions] = useState<WorkoutSessionDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [retryIndex, setRetryIndex] = useState(0);
 
   useEffect(() => {
     if (!sessionId) {
@@ -34,20 +37,37 @@ const WorkoutSessionLayout = () => {
 
       try {
         const { workoutSession } = await getWorkoutSession(sessionId);
-        const currentWeekStart = getStartOfWeek(
-          new Date(workoutSession.scheduledFor)
-        );
-        const { workoutSessions } = await getWorkoutSessions({
-          dateTo: currentWeekStart.toISOString(),
-          status: "completed",
-        });
 
         if (!isMounted) {
           return;
         }
 
         setSession(workoutSession);
-        setPriorSessions(workoutSessions);
+        setIsLoading(false);
+
+        const currentWeekStart = getStartOfWeek(
+          new Date(workoutSession.scheduledFor)
+        );
+
+        getWorkoutSessions({
+          dateTo: currentWeekStart.toISOString(),
+          status: "completed",
+        })
+          .then(({ workoutSessions }) => {
+            if (isMounted) {
+              setPriorSessions(workoutSessions);
+              setHistoryError(null);
+            }
+          })
+          .catch((historyLoadError) => {
+            if (isMounted) {
+              setHistoryError(
+                historyLoadError instanceof Error
+                  ? historyLoadError.message
+                  : "Previous workout history could not load yet."
+              );
+            }
+          });
       } catch (loadError) {
         if (isMounted) {
           setError(
@@ -68,23 +88,26 @@ const WorkoutSessionLayout = () => {
     return () => {
       isMounted = false;
     };
-  }, [sessionId]);
+  }, [retryIndex, sessionId]);
 
   if (!sessionId) {
     return <Navigate to="/dashboard" replace />;
   }
 
   if (isLoading) {
-    return <p className="text-muted">Loading workout...</p>;
+    return <PageLoadingState title="Loading workout" />;
   }
 
   if (error || !session) {
     return (
       <AppShell>
         <section className={styles.workout}>
-          <p className="text-muted">
-            {error ?? "We could not load this workout."}
-          </p>
+          <PageLoadingState
+            tone="error"
+            title="We could not load this workout"
+            message={error ?? "Please try again."}
+            onAction={() => setRetryIndex((currentIndex) => currentIndex + 1)}
+          />
           <Button label="Back to dashboard" onClick={() => navigate("/dashboard")} />
         </section>
       </AppShell>
@@ -93,6 +116,7 @@ const WorkoutSessionLayout = () => {
 
   return (
     <AppShell>
+      {historyError ? <p className={styles.error}>{historyError}</p> : null}
       <Outlet context={{ priorSessions, session, setSession }} />
     </AppShell>
   );

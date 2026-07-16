@@ -7,7 +7,12 @@ import {
   type UserSettings,
   type WeightStepKey,
 } from "../../../shared/types/userSettings.types";
-import { getCurrentProfile, isApiEnabled, saveUserSettings } from "../services/api";
+import { isApiEnabled, saveUserSettings } from "../services/api";
+import {
+  readCachedCurrentAppData,
+  refreshCurrentAppData,
+  updateCachedCurrentAppData,
+} from "./appDataCache";
 import {
   readSubmittedAnswers,
   readUserSettings,
@@ -96,6 +101,15 @@ export const resetUserTheme = () => {
 };
 
 export const getLocalUserSettings = () => {
+  const cachedAppData = readCachedCurrentAppData();
+
+  if (cachedAppData) {
+    return mergeUserSettings(
+      cachedAppData.userSettings,
+      cachedAppData.workoutPlan?.onboardingAnswers
+    );
+  }
+
   const submittedAnswers = readSubmittedAnswers() ?? undefined;
   return mergeUserSettings(readUserSettings(), submittedAnswers);
 };
@@ -114,10 +128,11 @@ type UserSettingsState = {
 
 export const useUserSettings = (): UserSettingsState => {
   const apiEnabled = isApiEnabled();
+  const cachedAppData = apiEnabled ? readCachedCurrentAppData() : null;
   const [settings, setSettings] = useState<UserSettings>(() =>
     getLocalUserSettings()
   );
-  const [isLoading, setIsLoading] = useState(apiEnabled);
+  const [isLoading, setIsLoading] = useState(apiEnabled && !cachedAppData);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -131,7 +146,7 @@ export const useUserSettings = (): UserSettingsState => {
 
     let isCurrent = true;
 
-    getCurrentProfile()
+    refreshCurrentAppData()
       .then(({ userSettings, workoutPlan }) => {
         if (!isCurrent) {
           return;
@@ -176,6 +191,7 @@ export const useUserSettings = (): UserSettingsState => {
         const savedSettings = mergeUserSettings(userSettings);
         setSettings(savedSettings);
         writeUserSettings(savedSettings);
+        updateCachedCurrentAppData({ userSettings });
         return savedSettings;
       }
 

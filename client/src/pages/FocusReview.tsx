@@ -13,6 +13,7 @@ import {
 import { getExerciseById } from "../../../shared/utils/exerciseLibraryAdapter";
 import AppShell from "../components/app/AppShell";
 import Button from "../components/Button";
+import PageLoadingState from "../components/PageLoadingState";
 import WorkoutPreview from "../components/WorkoutPreview";
 import {
   isApiEnabled,
@@ -69,7 +70,7 @@ const getBasePreview = (
 const FocusReview = () => {
   const navigate = useNavigate();
   const apiEnabled = isApiEnabled();
-  const { destination, error, isLoading, workoutPlan } = useUserFlow();
+  const { destination, error, isLoading, refresh, workoutPlan } = useUserFlow();
   const pendingFocusBlock = readPendingWorkoutFocusBlock();
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [isActivating, setIsActivating] = useState(false);
@@ -112,11 +113,18 @@ const FocusReview = () => {
   );
 
   if (isLoading) {
-    return <p className="text-muted notificationMessage">Loading review...</p>;
+    return <PageLoadingState title="Loading review" />;
   }
 
   if (error) {
-    return <p className="text-muted notificationMessage">We could not load this review yet. Please refresh.</p>;
+    return (
+      <PageLoadingState
+        tone="error"
+        title="We could not load this review"
+        message={error.message}
+        onAction={refresh}
+      />
+    );
   }
 
   if (destination && destination !== "/dashboard") {

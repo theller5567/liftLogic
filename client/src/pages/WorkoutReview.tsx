@@ -13,6 +13,7 @@ import {
 } from "../../../shared/types/workoutFocus.types";
 import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
+import PageLoadingState from "../components/PageLoadingState";
 import WorkoutTemplateBrowser from "../components/WorkoutTemplateBrowser";
 import WorkoutPreview from "../components/WorkoutPreview";
 import {
@@ -53,6 +54,7 @@ const WorkoutReview = () => {
     destination,
     error,
     isLoading,
+    refresh,
     workoutPlan: remoteWorkoutPlan,
   } = useUserFlow();
   const submittedAnswers =
@@ -108,11 +110,18 @@ const WorkoutReview = () => {
     : [];
 
   if (isLoading) {
-    return <p className="text-muted">Loading workout review...</p>;
+    return <PageLoadingState title="Loading workout review" />;
   }
 
   if (error) {
-    return <p className="text-muted">We could not load your workout review yet. Please refresh.</p>;
+    return (
+      <PageLoadingState
+        tone="error"
+        title="We could not load your workout review"
+        message={error.message}
+        onAction={refresh}
+      />
+    );
   }
 
   if (destination && destination !== "/workout-review") {

@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 
 import AppShell from "../components/app/AppShell";
 import Button from "../components/Button";
+import PageLoadingState from "../components/PageLoadingState";
 import WorkoutPreview from "../components/WorkoutPreview";
 import {
   clearWorkoutFocusBlock,
@@ -32,7 +33,7 @@ import pageStyles from "../styles/pages/page.module.scss";
 const Plan = () => {
   const navigate = useNavigate();
   const apiEnabled = isApiEnabled();
-  const { destination, error, isLoading, workoutPlan } = useUserFlow();
+  const { destination, error, isLoading, refresh, workoutPlan } = useUserFlow();
   const initialPreview = useMemo(
     () => resolveCurrentWorkoutPreview(workoutPlan),
     [workoutPlan]
@@ -65,11 +66,18 @@ const Plan = () => {
     !hasStoppedSpecialization && isWorkoutFocusBlockActive(activeFocusBlock);
 
   if (isLoading) {
-    return <p className="text-muted notificationMessage">Loading plan...</p>;
+    return <PageLoadingState title="Loading plan" />;
   }
 
   if (error) {
-    return <p className="text-muted notificationMessage">We could not load your plan yet. Please refresh.</p>;
+    return (
+      <PageLoadingState
+        tone="error"
+        title="We could not load your plan"
+        message={error.message}
+        onAction={refresh}
+      />
+    );
   }
 
   if (destination === "/onboarding" || destination === "/workout-review") {

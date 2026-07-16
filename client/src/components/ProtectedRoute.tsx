@@ -2,13 +2,20 @@ import { Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 
 import { useAuth } from "../context/useAuth";
+import PageLoadingState from "./PageLoadingState";
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { authError, isLoading, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
-    return <p className="text-muted">Loading...</p>;
+    return (
+      <PageLoadingState
+        fullScreen
+        title="Checking your session"
+        message="This only takes a moment."
+      />
+    );
   }
 
   if (!user) {

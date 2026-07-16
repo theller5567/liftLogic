@@ -6,6 +6,7 @@ import DashboardHeader from "../components/dashboard/DashboardHeader";
 import WeekSelector, { type WeekDayOption } from "../components/dashboard/WeekSelector";
 import WorkoutCard from "../components/dashboard/WorkoutCard";
 import Button from "../components/Button";
+import PageLoadingState from "../components/PageLoadingState";
 import {
   clearWorkoutFocusBlock,
   createWorkoutSession,
@@ -131,7 +132,8 @@ const getWeekDays = (
 };
 
 const Dashboard = () => {
-  const { destination, error, isLoading, profile, workoutPlan } = useUserFlow();
+  const { destination, error, isLoading, refresh, workoutPlan, profile } =
+    useUserFlow();
   const navigate = useNavigate();
   const apiEnabled = isApiEnabled();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -358,11 +360,18 @@ const Dashboard = () => {
   };
 
   if (isLoading) {
-    return <p className="text-muted notificationMessage">Loading dashboard...</p>;
+    return <PageLoadingState title="Loading dashboard" />;
   }
 
   if (error) {
-    return <p className="text-muted notificationMessage">We could not load your dashboard yet. Please refresh.</p>;
+    return (
+      <PageLoadingState
+        tone="error"
+        title="We could not load your dashboard"
+        message={error.message}
+        onAction={refresh}
+      />
+    );
   }
 
   if (destination && destination !== "/dashboard") {
@@ -421,7 +430,16 @@ const Dashboard = () => {
           sessionId={currentWorkoutSession?._id}
         />
         {workoutSessionsError ? (
-          <p className="text-muted">{workoutSessionsError}</p>
+          <div>
+            <p className="text-muted">{workoutSessionsError}</p>
+            <Button
+              label="Retry sessions"
+              size="small"
+              tone="gray"
+              variant="outline"
+              onClick={() => setSelectedDate(new Date(selectedDate))}
+            />
+          </div>
         ) : null}
         {startWorkoutError ? (
           <p className="text-muted">{startWorkoutError}</p>

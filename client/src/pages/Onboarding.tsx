@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
 import OnboardingFlow from "../components/OnboardingFlow";
+import PageLoadingState from "../components/PageLoadingState";
 import { isApiEnabled, submitOnboardingAnswers } from "../services/api";
 import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
 import {
@@ -21,7 +22,7 @@ const Onboarding = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isRedoMode = searchParams.get("redo") === "1";
-  const { destination, error, isLoading, workoutPlan } = useUserFlow();
+  const { destination, error, isLoading, refresh, workoutPlan } = useUserFlow();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const initialAnswers = useMemo<OnboardingAnswers | undefined>(
     () =>
@@ -69,11 +70,18 @@ const Onboarding = () => {
   };
 
   if (isLoading) {
-    return <p className="text-muted">Loading onboarding...</p>;
+    return <PageLoadingState title="Loading onboarding" />;
   }
 
   if (error) {
-    return <p className="text-muted">We could not load your onboarding status. Please refresh.</p>;
+    return (
+      <PageLoadingState
+        tone="error"
+        title="We could not load onboarding"
+        message={error.message}
+        onAction={refresh}
+      />
+    );
   }
 
   if (!isRedoMode && destination && destination !== "/onboarding") {
