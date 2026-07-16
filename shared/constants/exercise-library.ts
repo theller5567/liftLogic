@@ -107,6 +107,21 @@ export interface ExerciseAlternativeRef {
   note?: string;
 }
 
+export interface ExerciseDescription {
+  overview: string;
+  primaryTarget: string;
+  secondaryTargets?: string;
+  setup: string[];
+  execution: string[];
+  coachingCues: string[];
+  commonMistakes: string[];
+  safetyNotes?: string[];
+  breathing?: string;
+  tempo?: string;
+  rangeOfMotion?: string;
+  difficultyNotes?: string;
+}
+
 export interface ExerciseDefinition {
   id: string;
   name: string;
@@ -120,6 +135,7 @@ export interface ExerciseDefinition {
   primaryMuscles: MuscleGroup[];
   secondaryMuscles: MuscleGroup[];
   alternatives: ExerciseAlternativeRef[];
+  description?: ExerciseDescription;
   notes?: string[];
   category?: ExerciseCategory;
   difficulty?: ExerciseDifficulty;

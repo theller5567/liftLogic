@@ -10,13 +10,14 @@ import {
 } from "lucide-react";
 import ActiveSet from "../assets/icons/activeSet.svg?react";
 import Target from "../assets/icons/target.svg?react";
+import InfoData from "../assets/icons/info.svg?react";
 import clsx from "clsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
 import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
-import DevDataInspector from "../components/dev/DevDataInspector";
+// import DevDataInspector from "../components/dev/DevDataInspector";
 import { completeWorkoutSession, updateWorkoutSession } from "../services/api";
 import type {
   WorkoutExerciseLog,
@@ -77,6 +78,15 @@ const formatSetSummary = (setLog: WorkoutSetLog) =>
 
 const getActiveSetIndex = (sets: WorkoutSetLog[]) =>
   sets.findIndex((setLog) => !setLog.completed);
+
+const createExerciseInfoSlug = (label: string, exerciseId: string) => {
+  const nameSlug = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  return `${nameSlug}_${exerciseId}`;
+};
 
 const getSetUiState = (
   setLog: WorkoutSetLog,
@@ -177,11 +187,6 @@ const WorkoutExercise = () => {
         (setLog) => setLog.setNumber === displaySet.setNumber
       )
     : undefined;
-  const setStates =
-    activeExercise?.sets.map((setLog, setIndex) => ({
-      setNumber: setLog.setNumber,
-      state: getSetUiState(setLog, setIndex, activeSetIndex),
-    })) ?? [];
   const completedSetCount = useMemo(
     () =>
       activeExercise?.sets.filter((setLog) => setLog.completed).length ?? 0,
@@ -206,29 +211,6 @@ const WorkoutExercise = () => {
       : allSetsCompleted
         ? "Next Exercise"
         : "Finish exercise";
-  const devDataItems = [
-    {
-      label: "routeParams",
-      value: { activeExerciseIndex, exerciseIndex, sessionId: session._id },
-    },
-    { label: "session", value: session },
-    { label: "activeExercise", value: activeExercise },
-    { label: "activeExerciseSets", value: activeExercise?.sets ?? [] },
-    { label: "previousExerciseLog", value: previousExerciseLog ?? null },
-    { label: "previousCompletedSets", value: previousCompletedSets },
-    { label: "priorSessions", value: priorSessions },
-    {
-      label: "computed",
-      value: {
-        activeSetIndex,
-        completedSetCount,
-        setStates,
-        isSaving,
-        restSeconds,
-        advisoryAttempt,
-      },
-    },
-  ];
   const showDevDataInspector = import.meta.env.DEV;
 
   useEffect(() => {
@@ -498,10 +480,28 @@ const WorkoutExercise = () => {
             </div>
           </div>
           {showDevDataInspector ? (
-            <DevDataInspector
-              title="Workout exercise data"
-              items={devDataItems}
-            />
+            <button
+              type="button"
+              className={styles.exerciseInfoButton}
+              aria-label="Open full exercise information"
+              data-tooltip="Open full exercise information"
+              onClick={() =>
+                navigate(
+                  `/exercise-library/${createExerciseInfoSlug(
+                    activeExercise.label,
+                    activeExercise.exerciseId
+                  )}`,
+                  {
+                    state: {
+                      returnLabel: "Back to workout",
+                      returnTo: `/workout/${session._id}/exercise/${activeExerciseIndex}`,
+                    },
+                  }
+                )
+              }
+            >
+              <InfoData className={styles.infoDataIcon} />
+            </button>
           ) : (
             <button type="button" aria-label="Exercise options">
               <MoreVertical size={18} />

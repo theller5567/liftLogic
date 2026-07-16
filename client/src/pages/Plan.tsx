@@ -16,6 +16,7 @@ import {
   getWorkoutFocusLabel,
   isWorkoutFocusBlockActive,
 } from "../../../shared/utils/workoutFocus";
+import { getAvailableEquipmentFromAnswers } from "../../../shared/utils/equipmentRequirements";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import {
   resolveBaseWorkoutPreview,
@@ -187,6 +188,13 @@ const Plan = () => {
         </header>
 
         <WorkoutPreview
+          availableEquipment={
+            workoutPlan?.onboardingAnswers
+              ? getAvailableEquipmentFromAnswers(workoutPlan.onboardingAnswers)
+              : undefined
+          }
+          editPresentation="review_actions"
+          onboardingAnswers={workoutPlan?.onboardingAnswers}
           preview={preview}
           onPreviewChange={isFocusActive ? undefined : handlePreviewChange}
         />

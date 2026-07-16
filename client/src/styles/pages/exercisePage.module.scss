@@ -42,6 +42,50 @@
   }
 }
 
+.exerciseInfoButton {
+  position: relative;
+
+  &::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    width: max-content;
+    max-width: min(16rem, calc(100vw - 2rem));
+    padding: 0.45rem 0.65rem;
+    border: 1px solid hsl(var(--clr-neutral-300-b) / 0.24);
+    border-radius: var(--br-8);
+    background: hsl(var(--clr-neutral-900-b));
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1.25;
+    text-align: left;
+    white-space: normal;
+    box-shadow: 0 0.85rem 1.6rem hsl(0 0% 0% / 0.28);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-0.2rem);
+    transition:
+      opacity 150ms ease,
+      transform 150ms ease;
+  }
+
+  &:hover::after,
+  &:focus-visible::after {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.infoDataIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: hsl(var(--clr-neutral-0-b));
+  fill: currentColor;
+}
+
 .progressBars {
   display: flex;
   justify-content: center;

@@ -24,6 +24,8 @@ const WorkoutSessionLayout = lazy(() => import('./pages/WorkoutSessionLayout'))
 const Login = lazy(() => import('./pages/auth/Login'))
 const Logout = lazy(() => import('./pages/auth/Logout'))
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'))
+const ExerciseLibrary = lazy(() => import('./pages/ExerciseLibrary'))
+const ExerciseDetails = lazy(() => import('./pages/ExerciseDetails'))
 
 function App() {
   return (
@@ -119,6 +121,22 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Navigate to="/dashboard" replace />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/exercise-library"
+                element={
+                  <ProtectedRoute>
+                    <ExerciseLibrary />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/exercise-library/:exerciseSlug"
+                element={
+                  <ProtectedRoute>
+                    <ExerciseDetails />
                   </ProtectedRoute>
                 }
               />

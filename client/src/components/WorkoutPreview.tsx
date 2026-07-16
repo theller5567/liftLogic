@@ -933,7 +933,7 @@ const WorkoutPreviewContent = ({
                       }
                       tone="white"
                       variant="outline"
-                      size="small"
+                      size="medium"
                       onClick={() =>
                         setShowCustomExercisePicker(
                           (currentIsVisible) => !currentIsVisible
