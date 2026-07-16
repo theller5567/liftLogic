@@ -1,7 +1,9 @@
-import { ChevronDown, RotateCcw, SlidersHorizontal, Target } from "lucide-react";
+import { ChevronDown, Dumbbell, RotateCcw, SlidersHorizontal, Target } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { WorkoutPlanDto } from "../../services/api";
+import EquipmentInventoryPicker from "../EquipmentInventoryPicker";
+import type { EquipmentItemId } from "../../../../shared/constants/equipmentCatalog";
 import {
   WORKOUT_FOCUS_DURATION_WEEKS,
   type WorkoutFocusArea,
@@ -16,6 +18,7 @@ import type {
   WeightStepKey,
 } from "../../../../shared/types/userSettings.types";
 import Button from "../Button";
+import "../../styles/components/onboarding.scss";
 import styles from "../../styles/pages/settings.module.scss";
 
 type SettingsUpdate = (updater: (current: UserSettings) => UserSettings) => void;
@@ -306,6 +309,27 @@ export const RestTimerSettingsSection = ({
         }}
       />
     </label>
+  </SettingsAccordion>
+);
+
+type EquipmentSettingsSectionProps = {
+  equipmentInventory: EquipmentItemId[];
+  onEquipmentChange: (equipment: EquipmentItemId[]) => void;
+};
+
+export const EquipmentSettingsSection = ({
+  equipmentInventory,
+  onEquipmentChange,
+}: EquipmentSettingsSectionProps) => (
+  <SettingsAccordion icon={<Dumbbell size={18} />} title="Equipment">
+    <p className={styles.focusDescription}>
+      Update the equipment you can use. Future plan recommendations and exercise
+      substitutions will prefer this list.
+    </p>
+    <EquipmentInventoryPicker
+      selectedEquipment={equipmentInventory}
+      onChange={onEquipmentChange}
+    />
   </SettingsAccordion>
 );
 

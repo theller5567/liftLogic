@@ -1,8 +1,15 @@
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import { ClockIcon } from "lucide-react";
-import type { MuscleGroup } from "../../../shared/constants/exercise-library";
+import {
+  exerciseLibrary,
+  type ExerciseDefinition,
+  type MuscleGroup,
+} from "../../../shared/constants/exercise-library";
+import type { EquipmentItemId } from "../../../shared/constants/equipmentCatalog";
+import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
+import { canPerformExercise } from "../../../shared/utils/equipmentRequirements";
 import { getExerciseById } from "../../../shared/utils/exerciseLibraryAdapter";
 
 import BottomSheet from "./BottomSheet";
@@ -10,7 +17,10 @@ import Button from "./Button";
 import Pill from "./Pill";
 import StepButton from "./StepButton";
 import styles from "../styles/components/workoutPreview.module.scss";
-import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
+import {
+  buildExerciseReplacementPreview,
+  type GeneratedWorkoutPreview,
+} from "../utils/generateWorkoutPreview";
 import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
 import Weights from "../assets/icons/010-weights.svg?react";
@@ -22,7 +32,10 @@ import type {
 } from "../utils/generateWorkoutPreview";
 
 type WorkoutPreviewProps = {
+  availableEquipment?: EquipmentItemId[];
+  editPresentation?: "combined" | "review_actions";
   editableExerciseIds?: Set<string>;
+  onboardingAnswers?: OnboardingAnswers;
   preview: GeneratedWorkoutPreview;
   onPreviewChange?: (preview: GeneratedWorkoutPreview) => void;
 };
@@ -34,6 +47,41 @@ type MovementOption = GeneratedWorkoutExerciseAlternative & {
 };
 
 type DayNavigationDirection = 1 | -1;
+type ExerciseEditMode = "combined" | "weight" | "swap";
+type SwapSource = "recommended" | "custom";
+
+const getHydratedMovementOptions = (
+  exercise: GeneratedWorkoutExercisePreview
+): MovementOption[] => {
+  const currentLibraryExercise = getExerciseById(exercise.exerciseId);
+  const libraryAlternatives =
+    currentLibraryExercise?.alternatives.map((alternative) => {
+      const alternativeExercise = getExerciseById(alternative.exerciseId);
+
+      return {
+        exerciseId: alternative.exerciseId,
+        label:
+          alternativeExercise?.displayName ??
+          alternativeExercise?.name ??
+          alternative.exerciseId,
+        ...(alternative.note ? { note: alternative.note } : {}),
+      };
+    }) ?? [];
+  const alternativesById = new Map(
+    [...exercise.exerciseAlternatives, ...libraryAlternatives]
+      .filter((alternative) => alternative.exerciseId !== exercise.exerciseId)
+      .map((alternative) => [alternative.exerciseId, alternative])
+  );
+
+  return [
+    {
+      exerciseId: exercise.exerciseId,
+      label: exercise.label,
+      isCurrent: true,
+    },
+    ...alternativesById.values(),
+  ];
+};
 
 const muscleGroupLabels: Record<MuscleGroup, string> = {
   chest: "Chest",
@@ -53,6 +101,14 @@ const muscleGroupLabels: Record<MuscleGroup, string> = {
   calves: "Calves",
   lower_back: "Low Back",
   scapular_stabilizers: "Scapula",
+  abductors: "Abductors",
+  adductors: "Adductors",
+  core: "Core",
+  hip_flexors: "Hip Flexors",
+  obliques: "Obliques",
+  shoulders: "Shoulders",
+  tibialis_anterior: "Tibialis",
+  traps: "Traps",
 };
 
 const formatRestLabel = (restSeconds: number) => {
@@ -89,6 +145,19 @@ const getExerciseMuscleTags = (exerciseId: string) =>
   getExerciseById(exerciseId)?.primaryMuscles.slice(0, 3).map(
     (muscleGroup) => muscleGroupLabels[muscleGroup]
   ) ?? [];
+
+const getExerciseDisplayName = (exercise: ExerciseDefinition) =>
+  exercise.displayName ?? exercise.name;
+
+const normalizeSearchValue = (value: string) => value.trim().toLowerCase();
+
+const hasSharedPrimaryMuscle = (
+  source: ExerciseDefinition,
+  candidate: ExerciseDefinition
+) =>
+  source.primaryMuscles.some((muscleGroup) =>
+    candidate.primaryMuscles.includes(muscleGroup)
+  );
 
 const WORKOUT_SET_EXECUTION_SECONDS = 45;
 
@@ -139,7 +208,10 @@ const dayCardMotion = {
 };
 
 const WorkoutPreview = ({
+  availableEquipment = [],
+  editPresentation = "combined",
   editableExerciseIds,
+  onboardingAnswers,
   preview,
   onPreviewChange,
 }: WorkoutPreviewProps) => {
@@ -151,14 +223,29 @@ const WorkoutPreview = ({
     useState<DayNavigationDirection>(1);
   const [selectedEditExercise, setSelectedEditExercise] =
     useState<SelectedEditExercise | null>(null);
+  const [activeEditMode, setActiveEditMode] = useState<ExerciseEditMode>("combined");
   const [draftExerciseId, setDraftExerciseId] = useState<string | null>(null);
+  const [draftSwapSource, setDraftSwapSource] =
+    useState<SwapSource>("recommended");
   const [draftWeight, setDraftWeight] = useState(0);
+  const [showCustomExercisePicker, setShowCustomExercisePicker] = useState(false);
+  const [customExerciseSearch, setCustomExerciseSearch] = useState("");
   const dayTabRefs = useRef<Record<number, HTMLButtonElement | null>>({});
 
-  const editExercise = (exercise: GeneratedWorkoutExercisePreview) => {
+  const editExercise = (
+    exercise: GeneratedWorkoutExercisePreview,
+    mode: ExerciseEditMode = "combined"
+  ) => {
+    const hasRecommendedAlternatives =
+      getHydratedMovementOptions(exercise).length > 1;
+
     setSelectedEditExercise(exercise);
+    setActiveEditMode(mode);
     setDraftExerciseId(exercise.exerciseId);
+    setDraftSwapSource("recommended");
     setDraftWeight(exercise.suggestedWeight ?? 0);
+    setShowCustomExercisePicker(mode === "swap" && !hasRecommendedAlternatives);
+    setCustomExerciseSearch("");
   };
 
   const selectDay = (dayIndex: number) => {
@@ -172,32 +259,40 @@ const WorkoutPreview = ({
 
   const closeEditSheet = () => {
     setSelectedEditExercise(null);
+    setActiveEditMode("combined");
     setDraftExerciseId(null);
+    setDraftSwapSource("recommended");
     setDraftWeight(0);
+    setShowCustomExercisePicker(false);
+    setCustomExerciseSearch("");
   };
 
   const getMovementOptions = (
     exercise: GeneratedWorkoutExercisePreview
-  ): MovementOption[] => [
-    {
-      exerciseId: exercise.exerciseId,
-      label: exercise.label,
-      isCurrent: true,
-    },
-    ...exercise.exerciseAlternatives.filter(
-      (alternative) => alternative.exerciseId !== exercise.exerciseId
-    ),
-  ];
+  ): MovementOption[] => getHydratedMovementOptions(exercise);
 
   const getWeightStep = () => getWeightStepForKey(settings, "default");
 
-  const canEditExercise = (exercise: GeneratedWorkoutExercisePreview) =>
+  const isEditableExercise = (exercise: GeneratedWorkoutExercisePreview) =>
+    Boolean(onPreviewChange && (!editableExerciseIds || editableExerciseIds.has(exercise.id)));
+
+  const canChangeWeight = (exercise: GeneratedWorkoutExercisePreview) =>
+    isEditableExercise(exercise) && exercise.suggestedWeight !== undefined;
+
+  const canSwapExercise = (exercise: GeneratedWorkoutExercisePreview) =>
     Boolean(
-      onPreviewChange &&
-        (!editableExerciseIds || editableExerciseIds.has(exercise.id)) &&
-        (exercise.suggestedWeight !== undefined ||
-          exercise.exerciseAlternatives.length > 0)
+      isEditableExercise(exercise) &&
+        (getMovementOptions(exercise).length > 1 || onboardingAnswers)
     );
+
+  const canEditExercise = (exercise: GeneratedWorkoutExercisePreview) =>
+    editPresentation === "review_actions"
+      ? canChangeWeight(exercise) || canSwapExercise(exercise)
+      : Boolean(
+          isEditableExercise(exercise) &&
+            (exercise.suggestedWeight !== undefined ||
+              getMovementOptions(exercise).length > 1)
+        );
 
   const updateDraftWeight = (amount: number) => {
     setDraftWeight((currentWeight) =>
@@ -209,6 +304,81 @@ const WorkoutPreview = ({
     const nextWeight = event.currentTarget.valueAsNumber;
     setDraftWeight(Number.isFinite(nextWeight) ? Math.max(0, nextWeight) : 0);
   };
+
+  const customExerciseOptions = useMemo(() => {
+    if (!selectedEditExercise) {
+      return [];
+    }
+
+    const sourceExercise = getExerciseById(selectedEditExercise.exerciseId);
+    const searchValue = normalizeSearchValue(customExerciseSearch);
+
+    const scoredOptions = exerciseLibrary.exercises
+      .filter((exercise) => exercise.id !== selectedEditExercise.exerciseId)
+      .filter((exercise) => {
+        if (!searchValue) {
+          return true;
+        }
+
+        const searchableText = [
+          exercise.name,
+          exercise.displayName,
+          ...(exercise.aliases ?? []),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(searchValue);
+      })
+      .map((exercise) => {
+        const samePrimaryMuscle = sourceExercise
+          ? hasSharedPrimaryMuscle(sourceExercise, exercise)
+          : false;
+        const sameMovementPattern =
+          sourceExercise?.movementPattern === exercise.movementPattern;
+        const equipmentCompatible =
+          availableEquipment.length === 0 ||
+          canPerformExercise(exercise.id, availableEquipment);
+        const score =
+          (samePrimaryMuscle ? 60 : 0) +
+          (sameMovementPattern ? 40 : 0) +
+          (equipmentCompatible ? 25 : 0) +
+          (searchValue ? 100 : 0);
+
+        return {
+          exercise,
+          equipmentCompatible,
+          sameMovementPattern,
+          samePrimaryMuscle,
+          score,
+        };
+      });
+    const hasTargetedOptions = scoredOptions.some(
+      (option) => option.samePrimaryMuscle || option.sameMovementPattern
+    );
+
+    return scoredOptions
+      .filter((option) => {
+        if (searchValue) {
+          return true;
+        }
+
+        return (
+          option.samePrimaryMuscle ||
+          option.sameMovementPattern ||
+          (!hasTargetedOptions && option.equipmentCompatible)
+        );
+      })
+      .sort(
+        (left, right) =>
+          right.score - left.score ||
+          getExerciseDisplayName(left.exercise).localeCompare(
+            getExerciseDisplayName(right.exercise)
+          )
+      )
+      .slice(0, 30);
+  }, [availableEquipment, customExerciseSearch, selectedEditExercise]);
 
   const saveExerciseEdits = () => {
     if (!selectedEditExercise || !onPreviewChange) {
@@ -231,6 +401,29 @@ const WorkoutPreview = ({
         exercises: day.exercises.map((exercise) => {
           if (exercise.id !== selectedEditExercise.id) {
             return exercise;
+          }
+
+          if (activeEditMode === "weight") {
+            return {
+              ...exercise,
+              suggestedWeight: draftWeight,
+            };
+          }
+
+          if (
+            editPresentation === "review_actions" &&
+            activeEditMode === "swap" &&
+            onboardingAnswers &&
+            draftExerciseId &&
+            draftExerciseId !== selectedEditExercise.exerciseId
+          ) {
+            return buildExerciseReplacementPreview({
+              answers: onboardingAnswers,
+              currentExercise: selectedEditExercise,
+              goal: workingPreview.goal,
+              nextExerciseId: draftExerciseId,
+              swapSource: draftSwapSource,
+            });
           }
 
           const hasEditableWeight =
@@ -274,6 +467,20 @@ const WorkoutPreview = ({
   const activeDay =
     workingPreview.days[resolvedActiveDayIndex] ??
     workingPreview.days[0];
+  const isReviewActions = editPresentation === "review_actions";
+  const isWeightOnlyEditor = activeEditMode === "weight";
+  const isSwapOnlyEditor = activeEditMode === "swap";
+  const showsWeightEditor =
+    selectedEditExercise !== null &&
+    hasEditableWeight &&
+    (!isReviewActions || isWeightOnlyEditor);
+  const showsSwapEditor =
+    selectedEditExercise !== null &&
+    (!isReviewActions || isSwapOnlyEditor) &&
+    (movementOptions.length > 1 || isReviewActions);
+  const selectedCustomExercise = customExerciseOptions.find(
+    (option) => option.exercise.id === draftExerciseId
+  );
   const estimatedTime = activeDay
     ? formatEstimatedWorkoutTime(activeDay.exercises)
     : "";
@@ -370,11 +577,17 @@ const WorkoutPreview = ({
               <div className="grid gap-5">
                 {activeDay.exercises.map((exercise, exerciseIndex) => {
                   const muscleTags = getExerciseMuscleTags(exercise.exerciseId);
+                  const hasEquipmentWarning =
+                    exercise.notes?.includes("Equipment warning:") ?? false;
 
                   return (
                   <article
                     key={exercise.id}
-                    className={clsx(styles.exerciseCard, "border-subtle")}
+                    className={clsx(
+                      styles.exerciseCard,
+                      "border-subtle",
+                      hasEquipmentWarning && styles["exerciseCard--warning"]
+                    )}
                   >
                     <span className={styles.exerciseIndex}>
                       {exerciseIndex + 1}
@@ -393,6 +606,15 @@ const WorkoutPreview = ({
                               ))}
                             </div>
                           ) : null}
+                          {exercise.detailTags?.length ? (
+                            <div className={styles.exerciseDetailTags}>
+                              {exercise.detailTags.map((detailTag) => (
+                                <span key={`${exercise.id}-${detailTag}`}>
+                                  {detailTag}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                         <div className={styles.exerciseActions}>
@@ -406,7 +628,7 @@ const WorkoutPreview = ({
                           ) : null}
                           
                         </div>
-                        {canEditExercise(exercise) ? (
+                        {!isReviewActions && canEditExercise(exercise) ? (
                             <Button
                               label="Edit"
                               size="small"
@@ -442,7 +664,40 @@ const WorkoutPreview = ({
                         </div>
                       </dl>
                       {exercise.notes ? (
-                        <p className={styles.exerciseCardNote}>{exercise.notes}</p>
+                        <p
+                          className={clsx(
+                            styles.exerciseCardNote,
+                            hasEquipmentWarning && styles.exerciseCardWarningNote
+                          )}
+                        >
+                          {exercise.notes}
+                        </p>
+                      ) : null}
+                      {isReviewActions && canEditExercise(exercise) ? (
+                        <div className={styles.reviewExerciseActions}>
+                          {canChangeWeight(exercise) ? (
+                            <Button
+                              label="Change weight"
+                              size="small"
+                              icon="edit"
+                              variant="outline"
+                              tone="white"
+                              className={styles.exerciseEditButton}
+                              onClick={() => editExercise(exercise, "weight")}
+                            />
+                          ) : null}
+                          {canSwapExercise(exercise) ? (
+                            <Button
+                              label="Swap exercise"
+                              size="small"
+                              icon="refresh"
+                              variant="outline"
+                              tone="white"
+                              className={styles.exerciseEditButton}
+                              onClick={() => editExercise(exercise, "swap")}
+                            />
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
                   </article>
@@ -460,17 +715,25 @@ const WorkoutPreview = ({
         variant="full"
         eyebrow="Exercise Editor"
         title={
-          selectedEditExercise ? `Customize ${selectedEditExercise.label}` : undefined
+          selectedEditExercise
+            ? activeEditMode === "weight"
+              ? `Change ${selectedEditExercise.label} weight`
+              : activeEditMode === "swap"
+                ? `Swap ${selectedEditExercise.label}`
+                : `Customize ${selectedEditExercise.label}`
+            : undefined
         }
         description={
           selectedEditExercise
-            ? `Set a starting weight that matches your current strength. You can change this later anytime.`
+            ? activeEditMode === "swap"
+              ? "Choose a recommended alternative or carefully select another exercise from the library."
+              : `Set a starting weight that matches your current strength. You can change this later anytime.`
             : undefined
         }
         actions={[
           
           {
-            label: "Save & Return",
+            label: activeEditMode === "weight" ? "Save weight" : "Save & Return",
             tone: "primary",
             onClick: saveExerciseEdits,
           },
@@ -484,7 +747,7 @@ const WorkoutPreview = ({
               {formatRestLabel(selectedEditExercise.prescription.restSeconds)}
             </p>
           <div className="grid gap-4">
-            {hasEditableWeight ? (
+            {showsWeightEditor ? (
               <section
                 className={clsx(styles.editorSection, "grid gap-3 border-subtle")}
               >
@@ -513,7 +776,7 @@ const WorkoutPreview = ({
               </section>
             ) : null}
 
-            {movementOptions.length > 1 ? (
+            {showsSwapEditor ? (
               <section
                 className={clsx(styles.editorSection, "grid gap-3 border-subtle")}
               >
@@ -530,7 +793,10 @@ const WorkoutPreview = ({
                         key={`${selectedEditExercise.id}-${option.exerciseId}`}
                         type="button"
                         aria-pressed={isSelected}
-                        onClick={() => setDraftExerciseId(option.exerciseId)}
+                        onClick={() => {
+                          setDraftExerciseId(option.exerciseId);
+                          setDraftSwapSource("recommended");
+                        }}
                         className={clsx(
                           styles.movementOption,
                           "border-subtle",
@@ -577,6 +843,106 @@ const WorkoutPreview = ({
                     );
                   })}
                 </div>
+                {isReviewActions ? (
+                  <div className={styles.customSwapArea}>
+                    <Button
+                      label={
+                        showCustomExercisePicker
+                          ? "Hide full exercise library"
+                          : "Choose different exercise"
+                      }
+                      tone="white"
+                      variant="outline"
+                      size="small"
+                      onClick={() =>
+                        setShowCustomExercisePicker(
+                          (currentIsVisible) => !currentIsVisible
+                        )
+                      }
+                    />
+                    {showCustomExercisePicker ? (
+                      <div className="grid gap-3">
+                        <p className={styles.customSwapWarning}>
+                          Choosing an exercise outside the recommended alternatives may affect your plan balance, recovery, and goal fit.
+                        </p>
+                        <label className={styles.exerciseSearchField}>
+                          <span>Search exercises</span>
+                          <input
+                            type="search"
+                            value={customExerciseSearch}
+                            onChange={(event) =>
+                              setCustomExerciseSearch(event.currentTarget.value)
+                            }
+                            placeholder="Search by name or alias"
+                          />
+                        </label>
+                        <div className="grid gap-2">
+                          {customExerciseOptions.map((option) => {
+                            const isSelected =
+                              option.exercise.id === draftExerciseId;
+
+                            return (
+                              <button
+                                key={`${selectedEditExercise.id}-custom-${option.exercise.id}`}
+                                type="button"
+                                aria-pressed={isSelected}
+                                onClick={() => {
+                                  setDraftExerciseId(option.exercise.id);
+                                  setDraftSwapSource("custom");
+                                }}
+                                className={clsx(
+                                  styles.movementOption,
+                                  "border-subtle",
+                                  isSelected &&
+                                    styles["movementOption--selected"],
+                                )}
+                              >
+                                <div className={clsx(styles.movementLabel)}>
+                                  <strong className={clsx(styles.exerciseLabel)}>
+                                    {getExerciseDisplayName(option.exercise)}
+                                  </strong>
+                                  <span className={clsx(styles.exerciseNote)}>
+                                    {[
+                                      option.samePrimaryMuscle
+                                        ? "Similar muscle target"
+                                        : null,
+                                      option.sameMovementPattern
+                                        ? "Similar pattern"
+                                        : null,
+                                      option.equipmentCompatible
+                                        ? "Equipment match"
+                                        : "Check equipment",
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" • ")}
+                                  </span>
+                                </div>
+                                {isSelected ? (
+                                  <span
+                                    className={clsx(styles.currentStatusIcon)}
+                                    aria-hidden="true"
+                                  >
+                                    &#10003;
+                                  </span>
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                          {customExerciseOptions.length === 0 ? (
+                            <p className="text-muted">
+                              No exercises match that search yet.
+                            </p>
+                          ) : null}
+                        </div>
+                        {selectedCustomExercise ? (
+                          <p className={styles.exerciseCardNote}>
+                            Custom swap selected outside recommended alternatives.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </section>
             ) : null}
           </div>

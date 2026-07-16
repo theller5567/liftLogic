@@ -2,7 +2,7 @@ import type { ExerciseKey, WeightUnit } from "../constants/weightEstimationRules
 import { weightEstimationRules } from "../constants/weightEstimationRules";
 import {
   exerciseLibrary,
-  type MovementPattern,
+  type ExerciseDefinition,
   type WorkoutTemplate,
   type WorkoutTemplateWorkoutDay,
 } from "../constants/exercise-library";
@@ -10,6 +10,17 @@ import type { OnboardingAnswers } from "../types/onboarding.types";
 import type { OnboardingAnchorKey } from "./onboardingExerciseMapping";
 import { onboardingAnchorDefinitions } from "./onboardingExerciseMapping";
 import { getExerciseById, normalizeLibraryIdToEstimatorKey } from "./exerciseLibraryAdapter";
+import {
+  canPerformExercise,
+  getAvailableEquipmentFromAnswers,
+  getMissingEquipmentLabels,
+} from "./equipmentRequirements";
+import {
+  getBestCompatibleAlternative,
+  getExerciseDetailTags,
+  getExerciseSelectionNotes,
+  isIsolationExercise,
+} from "./exerciseIntelligence";
 
 import {
   applyMinimum,
@@ -44,6 +55,8 @@ export type GeneratedWorkoutExercisePreview = {
   suggestedWeight?: number;
   weightUnit?: WeightUnit;
   notes?: string;
+  detailTags?: string[];
+  editMetadata?: GeneratedWorkoutExerciseEditMetadata;
   exerciseAlternatives: GeneratedWorkoutExerciseAlternative[];
 };
 
@@ -51,6 +64,12 @@ export type GeneratedWorkoutExerciseAlternative = {
   exerciseId: string;
   label: string;
   note?: string;
+};
+
+export type GeneratedWorkoutExerciseEditMetadata = {
+  swapSource?: "recommended" | "custom";
+  originalExerciseId?: string;
+  originalLabel?: string;
 };
 
 export type GeneratedWorkoutDayPreview = {
@@ -92,17 +111,6 @@ type AnchorAnswer = NonNullable<
   | OnboardingAnswers["squat"]
   | OnboardingAnswers["barbellDeadlift"]
 >;
-
-const ISOLATION_MOVEMENTS = new Set<MovementPattern>([
-  "calf_raise",
-  "curl",
-  "fly",
-  "lateral_raise",
-  "pullover",
-  "scapular_control",
-  "triceps_extension",
-  "triceps_pushdown",
-]);
 
 function getWeightUnit(answers: OnboardingAnswers): WeightUnit {
   return answers.weightUnit ?? "lb";
@@ -270,15 +278,13 @@ function resolveSuggestedWeightForExercise(
   return suggestedWeight;
 }
 
-function getPrescriptionForExercise(
+export function getPrescriptionForExercise(
   exerciseId: string,
   goal: WorkoutGoal,
   answers: OnboardingAnswers
 ): WorkoutSetPrescription {
   const exercise = getExerciseById(exerciseId);
-  const isIsolation = exercise
-    ? ISOLATION_MOVEMENTS.has(exercise.movementPattern)
-    : false;
+  const isIsolation = isIsolationExercise(exercise);
   const isYouth = answers.ageRange === "7_15";
   const isOlder = answers.ageRange === "40_49" || answers.ageRange === "50_plus";
   const prefersHigherReps = answers.gender === "female" || isYouth || isOlder;
@@ -348,6 +354,137 @@ function getExerciseNotes(
   return undefined;
 }
 
+function getExerciseLabel(exerciseId: string) {
+  const exercise = getExerciseById(exerciseId);
+
+  return exercise?.displayName ?? exercise?.name ?? exerciseId;
+}
+
+function getExerciseAlternatives(exercise: ExerciseDefinition | null | undefined) {
+  return (exercise?.alternatives ?? []).map((alternative) => {
+    const alternativeExercise = getExerciseById(alternative.exerciseId);
+
+    return {
+      exerciseId: alternative.exerciseId,
+      label:
+        alternativeExercise?.displayName ??
+        alternativeExercise?.name ??
+        alternative.exerciseId,
+      ...(alternative.note ? { note: alternative.note } : {}),
+    };
+  });
+}
+
+function arePrescriptionsEqual(
+  left: WorkoutSetPrescription,
+  right: WorkoutSetPrescription
+) {
+  return (
+    left.sets === right.sets &&
+    left.reps === right.reps &&
+    left.restSeconds === right.restSeconds &&
+    left.intensity === right.intensity
+  );
+}
+
+export function buildExerciseReplacementPreview({
+  answers,
+  currentExercise,
+  goal,
+  nextExerciseId,
+  swapSource,
+}: {
+  answers: OnboardingAnswers;
+  currentExercise: GeneratedWorkoutExercisePreview;
+  goal: WorkoutGoal;
+  nextExerciseId: string;
+  swapSource: "recommended" | "custom";
+}): GeneratedWorkoutExercisePreview {
+  const currentDefinition = getExerciseById(currentExercise.exerciseId);
+  const nextDefinition = getExerciseById(nextExerciseId);
+  const nextLabel = getExerciseLabel(nextExerciseId);
+  const currentEstimatorKey = normalizeLibraryIdToEstimatorKey(
+    currentExercise.exerciseId
+  );
+  const nextEstimatorKey = normalizeLibraryIdToEstimatorKey(nextExerciseId);
+  const hasSameEstimatorKey =
+    Boolean(currentEstimatorKey && nextEstimatorKey) &&
+    currentEstimatorKey === nextEstimatorKey;
+  const hasSameMovementPattern =
+    Boolean(currentDefinition && nextDefinition) &&
+    currentDefinition?.movementPattern === nextDefinition?.movementPattern;
+  const nextPrescription = getPrescriptionForExercise(nextExerciseId, goal, answers);
+  const shouldKeepCurrentPrescription =
+    hasSameEstimatorKey && hasSameMovementPattern;
+  const prescription = shouldKeepCurrentPrescription
+    ? currentExercise.prescription
+    : nextPrescription;
+  const weightCache = new Map<ExerciseKey, number>();
+  const notes = [
+    swapSource === "custom"
+      ? "Custom swap selected outside recommended alternatives."
+      : undefined,
+    !arePrescriptionsEqual(currentExercise.prescription, prescription)
+      ? "Prescription was updated for the selected exercise."
+      : undefined,
+    currentExercise.suggestedWeight !== undefined && !hasSameEstimatorKey
+      ? "Weight was reset because this exercise uses a different movement pattern."
+      : undefined,
+    ...getExerciseSelectionNotes({
+      exercise: nextDefinition,
+      originalExercise: currentDefinition,
+    }),
+    getExerciseNotes(nextExerciseId, answers),
+    !nextEstimatorKey ? "Choose a comfortable starting load." : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const nextPreview: GeneratedWorkoutExercisePreview = {
+    ...currentExercise,
+    exerciseId: nextExerciseId,
+    label: nextLabel,
+    prescription,
+    ...(notes ? { notes } : { notes: undefined }),
+    detailTags: getExerciseDetailTags(nextDefinition),
+    editMetadata: {
+      swapSource,
+      originalExerciseId:
+        currentExercise.editMetadata?.originalExerciseId ??
+        currentExercise.exerciseId,
+      originalLabel:
+        currentExercise.editMetadata?.originalLabel ?? currentExercise.label,
+    },
+    exerciseAlternatives: getExerciseAlternatives(nextDefinition),
+  };
+
+  if (hasSameEstimatorKey && currentExercise.suggestedWeight !== undefined) {
+    return {
+      ...nextPreview,
+      suggestedWeight: currentExercise.suggestedWeight,
+      weightUnit: currentExercise.weightUnit ?? getWeightUnit(answers),
+    };
+  }
+
+  if (!nextEstimatorKey) {
+    const { suggestedWeight, weightUnit, ...previewWithoutWeight } = nextPreview;
+    void suggestedWeight;
+    void weightUnit;
+    return previewWithoutWeight;
+  }
+
+  return {
+    ...nextPreview,
+    suggestedWeight: resolveSuggestedWeightForExercise(
+      nextEstimatorKey,
+      answers,
+      weightCache,
+      new Set()
+    ),
+    weightUnit: getWeightUnit(answers),
+  };
+}
+
 function buildExercisePreview(
   exerciseId: string,
   dayId: string,
@@ -356,30 +493,51 @@ function buildExercisePreview(
   answers: OnboardingAnswers,
   cache: Map<ExerciseKey, number>
 ): GeneratedWorkoutExercisePreview {
-  const exercise = getExerciseById(exerciseId);
-  const label = exercise?.displayName ?? exercise?.name ?? exerciseId;
-  const exerciseAlternatives = (exercise?.alternatives ?? []).map(
-    (alternative) => {
-      const alternativeExercise = getExerciseById(alternative.exerciseId);
-
-      return {
-        exerciseId: alternative.exerciseId,
-        label:
-          alternativeExercise?.displayName ??
-          alternativeExercise?.name ??
-          alternative.exerciseId,
-        ...(alternative.note ? { note: alternative.note } : {}),
-      };
-    }
-  );
-  const estimateFrom = normalizeLibraryIdToEstimatorKey(exerciseId);
-  const notes = getExerciseNotes(exerciseId, answers);
-  const basePreview = {
-    id: `${dayId}_${exerciseIndex + 1}_${exerciseId}`,
+  const availableEquipment = getAvailableEquipmentFromAnswers(answers);
+  const originalExercise = getExerciseById(exerciseId);
+  const compatibleAlternative = getBestCompatibleAlternative({
+    answers,
+    availableEquipment,
     exerciseId,
+  });
+  const shouldSubstitute =
+    originalExercise &&
+    !canPerformExercise(exerciseId, availableEquipment) &&
+    compatibleAlternative;
+  const resolvedExerciseId = shouldSubstitute
+    ? compatibleAlternative.alternative.exerciseId
+    : exerciseId;
+  const exercise = getExerciseById(resolvedExerciseId);
+  const label = getExerciseLabel(resolvedExerciseId);
+  const exerciseAlternatives = getExerciseAlternatives(exercise);
+  const estimateFrom = normalizeLibraryIdToEstimatorKey(resolvedExerciseId);
+  const missingEquipment = getMissingEquipmentLabels(exerciseId, availableEquipment);
+  const substitutionNote =
+    shouldSubstitute && originalExercise
+      ? `Substituted for ${originalExercise.displayName ?? originalExercise.name} because your equipment list does not include: ${missingEquipment.join(", ")}.`
+      : undefined;
+  const missingEquipmentNote =
+    !shouldSubstitute && missingEquipment.length
+      ? `Equipment warning: Requires ${missingEquipment.join(", ")}.`
+      : undefined;
+  const notes = [
+    substitutionNote,
+    ...getExerciseSelectionNotes({
+      exercise,
+      originalExercise: shouldSubstitute ? originalExercise : null,
+    }),
+    missingEquipmentNote,
+    getExerciseNotes(resolvedExerciseId, answers),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const basePreview = {
+    id: `${dayId}_${exerciseIndex + 1}_${resolvedExerciseId}`,
+    exerciseId: resolvedExerciseId,
     label,
-    prescription: getPrescriptionForExercise(exerciseId, goal, answers),
+    prescription: getPrescriptionForExercise(resolvedExerciseId, goal, answers),
     ...(notes ? { notes } : {}),
+    detailTags: getExerciseDetailTags(exercise),
     exerciseAlternatives,
   };
 

@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 
+import LoadingSpinner from "./LoadingSpinner";
 import { useAuth } from "../context/useAuth";
 import { isAuthSessionExpiredError } from "../services/api";
 import { useUserFlow } from "../utils/userFlow";
@@ -14,7 +15,7 @@ const PublicOnlyRoute = ({ children }: { children: ReactNode }) => {
   } = useUserFlow(Boolean(user));
 
   if (isAuthLoading || (user && isFlowLoading)) {
-    return <p className="text-muted">Loading...</p>;
+    return <LoadingSpinner fullScreen label="Loading account..." />;
   }
 
   if (user && error && !isAuthSessionExpiredError(error)) {

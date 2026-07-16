@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { exerciseLibrary } from "../../../shared/constants/exercise-library";
 import type { OnboardingAvailableTrainingDays } from "../../../shared/types/onboarding.types";
-import { generateWorkoutPreview } from "../../../shared/utils/generateWorkoutPreview";
+import {
+  buildExerciseReplacementPreview,
+  generateWorkoutPreview,
+} from "../../../shared/utils/generateWorkoutPreview";
 import { getExerciseById } from "../../../shared/utils/exerciseLibraryAdapter";
 
 describe("generateWorkoutPreview", () => {
@@ -193,5 +196,148 @@ describe("generateWorkoutPreview", () => {
     });
 
     expect(missingWeights).toEqual([]);
+  });
+
+  it("substitutes exercises when exact equipment is missing", () => {
+    const preview = generateWorkoutPreview({
+      ageRange: "19_29",
+      availableEquipment: ["dumbbells", "flat_bench", "bodyweight_space"],
+      availableTrainingDays: 3,
+      equipmentAccess: "dumbbells_only",
+      experienceLevel: "beginner",
+      gender: "male",
+      goal: "strength",
+      selectedWorkoutTemplateId: "starting_strength",
+      weightUnit: "lb",
+    });
+
+    const firstExercise = preview.days[0].exercises[0];
+
+    expect(firstExercise.exerciseId).toBe("goblet_squat");
+    expect(firstExercise.notes).toContain("Substituted for Back Squat");
+    expect(firstExercise.notes).toContain("Keeps the same primary training target");
+  });
+
+  it("uses the broader library when an unavailable exercise has no curated alternatives", () => {
+    const preview = generateWorkoutPreview({
+      ageRange: "19_29",
+      availableEquipment: ["dumbbells", "flat_bench", "bodyweight_space"],
+      availableTrainingDays: 4,
+      equipmentAccess: "dumbbells_only",
+      experienceLevel: "intermediate",
+      gender: "male",
+      goal: "hypertrophy",
+      selectedWorkoutTemplateId: "upper_lower_split",
+      weightUnit: "lb",
+    });
+    const lowerDay = preview.days.find((day) =>
+      day.exercises.some((exercise) => exercise.notes?.includes("Leg Press"))
+    );
+    const substitutedLegPress = lowerDay?.exercises.find((exercise) =>
+      exercise.notes?.includes("Substituted for Leg Press because")
+    );
+
+    expect(substitutedLegPress).toBeDefined();
+    expect(substitutedLegPress?.exerciseId).not.toBe("leg_press");
+    expect(substitutedLegPress?.notes).not.toContain("Equipment warning");
+  });
+
+  it("falls back to preset equipment for older onboarding answers", () => {
+    const preview = generateWorkoutPreview({
+      ageRange: "19_29",
+      availableTrainingDays: 5,
+      equipmentAccess: "full_gym",
+      experienceLevel: "intermediate",
+      gender: "male",
+      goal: "hybrid",
+      selectedWorkoutTemplateId: "strength_hypertrophy_5_day",
+      weightUnit: "lb",
+    });
+
+    expect(preview.days[0].exercises[0].exerciseId).toBe("front_squat");
+    expect(preview.days[0].exercises[0].notes ?? "").not.toContain(
+      "Missing equipment"
+    );
+  });
+
+  it("marks custom swaps and recalculates a materially different exercise safely", () => {
+    const answers = {
+      ageRange: "19_29",
+      availableTrainingDays: 5,
+      equipmentAccess: "full_gym",
+      experienceLevel: "intermediate",
+      gender: "male",
+      goal: "hybrid",
+      selectedWorkoutTemplateId: "strength_hypertrophy_5_day",
+      squat: {
+        confidence: "high",
+        estimatedReps: 8,
+        estimatedWeight: 225,
+        familiarity: "often",
+        knowsWorkingWeight: true,
+      },
+      weightUnit: "lb",
+    } as const;
+    const preview = generateWorkoutPreview(answers);
+    const frontSquat = preview.days[0].exercises[0];
+    const replacement = buildExerciseReplacementPreview({
+      answers,
+      currentExercise: frontSquat,
+      goal: preview.goal,
+      nextExerciseId: "plank",
+      swapSource: "custom",
+    });
+
+    expect(replacement.exerciseId).toBe("plank");
+    expect(replacement.editMetadata).toEqual({
+      swapSource: "custom",
+      originalExerciseId: "front_squat",
+      originalLabel: "Front Squat",
+    });
+    expect(replacement.prescription).not.toEqual(frontSquat.prescription);
+    expect(replacement.suggestedWeight).toBeUndefined();
+    expect(replacement.weightUnit).toBeUndefined();
+    expect(replacement.notes).toContain(
+      "Custom swap selected outside recommended alternatives"
+    );
+    expect(replacement.notes).toContain(
+      "Prescription was updated for the selected exercise"
+    );
+    expect(replacement.notes).toContain(
+      "Weight was reset because this exercise uses a different movement pattern"
+    );
+    expect(replacement.notes).toContain("Choose a comfortable starting load");
+  });
+
+  it("keeps compatible weight when swapping within the same estimator family", () => {
+    const answers = {
+      ageRange: "19_29",
+      availableTrainingDays: 5,
+      equipmentAccess: "full_gym",
+      experienceLevel: "intermediate",
+      gender: "male",
+      goal: "hybrid",
+      selectedWorkoutTemplateId: "strength_hypertrophy_5_day",
+      weightUnit: "lb",
+    } as const;
+    const preview = generateWorkoutPreview(answers);
+    const hipThrust = preview.days[0].exercises.find(
+      (exercise) => exercise.exerciseId === "barbell_hip_thrust"
+    );
+
+    expect(hipThrust).toBeDefined();
+
+    const replacement = buildExerciseReplacementPreview({
+      answers,
+      currentExercise: hipThrust!,
+      goal: preview.goal,
+      nextExerciseId: "smith_machine_hip_thrust",
+      swapSource: "recommended",
+    });
+
+    expect(replacement.exerciseId).toBe("smith_machine_hip_thrust");
+    expect(replacement.suggestedWeight).toBe(hipThrust!.suggestedWeight);
+    expect(replacement.prescription).toEqual(hipThrust!.prescription);
+    expect(replacement.editMetadata?.swapSource).toBe("recommended");
   });
 });

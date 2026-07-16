@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
+import { equipmentItemIds } from "../../../shared/constants/equipmentCatalog";
 import type {
   WorkoutBadgeId,
   WorkoutExerciseLog,
@@ -35,6 +36,7 @@ const equipmentAccessSchema = z.enum([
   "dumbbells_only",
   "basic_equipment",
 ]);
+const equipmentItemSchema = z.enum(equipmentItemIds);
 const weightUnitSchema = z.enum(["lb", "kg"]);
 const workoutBadgeIdSchema = z.enum([
   "pr",
@@ -78,6 +80,7 @@ export const onboardingAnswersSchema = z
     goalPriority: goalPrioritySchema.optional(),
     experienceLevel: experienceLevelSchema.optional(),
     equipmentAccess: equipmentAccessSchema.optional(),
+    availableEquipment: z.array(equipmentItemSchema).max(80).optional(),
     availableTrainingDays: availableTrainingDaysSchema.optional(),
     gender: genderSchema.optional(),
     ageRange: ageRangeSchema.optional(),
@@ -118,6 +121,15 @@ const exercisePreviewSchema = z
     suggestedWeight: z.number().finite().nonnegative().optional(),
     weightUnit: weightUnitSchema.optional(),
     notes: z.string().min(1).max(500).optional(),
+    detailTags: z.array(z.string().min(1).max(80)).max(8).optional(),
+    editMetadata: z
+      .object({
+        swapSource: z.enum(["recommended", "custom"]).optional(),
+        originalExerciseId: z.string().min(1).max(120).optional(),
+        originalLabel: z.string().min(1).max(160).optional(),
+      })
+      .strict()
+      .optional(),
     exerciseAlternatives: z.array(exerciseAlternativeSchema).max(20),
   })
   .strict();
@@ -190,6 +202,7 @@ export const userSettingsSchema = z
         defaultSeconds: z.number().finite().int().min(0).max(900).optional(),
       })
       .strict(),
+    equipmentInventory: z.array(equipmentItemSchema).max(80).optional(),
     theme: z
       .object({
         primaryColor: colorSchema,

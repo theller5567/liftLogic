@@ -217,6 +217,7 @@
 
 .workoutCard,
 .emptyWorkoutCard {
+  position: relative;
   display: grid;
   gap: 0.65rem;
   padding: 1rem;
@@ -241,6 +242,10 @@
     color: var(--clr-secondary-500);
     font-size: 0.65rem;
     font-weight: 300;
+    min-width: fit-content;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.4rem;
   }
 }
 

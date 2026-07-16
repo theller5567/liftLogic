@@ -34,10 +34,6 @@ export const onboardingConfig = {
         },
       ],
       required: true,
-      showIf: {
-        field: "onboardingMode",
-        equals: "guided",
-      },
     },
     {
       id: "workout_template_browser",
@@ -186,6 +182,19 @@ export const onboardingConfig = {
         },
       ],
       required: true,
+    },
+    {
+      id: "available_equipment",
+      section: "Profile",
+      type: "equipment_inventory",
+      title: "Confirm your equipment",
+      body: "Start with the preset you picked, then fine-tune the exact equipment you can use. We will use this to choose better exercises and substitutions.",
+      field: "availableEquipment",
+      required: true,
+      showIf: {
+        field: "equipmentAccess",
+        in: ["full_gym", "home_gym", "dumbbells_only", "basic_equipment"],
+      },
     },
     {
       id: "training_days",

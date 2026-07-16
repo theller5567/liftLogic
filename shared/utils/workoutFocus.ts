@@ -2,7 +2,6 @@ import {
   exerciseLibrary,
   type ExerciseDefinition,
   type EquipmentType,
-  type MovementPattern,
 } from "../constants/exercise-library";
 import type { WorkoutFocusBlock } from "../types/workoutFocus.types";
 import {
@@ -14,27 +13,15 @@ import type {
   GeneratedWorkoutExercisePreview,
   GeneratedWorkoutPreview,
 } from "./generateWorkoutPreview";
+import {
+  getDifficultyFitScore,
+  getExerciseDetailTags,
+  getFocusRelevanceScore,
+  isCoreCompoundExercise,
+  isExerciseTooAdvancedForLevel,
+  isIsolationExercise,
+} from "./exerciseIntelligence";
 import { getExerciseById } from "./exerciseLibraryAdapter";
-
-const CORE_MOVEMENT_PATTERNS = new Set([
-  "squat",
-  "hinge",
-  "horizontal_press",
-  "horizontal_pull",
-  "vertical_press",
-  "vertical_pull",
-]);
-
-const ISOLATION_MOVEMENT_PATTERNS = new Set<MovementPattern>([
-  "calf_raise",
-  "curl",
-  "fly",
-  "lateral_raise",
-  "pullover",
-  "scapular_control",
-  "triceps_extension",
-  "triceps_pushdown",
-]);
 
 const CURATED_FOCUS_POOLS: Partial<Record<WorkoutFocusArea, string[]>> = {
   glutes: [
@@ -116,22 +103,11 @@ const getExerciseFocusScore = (
     return 0;
   }
 
-  if (exercise.primaryMuscles.includes(focusArea)) {
-    return 2;
-  }
-
-  if (exercise.secondaryMuscles.includes(focusArea)) {
-    return 1;
-  }
-
-  return 0;
+  return getFocusRelevanceScore(exercise, focusArea);
 };
 
 const isCoreExercise = (exercise: ExerciseDefinition | null | undefined) =>
-  Boolean(exercise && CORE_MOVEMENT_PATTERNS.has(exercise.movementPattern));
-
-const isIsolationExercise = (exercise: ExerciseDefinition | null | undefined) =>
-  Boolean(exercise && ISOLATION_MOVEMENT_PATTERNS.has(exercise.movementPattern));
+  isCoreCompoundExercise(exercise);
 
 const isDayFocused = (
   exercises: GeneratedWorkoutExercisePreview[],
@@ -168,8 +144,10 @@ const toAlternativeFromRef = ({
 const getBestAlternative = (
   exercise: GeneratedWorkoutExercisePreview,
   focusArea: WorkoutFocusArea,
-  usedExerciseIds: Set<string>
+  usedExerciseIds: Set<string>,
+  level: NonNullable<GeneratedWorkoutPreview["level"][number]>
 ) => {
+  const currentExercise = getExerciseById(exercise.exerciseId);
   const alternatives = exercise.exerciseAlternatives
     .map((alternative) => getExerciseById(alternative.exerciseId))
     .filter((alternative): alternative is ExerciseDefinition =>
@@ -178,7 +156,10 @@ const getBestAlternative = (
     .sort(
       (left, right) =>
         getExerciseFocusScore(right, focusArea) -
-        getExerciseFocusScore(left, focusArea)
+          getExerciseFocusScore(left, focusArea) ||
+        getDifficultyFitScore(right, level) - getDifficultyFitScore(left, level) ||
+        getEquipmentMatchScore(right, currentExercise?.equipmentType) -
+          getEquipmentMatchScore(left, currentExercise?.equipmentType)
     );
 
   const bestAlternative = alternatives[0];
@@ -237,7 +218,8 @@ const getBestFocusPoolSwap = (
   exerciseToReplace: GeneratedWorkoutExercisePreview,
   focusArea: WorkoutFocusArea,
   usedExerciseIds: Set<string>,
-  allowDuplicate: boolean
+  allowDuplicate: boolean,
+  level: NonNullable<GeneratedWorkoutPreview["level"][number]>
 ) => {
   const currentExercise = getExerciseById(exerciseToReplace.exerciseId);
   const focusPool = getCuratedFocusPool(focusArea);
@@ -256,8 +238,12 @@ const getBestFocusPoolSwap = (
       (left, right) =>
         getExerciseFocusScore(right, focusArea) -
           getExerciseFocusScore(left, focusArea) ||
+        Number(isIsolationExercise(right)) - Number(isIsolationExercise(left)) ||
+        getDifficultyFitScore(right, level) - getDifficultyFitScore(left, level) ||
         getEquipmentMatchScore(right, currentExercise?.equipmentType) -
           getEquipmentMatchScore(left, currentExercise?.equipmentType) ||
+        Number(isExerciseTooAdvancedForLevel(left, level)) -
+          Number(isExerciseTooAdvancedForLevel(right, level)) ||
         Number(left.movementPattern !== currentExercise?.movementPattern) -
           Number(right.movementPattern !== currentExercise?.movementPattern)
     );
@@ -273,7 +259,9 @@ const withExerciseSwap = (
   ...exercise,
   exerciseId: swap.id,
   label: swap.displayName ?? swap.name,
-  notes: `Focus swap for ${getWorkoutFocusLabel(focusArea).toLowerCase()}.`,
+  notes: isIsolationExercise(swap)
+    ? `Good accessory movement for your ${getWorkoutFocusLabel(focusArea).toLowerCase()} focus block.`
+    : `Focus swap for ${getWorkoutFocusLabel(focusArea).toLowerCase()}.`,
   prescription: exercise.prescription,
   suggestedWeight:
     swap.canonicalEstimatorKey === getExerciseById(exercise.exerciseId)?.canonicalEstimatorKey
@@ -281,6 +269,7 @@ const withExerciseSwap = (
       : undefined,
   exerciseAlternatives:
     swap.alternatives.length > 0 ? swap.alternatives.map(toAlternativeFromRef) : [],
+  detailTags: getExerciseDetailTags(swap),
 });
 
 const getReplacementIndex = (
@@ -356,6 +345,7 @@ export const applyWorkoutFocusBlock = (
     preview.days.flatMap((day) => day.exercises.map((exercise) => exercise.exerciseId))
   );
   const targetFocusDayIndexes = getTargetFocusDayIndexes(preview, focusArea);
+  const level = preview.level[0] ?? "intermediate";
 
   return {
     ...preview,
@@ -390,9 +380,9 @@ export const applyWorkoutFocusBlock = (
 
       const currentExercise = exercises[replacementIndex];
       const swap =
-        getBestAlternative(currentExercise, focusArea, usedExerciseIds) ??
-        getBestFocusPoolSwap(currentExercise, focusArea, usedExerciseIds, false) ??
-        getBestFocusPoolSwap(currentExercise, focusArea, usedExerciseIds, true);
+        getBestAlternative(currentExercise, focusArea, usedExerciseIds, level) ??
+        getBestFocusPoolSwap(currentExercise, focusArea, usedExerciseIds, false, level) ??
+        getBestFocusPoolSwap(currentExercise, focusArea, usedExerciseIds, true, level);
 
       if (!swap) {
         return {

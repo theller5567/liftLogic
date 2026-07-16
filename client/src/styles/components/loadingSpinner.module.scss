@@ -1,0 +1,33 @@
+.fullScreen,
+.inline {
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  color: hsl(var(--clr-neutral-100-b));
+  font-weight: 850;
+  text-align: center;
+}
+
+.fullScreen {
+  min-height: 100dvh;
+  padding: 2rem;
+}
+
+.inline {
+  min-height: 12rem;
+}
+
+.spinner {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 3px solid hsl(var(--clr-neutral-100-b) / 0.2);
+  border-top-color: hsl(var(--clr-primary-500-b));
+  border-radius: var(--br-full);
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -14,6 +14,7 @@ import {
 import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
 import PageLoadingState from "../components/PageLoadingState";
+import LoadingSpinner from "../components/LoadingSpinner";
 import WorkoutTemplateBrowser from "../components/WorkoutTemplateBrowser";
 import WorkoutPreview from "../components/WorkoutPreview";
 import {
@@ -29,6 +30,7 @@ import {
   getWorkoutTemplateMatchReasons,
   getWorkoutTemplateWarnings,
 } from "../../../shared/utils/workoutTemplateRecommendations";
+import { getAvailableEquipmentFromAnswers } from "../../../shared/utils/equipmentRequirements";
 import { getEditedPreviewMessages } from "../utils/workoutPreviewEdits";
 import {
   readEditedWorkoutPreview,
@@ -110,7 +112,7 @@ const WorkoutReview = () => {
     : [];
 
   if (isLoading) {
-    return <PageLoadingState title="Loading workout review" />;
+    return <LoadingSpinner fullScreen label="Loading workout review..." />;
   }
 
   if (error) {
@@ -275,6 +277,9 @@ const WorkoutReview = () => {
       </header>
 
       <WorkoutPreview
+        availableEquipment={getAvailableEquipmentFromAnswers(activeAnswers)}
+        editPresentation="review_actions"
+        onboardingAnswers={activeAnswers}
         preview={preview}
         onPreviewChange={handlePreviewChange}
       />
@@ -328,11 +333,11 @@ const WorkoutReview = () => {
         onClose={() => setShowFocusOffer(false)}
         eyebrow="Optional"
         title="Add a muscle focus block?"
-        description="A focus block adds extra work for one muscle group for a short period while the rest of your program stays near maintenance."
+        description="A focus block is a planned training phase that emphasizes one muscle group with additional volume and recovery while keeping the rest of your program at maintenance."
         actions={[
           {
             label: "Skip for now",
-            tone: "gray",
+            tone: "white",
             variant: "outline",
             onClick: completeReview,
             closeOnClick: false,

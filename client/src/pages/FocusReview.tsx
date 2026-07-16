@@ -21,6 +21,7 @@ import {
 } from "../services/api";
 import { generateWorkoutPreview } from "../utils/generateWorkoutPreview";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
+import LoadingSpinner from "../components/LoadingSpinner";
 import { useUserFlow } from "../utils/userFlow";
 import {
   readEditedWorkoutPreview,
@@ -113,7 +114,7 @@ const FocusReview = () => {
   );
 
   if (isLoading) {
-    return <PageLoadingState title="Loading review" />;
+    return <LoadingSpinner fullScreen label="Loading review..." />;
   }
 
   if (error) {

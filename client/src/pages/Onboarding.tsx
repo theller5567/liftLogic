@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
+import LoadingSpinner from "../components/LoadingSpinner";
 import OnboardingFlow from "../components/OnboardingFlow";
 import PageLoadingState from "../components/PageLoadingState";
 import { isApiEnabled, submitOnboardingAnswers } from "../services/api";
@@ -70,7 +71,7 @@ const Onboarding = () => {
   };
 
   if (isLoading) {
-    return <PageLoadingState title="Loading onboarding" />;
+    return <LoadingSpinner fullScreen label="Loading onboarding..." />;
   }
 
   if (error) {

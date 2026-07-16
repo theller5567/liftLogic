@@ -9,6 +9,7 @@ import {
 import AppShell from "../components/app/AppShell";
 import Button from "../components/Button";
 import PageLoadingState from "../components/PageLoadingState";
+import LoadingSpinner from "../components/LoadingSpinner";
 import { getWorkoutSession, getWorkoutSessions } from "../services/api";
 import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
 import { getStartOfWeek } from "../utils/workoutSessionDates";
@@ -95,7 +96,7 @@ const WorkoutSessionLayout = () => {
   }
 
   if (isLoading) {
-    return <PageLoadingState title="Loading workout" />;
+    return <LoadingSpinner fullScreen label="Loading workout..." />;
   }
 
   if (error || !session) {

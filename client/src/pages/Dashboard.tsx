@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import AppShell from "../components/app/AppShell";
+import LoadingSpinner from "../components/LoadingSpinner";
 import DashboardHeader from "../components/dashboard/DashboardHeader";
 import WeekSelector, { type WeekDayOption } from "../components/dashboard/WeekSelector";
 import WorkoutCard from "../components/dashboard/WorkoutCard";
@@ -360,7 +361,7 @@ const Dashboard = () => {
   };
 
   if (isLoading) {
-    return <PageLoadingState title="Loading dashboard" />;
+    return <LoadingSpinner fullScreen label="Loading dashboard..." />;
   }
 
   if (error) {

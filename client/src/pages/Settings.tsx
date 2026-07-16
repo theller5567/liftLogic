@@ -6,6 +6,7 @@ import {
   type WorkoutFocusArea,
   type WorkoutFocusBlock,
 } from "../../../shared/types/workoutFocus.types";
+import { getAvailableEquipmentFromSettings } from "../../../shared/utils/equipmentRequirements";
 import {
   DEFAULT_THEME_SETTINGS,
   createDefaultUserSettings,
@@ -17,6 +18,7 @@ import Button from "../components/Button";
 import {
   AccountSettingsSection,
   AppearanceSettingsSection,
+  EquipmentSettingsSection,
   ProgramSettingsSection,
   RestTimerSettingsSection,
   TrainingSettingsSection,
@@ -213,6 +215,10 @@ const SettingsForm = ({
   };
 
   const emailLabel = profile?.email ?? user?.email ?? "Not connected";
+  const equipmentInventory = getAvailableEquipmentFromSettings(
+    draftSettings,
+    currentWorkoutPlan?.onboardingAnswers
+  );
 
   return (
     <AppShell>
@@ -262,6 +268,15 @@ const SettingsForm = ({
           <RestTimerSettingsSection
             draftSettings={draftSettings}
             onUpdateDraft={updateDraft}
+          />
+          <EquipmentSettingsSection
+            equipmentInventory={equipmentInventory}
+            onEquipmentChange={(equipmentInventory) =>
+              updateDraft((current) => ({
+                ...current,
+                equipmentInventory,
+              }))
+            }
           />
           <AppearanceSettingsSection
             draftSettings={draftSettings}

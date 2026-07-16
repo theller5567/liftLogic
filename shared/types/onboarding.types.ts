@@ -1,3 +1,4 @@
+import type { EquipmentItemId } from "../constants/equipmentCatalog";
 import type { WorkoutFocusArea, WorkoutFocusBlock } from "./workoutFocus.types";
 
 export type OnboardingAvailableTrainingDays = 1 | 2 | 3 | 4 | 5 | 6;
@@ -18,6 +19,7 @@ export interface OnboardingAnswers {
   goalPriority?: "hypertrophy" | "strength";
   experienceLevel?: "beginner" | "intermediate" | "advanced";
   equipmentAccess?: "full_gym" | "home_gym" | "dumbbells_only" | "basic_equipment";
+  availableEquipment?: EquipmentItemId[];
   availableTrainingDays?: OnboardingAvailableTrainingDays;
   gender?: OnboardingGender;
   ageRange?: OnboardingAgeRange;
