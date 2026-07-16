@@ -8,6 +8,7 @@ import type {
   MovementPattern,
   MuscleGroup,
 } from "../constants/exercise-library";
+import { exerciseLibrary } from "../constants/exercise-library";
 import type { OnboardingAnswers } from "../types/onboarding.types";
 import type { WorkoutFocusArea } from "../types/workoutFocus.types";
 import { canPerformExercise } from "./equipmentRequirements";
@@ -284,7 +285,15 @@ export function getBestCompatibleAlternative({
 
   const level = answers.experienceLevel ?? "beginner";
   const goal = (answers.goalPriority ?? answers.goal ?? "hypertrophy") as ExerciseIntelligenceGoal;
-  const candidates = originalExercise.alternatives
+  const rankCandidate = (exercise: ExerciseDefinition) =>
+    getExerciseCompatibilityScore({
+      availableEquipment,
+      exercise,
+      goal,
+      level,
+      targetExercise: originalExercise,
+    });
+  const curatedCandidates = originalExercise.alternatives
     .map((alternative) => ({
       alternative,
       exercise: getExerciseById(alternative.exerciseId),
@@ -301,23 +310,36 @@ export function getBestCompatibleAlternative({
     )
     .sort(
       (left, right) =>
-        getExerciseCompatibilityScore({
-          availableEquipment,
-          exercise: right.exercise,
-          goal,
-          level,
-          targetExercise: originalExercise,
-        }) -
-        getExerciseCompatibilityScore({
-          availableEquipment,
-          exercise: left.exercise,
-          goal,
-          level,
-          targetExercise: originalExercise,
-        })
+        rankCandidate(right.exercise) - rankCandidate(left.exercise)
     );
 
-  return candidates[0] ?? null;
+  if (curatedCandidates[0]) {
+    return curatedCandidates[0];
+  }
+
+  const libraryCandidates = exerciseLibrary.exercises
+    .filter((exercise) => exercise.id !== originalExercise.id)
+    .filter((exercise) => canPerformExercise(exercise.id, availableEquipment))
+    .filter((exercise) => {
+      const hasSamePrimaryMuscle = hasSharedPrimaryMuscle(originalExercise, exercise);
+      const hasSameMovementPattern =
+        originalExercise.movementPattern === exercise.movementPattern;
+
+      return hasSamePrimaryMuscle || hasSameMovementPattern;
+    })
+    .map((exercise) => ({
+      alternative: {
+        exerciseId: exercise.id,
+        note: "Automatically selected from the exercise library because it fits your equipment.",
+      },
+      exercise,
+    }))
+    .sort(
+      (left, right) =>
+        rankCandidate(right.exercise) - rankCandidate(left.exercise)
+    );
+
+  return libraryCandidates[0] ?? null;
 }
 
 export function summarizeExercisePool(

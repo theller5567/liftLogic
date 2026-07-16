@@ -29,6 +29,7 @@ import {
   getWorkoutTemplateMatchReasons,
   getWorkoutTemplateWarnings,
 } from "../../../shared/utils/workoutTemplateRecommendations";
+import { getAvailableEquipmentFromAnswers } from "../../../shared/utils/equipmentRequirements";
 import { getEditedPreviewMessages } from "../utils/workoutPreviewEdits";
 import {
   readEditedWorkoutPreview,
@@ -267,6 +268,9 @@ const WorkoutReview = () => {
       </header>
 
       <WorkoutPreview
+        availableEquipment={getAvailableEquipmentFromAnswers(activeAnswers)}
+        editPresentation="review_actions"
+        onboardingAnswers={activeAnswers}
         preview={preview}
         onPreviewChange={handlePreviewChange}
       />

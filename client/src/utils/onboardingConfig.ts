@@ -34,10 +34,6 @@ export const onboardingConfig = {
         },
       ],
       required: true,
-      showIf: {
-        field: "onboardingMode",
-        equals: "guided",
-      },
     },
     {
       id: "workout_template_browser",
