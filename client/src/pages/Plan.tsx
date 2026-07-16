@@ -29,12 +29,14 @@ import {
   writeEditedWorkoutPreview,
 } from "../utils/workoutStorage";
 import { useUserFlow } from "../utils/userFlow";
+import { updateCachedCurrentAppData } from "../utils/appDataCache";
 import pageStyles from "../styles/pages/page.module.scss";
 
 const Plan = () => {
   const navigate = useNavigate();
   const apiEnabled = isApiEnabled();
-  const { destination, error, isLoading, refresh, workoutPlan } = useUserFlow();
+  const { destination, error, isLoading, refresh, refreshError, workoutPlan } =
+    useUserFlow();
   const initialPreview = useMemo(
     () => resolveCurrentWorkoutPreview(workoutPlan),
     [workoutPlan]
@@ -97,8 +99,11 @@ const Plan = () => {
 
     if (apiEnabled) {
       try {
-        await saveEditedWorkoutPreview(nextPreview);
-        await markWorkoutPlanReviewed();
+        const { workoutPlan: editedWorkoutPlan } =
+          await saveEditedWorkoutPreview(nextPreview);
+        updateCachedCurrentAppData({ workoutPlan: editedWorkoutPlan });
+        const { workoutPlan } = await markWorkoutPlanReviewed();
+        updateCachedCurrentAppData({ workoutPlan });
       } catch (error) {
         console.error("Failed to save workout preview to API", error);
         setSaveError("Your change is saved on this device, but we could not sync it yet.");
@@ -112,7 +117,8 @@ const Plan = () => {
 
     try {
       if (apiEnabled) {
-        await clearWorkoutFocusBlock();
+        const { workoutPlan } = await clearWorkoutFocusBlock();
+        updateCachedCurrentAppData({ workoutPlan });
       } else {
         writeWorkoutFocusBlock(null);
       }
@@ -133,6 +139,11 @@ const Plan = () => {
   return (
     <AppShell>
       <section className={`${pageStyles.shell} grid gap-4`}>
+        {refreshError ? (
+          <p className="text-muted">
+            Showing your saved plan while we reconnect: {refreshError.message}
+          </p>
+        ) : null}
         <header className={`${pageStyles.reviewHero} grid gap-4`}>
           <div className="grid gap-3">
             <p className={pageStyles.eyebrow}>Workout Plan</p>

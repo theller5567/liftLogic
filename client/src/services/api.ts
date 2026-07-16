@@ -55,6 +55,68 @@ export const createConnectionApiError = (reason: "network" | "timeout") =>
         "NETWORK_ERROR"
       );
 
+type TimedRequestSignal = {
+  cleanup: () => void;
+  didTimeout: () => boolean;
+  signal: AbortSignal;
+};
+
+export const isAbortError = (error: unknown) =>
+  typeof error === "object" &&
+  error !== null &&
+  "name" in error &&
+  (error as { name?: string }).name === "AbortError";
+
+export const createTimedRequestSignal = (
+  externalSignal?: AbortSignal
+): TimedRequestSignal => {
+  const timeoutController = new AbortController();
+  let didTimeout = false;
+  const timeoutId = globalThis.setTimeout(() => {
+    didTimeout = true;
+    timeoutController.abort();
+  }, API_REQUEST_TIMEOUT_MS);
+
+  if (!externalSignal) {
+    return {
+      cleanup: () => globalThis.clearTimeout(timeoutId),
+      didTimeout: () => didTimeout,
+      signal: timeoutController.signal,
+    };
+  }
+
+  if ("any" in AbortSignal) {
+    return {
+      cleanup: () => globalThis.clearTimeout(timeoutId),
+      didTimeout: () => didTimeout,
+      signal: AbortSignal.any([externalSignal, timeoutController.signal]),
+    };
+  }
+
+  const combinedController = new AbortController();
+  const abortFromExternal = () => combinedController.abort();
+  const abortFromTimeout = () => combinedController.abort();
+
+  if (externalSignal.aborted || timeoutController.signal.aborted) {
+    combinedController.abort();
+  } else {
+    externalSignal.addEventListener("abort", abortFromExternal, { once: true });
+    timeoutController.signal.addEventListener("abort", abortFromTimeout, {
+      once: true,
+    });
+  }
+
+  return {
+    cleanup: () => {
+      globalThis.clearTimeout(timeoutId);
+      externalSignal.removeEventListener("abort", abortFromExternal);
+      timeoutController.signal.removeEventListener("abort", abortFromTimeout);
+    },
+    didTimeout: () => didTimeout,
+    signal: combinedController.signal,
+  };
+};
+
 export type WorkoutPlanDto = {
   _id: string;
   clientId: string;
@@ -139,16 +201,12 @@ async function apiRequest<TResponse>(
   }
 
   const makeRequest = async (authToken: string | null) => {
-    const timeoutController = new AbortController();
-    const timeoutId = window.setTimeout(
-      () => timeoutController.abort(),
-      API_REQUEST_TIMEOUT_MS
-    );
+    const requestSignal = createTimedRequestSignal(options.signal ?? undefined);
 
     try {
       return await fetch(`${API_BASE_URL}${path}`, {
         ...options,
-        signal: options.signal ?? timeoutController.signal,
+        signal: requestSignal.signal,
         headers: {
           "Content-Type": "application/json",
           ...(authToken
@@ -158,16 +216,15 @@ async function apiRequest<TResponse>(
         },
       });
     } catch (requestError) {
-      if (
-        requestError instanceof DOMException &&
-        requestError.name === "AbortError"
-      ) {
-        throw createConnectionApiError("timeout");
+      if (isAbortError(requestError)) {
+        throw createConnectionApiError(
+          requestSignal.didTimeout() ? "timeout" : "network"
+        );
       }
 
       throw createConnectionApiError("network");
     } finally {
-      window.clearTimeout(timeoutId);
+      requestSignal.cleanup();
     }
   };
 

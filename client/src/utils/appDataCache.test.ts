@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CurrentAppData } from "./appDataCache";
 import {
+  clearCachedCurrentAppData,
   readCachedCurrentAppData,
+  setCurrentAppDataCacheScope,
   updateCachedCurrentAppData,
   writeCachedCurrentAppData,
 } from "./appDataCache";
@@ -12,6 +14,10 @@ const createStorage = () => {
 
   return {
     getItem: vi.fn((key: string) => values.get(key) ?? null),
+    key: vi.fn((index: number) => Array.from(values.keys())[index] ?? null),
+    get length() {
+      return values.size;
+    },
     removeItem: vi.fn((key: string) => {
       values.delete(key);
     }),
@@ -57,6 +63,7 @@ const createAppData = (): CurrentAppData =>
 
 describe("app data cache", () => {
   afterEach(() => {
+    setCurrentAppDataCacheScope(null);
     vi.unstubAllGlobals();
   });
 
@@ -85,5 +92,46 @@ describe("app data cache", () => {
 
     expect(patched?.profile._id).toBe("profile-1");
     expect(patched?.userSettings._id).toBe("settings-2");
+  });
+
+  it("keeps cached app data scoped by user", () => {
+    const localStorage = createStorage();
+    vi.stubGlobal("window", { localStorage });
+
+    setCurrentAppDataCacheScope("user-1");
+    writeCachedCurrentAppData(createAppData());
+
+    setCurrentAppDataCacheScope("user-2");
+    expect(readCachedCurrentAppData()).toBeNull();
+
+    writeCachedCurrentAppData({
+      ...createAppData(),
+      profile: {
+        ...createAppData().profile,
+        _id: "profile-2",
+      },
+    });
+
+    expect(readCachedCurrentAppData()?.profile._id).toBe("profile-2");
+
+    setCurrentAppDataCacheScope("user-1");
+    expect(readCachedCurrentAppData()?.profile._id).toBe("profile-1");
+  });
+
+  it("can clear cached app data across every scope", () => {
+    const localStorage = createStorage();
+    vi.stubGlobal("window", { localStorage });
+
+    setCurrentAppDataCacheScope("user-1");
+    writeCachedCurrentAppData(createAppData());
+    setCurrentAppDataCacheScope("user-2");
+    writeCachedCurrentAppData(createAppData());
+
+    clearCachedCurrentAppData({ clearAllScopes: true });
+
+    setCurrentAppDataCacheScope("user-1");
+    expect(readCachedCurrentAppData()).toBeNull();
+    setCurrentAppDataCacheScope("user-2");
+    expect(readCachedCurrentAppData()).toBeNull();
   });
 });

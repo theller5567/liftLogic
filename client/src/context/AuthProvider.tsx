@@ -19,6 +19,10 @@ import {
   isFirebaseConfigured,
 } from "../services/firebase";
 import { setAuthExpiredHandler, setAuthTokenProvider } from "../services/api";
+import {
+  clearCachedCurrentAppData,
+  setCurrentAppDataCacheScope,
+} from "../utils/appDataCache";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -37,6 +41,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = useCallback(async () => {
+    clearCachedCurrentAppData({
+      clearAllScopes: true,
+      clearWorkoutState: true,
+    });
+    setCurrentAppDataCacheScope(null);
+
     if (!firebaseAuth) {
       setUser(null);
       setAuthTokenProvider(null);
@@ -55,6 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
+      setCurrentAppDataCacheScope(nextUser?.uid ?? null);
       setUser(nextUser);
       setAuthTokenProvider(nextUser ? () => nextUser.getIdToken() : null);
       setIsLoading(false);

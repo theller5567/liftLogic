@@ -55,9 +55,15 @@ export type GeneratedWorkoutExercisePreview = {
   suggestedWeight?: number;
   weightUnit?: WeightUnit;
   notes?: string;
+  warnings?: GeneratedWorkoutExerciseWarning[];
   detailTags?: string[];
   editMetadata?: GeneratedWorkoutExerciseEditMetadata;
   exerciseAlternatives: GeneratedWorkoutExerciseAlternative[];
+};
+
+export type GeneratedWorkoutExerciseWarning = {
+  type: "missing_equipment";
+  message: string;
 };
 
 export type GeneratedWorkoutExerciseAlternative = {
@@ -520,6 +526,15 @@ function buildExercisePreview(
     !shouldSubstitute && missingEquipment.length
       ? `Equipment warning: Requires ${missingEquipment.join(", ")}.`
       : undefined;
+  const warnings: GeneratedWorkoutExerciseWarning[] =
+    !shouldSubstitute && missingEquipment.length
+      ? [
+          {
+            type: "missing_equipment",
+            message: `Requires ${missingEquipment.join(", ")}.`,
+          },
+        ]
+      : [];
   const notes = [
     substitutionNote,
     ...getExerciseSelectionNotes({
@@ -537,6 +552,7 @@ function buildExercisePreview(
     label,
     prescription: getPrescriptionForExercise(resolvedExerciseId, goal, answers),
     ...(notes ? { notes } : {}),
+    ...(warnings.length ? { warnings } : {}),
     detailTags: getExerciseDetailTags(exercise),
     exerciseAlternatives,
   };

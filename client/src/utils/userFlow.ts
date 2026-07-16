@@ -6,6 +6,7 @@ import {
   type WorkoutPlanDto,
 } from "../services/api";
 import {
+  isCachedCurrentAppDataStale,
   readCachedCurrentAppData,
   refreshCurrentAppData,
 } from "./appDataCache";
@@ -24,6 +25,7 @@ type UserFlowState = {
   isRefreshing: boolean;
   profile: UserProfileDto | null;
   refresh: () => void;
+  refreshError: Error | null;
   workoutPlan: WorkoutPlanDto | null;
 };
 
@@ -61,6 +63,7 @@ export const useUserFlow = (enabled = true): UserFlowState => {
     isRefreshing: enabled && apiEnabled && Boolean(cachedAppData),
     profile: cachedAppData?.profile ?? null,
     refresh: () => setRefreshIndex((currentIndex) => currentIndex + 1),
+    refreshError: null,
     workoutPlan: cachedAppData?.workoutPlan ?? null,
   });
 
@@ -85,6 +88,7 @@ export const useUserFlow = (enabled = true): UserFlowState => {
           isRefreshing: false,
           profile,
           refresh: () => setRefreshIndex((currentIndex) => currentIndex + 1),
+          refreshError: null,
           workoutPlan,
         });
       })
@@ -92,15 +96,17 @@ export const useUserFlow = (enabled = true): UserFlowState => {
         console.error("Failed to load user flow from API", error);
 
         if (isCurrent) {
+          const normalizedError =
+            error instanceof Error
+              ? error
+              : new Error("Failed to load user flow.");
+
           setState((currentState) => ({
             ...currentState,
-            error: currentState.hasCachedData
-              ? null
-              : error instanceof Error
-                ? error
-                : new Error("Failed to load user flow."),
+            error: currentState.hasCachedData ? null : normalizedError,
             isLoading: false,
             isRefreshing: false,
+            refreshError: currentState.hasCachedData ? normalizedError : null,
           }));
         }
       });
@@ -116,7 +122,10 @@ export const useUserFlow = (enabled = true): UserFlowState => {
     }
 
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") {
+      if (
+        document.visibilityState === "visible" &&
+        isCachedCurrentAppDataStale()
+      ) {
         setRefreshIndex((currentIndex) => currentIndex + 1);
       }
     };
@@ -139,6 +148,7 @@ export const useUserFlow = (enabled = true): UserFlowState => {
       isRefreshing: false,
       profile: null,
       refresh: () => undefined,
+      refreshError: null,
       workoutPlan: null,
     };
   }
@@ -152,6 +162,7 @@ export const useUserFlow = (enabled = true): UserFlowState => {
       isRefreshing: false,
       profile: null,
       refresh: () => undefined,
+      refreshError: null,
       workoutPlan: null,
     };
   }

@@ -150,3 +150,13 @@ export const readUserSettings = () =>
 export const writeUserSettings = (settings: UserSettings | null) => {
   writeStoredJson(STORAGE_KEYS.userSettings, settings);
 };
+
+export const clearStoredWorkoutState = () => {
+  if (!canUseStorage()) {
+    return;
+  }
+
+  Object.values(STORAGE_KEYS).forEach((storageKey) => {
+    window.localStorage.removeItem(storageKey);
+  });
+};

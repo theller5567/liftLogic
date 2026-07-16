@@ -178,6 +178,11 @@
   cursor: pointer;
 }
 
+.workout-template-card:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .workout-template-card.is-selected {
   border-color: hsl(var(--clr-secondary-500-b));
   box-shadow: 0 0 0 1px hsl(var(--clr-secondary-500-b) / 0.32);

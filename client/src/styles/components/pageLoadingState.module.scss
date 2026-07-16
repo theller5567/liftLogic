@@ -20,15 +20,6 @@
   border-color: hsl(var(--clr-red-500-b) / 0.38);
 }
 
-.spinner {
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid hsl(var(--clr-neutral-0-b) / 0.16);
-  border-top-color: hsl(var(--clr-secondary-500-b));
-  border-radius: 999px;
-  animation: spin 850ms linear infinite;
-}
-
 .loadingState strong {
   display: block;
   font-size: 1rem;
@@ -38,10 +29,4 @@
   margin-block-start: 0.35rem;
   color: hsl(var(--clr-neutral-100-b));
   font-size: 0.85rem;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }

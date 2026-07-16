@@ -41,6 +41,7 @@ import {
   writeWorkoutReviewed,
 } from "../utils/workoutStorage";
 import { useUserFlow } from "../utils/userFlow";
+import { updateCachedCurrentAppData } from "../utils/appDataCache";
 import pageStyles from "../styles/pages/page.module.scss";
 
 const focusAreaOptions = Object.entries(WORKOUT_FOCUS_AREA_LABELS).map(
@@ -50,6 +51,8 @@ const focusAreaOptions = Object.entries(WORKOUT_FOCUS_AREA_LABELS).map(
   })
 );
 
+type SyncStatus = "idle" | "saving" | "saved_local" | "synced" | "failed";
+
 const WorkoutReview = () => {
   const navigate = useNavigate();
   const {
@@ -57,6 +60,7 @@ const WorkoutReview = () => {
     error,
     isLoading,
     refresh,
+    refreshError,
     workoutPlan: remoteWorkoutPlan,
   } = useUserFlow();
   const submittedAnswers =
@@ -65,6 +69,16 @@ const WorkoutReview = () => {
   const [localEditedPreview, setLocalEditedPreview] =
     useState<GeneratedWorkoutPreview | null>(() => readEditedWorkoutPreview());
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [previewSyncStatus, setPreviewSyncStatus] =
+    useState<SyncStatus>("idle");
+  const [templateSyncStatus, setTemplateSyncStatus] =
+    useState<SyncStatus>("idle");
+  const [lastFailedPreview, setLastFailedPreview] =
+    useState<GeneratedWorkoutPreview | null>(null);
+  const [lastFailedTemplateId, setLastFailedTemplateId] =
+    useState<string | null>(null);
+  const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
+  const [isCompletingReview, setIsCompletingReview] = useState(false);
   const [showEditWarning, setShowEditWarning] = useState(false);
   const [showFocusOffer, setShowFocusOffer] = useState(false);
   const [showPlanBrowser, setShowPlanBrowser] = useState(false);
@@ -110,6 +124,10 @@ const WorkoutReview = () => {
   const planWarnings = recommendation
     ? getWorkoutTemplateWarnings(recommendation.template, activeAnswers!)
     : [];
+  const hasPendingRequest =
+    previewSyncStatus === "saving" ||
+    templateSyncStatus === "saving" ||
+    isCompletingReview;
 
   if (isLoading) {
     return <LoadingSpinner fullScreen label="Loading workout review..." />;
@@ -136,21 +154,33 @@ const WorkoutReview = () => {
 
   const handlePreviewChange = async (nextPreview: GeneratedWorkoutPreview) => {
     setReviewError(null);
+    setPreviewSyncStatus("saving");
+    setLastFailedPreview(null);
     setLocalEditedPreview(nextPreview);
     writeEditedWorkoutPreview(nextPreview);
     writeWorkoutReviewed(false);
 
     if (isApiEnabled()) {
       try {
-        await saveEditedWorkoutPreview(nextPreview);
+        const { workoutPlan } = await saveEditedWorkoutPreview(nextPreview);
+        updateCachedCurrentAppData({ workoutPlan });
+        setPreviewSyncStatus("synced");
       } catch (error) {
         console.error("Failed to save workout preview to API", error);
+        setLastFailedPreview(nextPreview);
+        setPreviewSyncStatus("failed");
+        setReviewError(
+          "Your exercise edit is saved on this device, but it has not synced yet. Check your connection and retry before switching devices."
+        );
       }
+      return;
     }
+
+    setPreviewSyncStatus("saved_local");
   };
 
   const handleTemplateSelect = async (templateId: string) => {
-    if (!activeAnswers) {
+    if (!activeAnswers || templateSyncStatus === "saving") {
       return;
     }
 
@@ -161,6 +191,9 @@ const WorkoutReview = () => {
     };
 
     setReviewError(null);
+    setTemplateSyncStatus("saving");
+    setPendingTemplateId(templateId);
+    setLastFailedTemplateId(null);
     setLocalAnswers(nextAnswers);
     setLocalEditedPreview(null);
     writeSubmittedAnswers(nextAnswers);
@@ -169,30 +202,51 @@ const WorkoutReview = () => {
 
     if (isApiEnabled()) {
       try {
-        await submitOnboardingAnswers(nextAnswers);
+        const { profile, workoutPlan } =
+          await submitOnboardingAnswers(nextAnswers);
+        updateCachedCurrentAppData({ profile, workoutPlan });
+        setTemplateSyncStatus("synced");
       } catch (error) {
         console.error("Failed to save selected workout template", error);
-        setReviewError("Your plan choice is saved on this device, but we could not sync it yet.");
+        setLastFailedTemplateId(templateId);
+        setTemplateSyncStatus("failed");
+        setReviewError(
+          "Your plan choice is saved on this device, but it has not synced yet. Check your connection and retry before switching devices."
+        );
+      } finally {
+        setPendingTemplateId(null);
+        setShowPlanBrowser(false);
       }
+      return;
     }
 
+    setTemplateSyncStatus("saved_local");
+    setPendingTemplateId(null);
     setShowPlanBrowser(false);
   };
 
   const markReviewComplete = async () => {
+    if (isCompletingReview) {
+      return;
+    }
+
     setReviewError(null);
+    setIsCompletingReview(true);
 
     if (isApiEnabled()) {
       try {
-        await markWorkoutPlanReviewed();
+        const { workoutPlan } = await markWorkoutPlanReviewed();
+        updateCachedCurrentAppData({ workoutPlan });
       } catch (error) {
         console.error("Failed to mark workout review complete in API", error);
         setReviewError("We could not save your workout review. Please try again.");
+        setIsCompletingReview(false);
         return;
       }
     }
 
     writeWorkoutReviewed(true);
+    setIsCompletingReview(false);
     return true;
   };
 
@@ -221,6 +275,10 @@ const WorkoutReview = () => {
   };
 
   const handleContinue = () => {
+    if (hasPendingRequest) {
+      return;
+    }
+
     if (hasEdits) {
       setShowEditWarning(true);
       return;
@@ -229,8 +287,25 @@ const WorkoutReview = () => {
     setShowFocusOffer(true);
   };
 
+  const retryPreviewSync = () => {
+    if (lastFailedPreview) {
+      void handlePreviewChange(lastFailedPreview);
+    }
+  };
+
+  const retryTemplateSync = () => {
+    if (lastFailedTemplateId) {
+      void handleTemplateSelect(lastFailedTemplateId);
+    }
+  };
+
   return (
     <section className={clsx(pageStyles.shell, "grid gap-2")}>
+      {refreshError ? (
+        <p className="text-muted">
+          Showing your saved review while we reconnect: {refreshError.message}
+        </p>
+      ) : null}
       <header className={clsx(pageStyles.reviewHero, "grid gap-4")}>
         <div className="grid gap-3">
           <p className={clsx("text-secondary", pageStyles.eyebrow)}>Program Preview
@@ -249,6 +324,14 @@ const WorkoutReview = () => {
               {whyThisPlan.map((reason) => (
                 <p key={reason}><CheckMark className={clsx(pageStyles.checkmarkIcon)} />{reason}</p>
               ))}
+            </div>
+          ) : null}
+          {planWarnings.length > 0 ? (
+            <div
+              className={clsx(pageStyles.summaryList, pageStyles.warningList)}
+              role="status"
+            >
+              <p><strong>Things to check</strong></p>
               {planWarnings.map((warning) => (
                 <p key={warning}>{warning}</p>
               ))}
@@ -258,6 +341,7 @@ const WorkoutReview = () => {
         </div>
         <div className="flex">
           <Button
+            disabled={hasPendingRequest}
             label="View other plans"
             tone="white"
             variant="outline"
@@ -266,13 +350,78 @@ const WorkoutReview = () => {
             onClick={() => setShowPlanBrowser(true)}
           />
           <Button
-            label={hasEdits ? "Continue with edits" : "Continue to Program"}
+            disabled={hasPendingRequest}
+            label={
+              isCompletingReview
+                ? "Saving..."
+                : hasEdits
+                  ? "Continue with edits"
+                  : "Continue to Program"
+            }
             tone="primary"
             icon="chevronRight"
             iconPosition="right"
             onClick={handleContinue}
           />
         </div>
+        {previewSyncStatus !== "idle" ? (
+          <div
+            className={clsx(
+              pageStyles.statusMessage,
+              previewSyncStatus === "failed" && pageStyles.statusMessageError
+            )}
+            role={previewSyncStatus === "failed" ? "alert" : "status"}
+          >
+            <p>
+              {previewSyncStatus === "saving"
+                ? "Saving exercise changes..."
+                : previewSyncStatus === "synced"
+                  ? "Exercise changes synced."
+                  : previewSyncStatus === "saved_local"
+                    ? "Exercise changes saved on this device."
+                    : "Exercise changes are saved on this device, but not synced yet."}
+            </p>
+            {previewSyncStatus === "failed" && lastFailedPreview ? (
+              <Button
+                disabled={hasPendingRequest}
+                label="Retry sync"
+                size="small"
+                tone="white"
+                variant="outline"
+                onClick={retryPreviewSync}
+              />
+            ) : null}
+          </div>
+        ) : null}
+        {templateSyncStatus !== "idle" ? (
+          <div
+            className={clsx(
+              pageStyles.statusMessage,
+              templateSyncStatus === "failed" && pageStyles.statusMessageError
+            )}
+            role={templateSyncStatus === "failed" ? "alert" : "status"}
+          >
+            <p>
+              {templateSyncStatus === "saving"
+                ? "Updating your plan..."
+                : templateSyncStatus === "synced"
+                  ? "Plan choice synced."
+                  : templateSyncStatus === "saved_local"
+                    ? "Plan choice saved on this device."
+                    : "Plan choice is saved on this device, but not synced yet."}
+            </p>
+            {templateSyncStatus === "failed" && lastFailedTemplateId ? (
+              <Button
+                disabled={hasPendingRequest}
+                label="Retry sync"
+                size="small"
+                tone="white"
+                variant="outline"
+                onClick={retryTemplateSync}
+              />
+            ) : null}
+          </div>
+        ) : null}
         {reviewError ? <p className="text-muted">{reviewError}</p> : null}
       </header>
 
@@ -294,6 +443,8 @@ const WorkoutReview = () => {
       >
         <WorkoutTemplateBrowser
           answers={activeAnswers}
+          disabled={templateSyncStatus === "saving"}
+          pendingTemplateId={pendingTemplateId}
           selectedTemplateId={preview.programId}
           onSelectTemplate={handleTemplateSelect}
         />
@@ -308,7 +459,8 @@ const WorkoutReview = () => {
         description="Your changes have been saved, but the original recommendations are usually the best place to start."
         actions={[
           {
-            label: "Continue with edits",
+            disabled: hasPendingRequest,
+            label: isCompletingReview ? "Saving..." : "Continue with edits",
             tone: "primary",
             onClick: () => setShowFocusOffer(true),
           },
@@ -336,14 +488,16 @@ const WorkoutReview = () => {
         description="A focus block is a planned training phase that emphasizes one muscle group with additional volume and recovery while keeping the rest of your program at maintenance."
         actions={[
           {
-            label: "Skip for now",
+            disabled: hasPendingRequest,
+            label: isCompletingReview ? "Saving..." : "Skip for now",
             tone: "white",
             variant: "outline",
             onClick: completeReview,
             closeOnClick: false,
           },
           {
-            label: "Review focus block",
+            disabled: hasPendingRequest,
+            label: isCompletingReview ? "Saving..." : "Review focus block",
             tone: "primary",
             onClick: startSpecializationReview,
             closeOnClick: false,

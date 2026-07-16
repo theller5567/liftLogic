@@ -18,12 +18,14 @@ import {
   writeWorkoutReviewed,
 } from "../utils/workoutStorage";
 import { useUserFlow } from "../utils/userFlow";
+import { updateCachedCurrentAppData } from "../utils/appDataCache";
 
 const Onboarding = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isRedoMode = searchParams.get("redo") === "1";
-  const { destination, error, isLoading, refresh, workoutPlan } = useUserFlow();
+  const { destination, error, isLoading, refresh, refreshError, workoutPlan } =
+    useUserFlow();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const initialAnswers = useMemo<OnboardingAnswers | undefined>(
     () =>
@@ -54,7 +56,8 @@ const Onboarding = () => {
 
     if (isApiEnabled()) {
       try {
-        await submitOnboardingAnswers(answers);
+        const { profile, workoutPlan } = await submitOnboardingAnswers(answers);
+        updateCachedCurrentAppData({ profile, workoutPlan });
       } catch (error) {
         console.error("Failed to save onboarding answers to API", error);
         setSubmissionError("We could not save your onboarding answers. Please try again.");
@@ -91,6 +94,11 @@ const Onboarding = () => {
 
   return (
     <>
+      {refreshError ? (
+        <p className="text-muted">
+          Showing saved onboarding data while we reconnect: {refreshError.message}
+        </p>
+      ) : null}
       {submissionError ? <p className="text-muted">{submissionError}</p> : null}
       <OnboardingFlow
         initialAnswers={initialAnswers}

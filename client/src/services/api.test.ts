@@ -1,12 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  API_REQUEST_TIMEOUT_MS,
   ApiError,
   createConnectionApiError,
+  createTimedRequestSignal,
   isAuthSessionExpiredError,
 } from "./api";
 
 describe("auth API error classification", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("treats invalid Firebase tokens as expired auth sessions", () => {
     const error = new ApiError("Invalid Firebase ID token.", 401, "INVALID_FIREBASE_TOKEN");
 
@@ -40,5 +46,29 @@ describe("auth API error classification", () => {
     expect(error.status).toBe(0);
     expect(error.code).toBe("NETWORK_ERROR");
     expect(isAuthSessionExpiredError(error)).toBe(false);
+  });
+
+  it("keeps request timeout active when a custom signal is provided", () => {
+    vi.useFakeTimers();
+    const externalController = new AbortController();
+    const requestSignal = createTimedRequestSignal(externalController.signal);
+
+    vi.advanceTimersByTime(API_REQUEST_TIMEOUT_MS);
+
+    expect(requestSignal.signal.aborted).toBe(true);
+    expect(requestSignal.didTimeout()).toBe(true);
+    requestSignal.cleanup();
+  });
+
+  it("does not classify caller aborts as request timeouts", () => {
+    vi.useFakeTimers();
+    const externalController = new AbortController();
+    const requestSignal = createTimedRequestSignal(externalController.signal);
+
+    externalController.abort();
+
+    expect(requestSignal.signal.aborted).toBe(true);
+    expect(requestSignal.didTimeout()).toBe(false);
+    requestSignal.cleanup();
   });
 });

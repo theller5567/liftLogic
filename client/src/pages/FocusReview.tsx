@@ -23,6 +23,7 @@ import { generateWorkoutPreview } from "../utils/generateWorkoutPreview";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { useUserFlow } from "../utils/userFlow";
+import { updateCachedCurrentAppData } from "../utils/appDataCache";
 import {
   readEditedWorkoutPreview,
   readPendingWorkoutFocusBlock,
@@ -71,7 +72,8 @@ const getBasePreview = (
 const FocusReview = () => {
   const navigate = useNavigate();
   const apiEnabled = isApiEnabled();
-  const { destination, error, isLoading, refresh, workoutPlan } = useUserFlow();
+  const { destination, error, isLoading, refresh, refreshError, workoutPlan } =
+    useUserFlow();
   const pendingFocusBlock = readPendingWorkoutFocusBlock();
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [isActivating, setIsActivating] = useState(false);
@@ -152,11 +154,12 @@ const FocusReview = () => {
 
     try {
       if (apiEnabled) {
-        await saveWorkoutFocusBlock({
+        const { workoutPlan } = await saveWorkoutFocusBlock({
           durationWeeks: pendingFocusBlock.durationWeeks,
           focusArea: pendingFocusBlock.focusArea,
           reviewedPreview: focusedPreview,
         });
+        updateCachedCurrentAppData({ workoutPlan });
       } else {
         writeWorkoutFocusBlock(
           createWorkoutFocusBlock({
@@ -183,6 +186,12 @@ const FocusReview = () => {
   return (
     <AppShell>
       <section className={clsx(pageStyles.shell, "grid gap-4")}>
+        {refreshError ? (
+          <p className="text-muted">
+            Showing your saved focus review while we reconnect:{" "}
+            {refreshError.message}
+          </p>
+        ) : null}
         <header className={clsx(pageStyles.reviewHero, "grid gap-4")}>
           <div className="grid gap-3">
             <p className={clsx("text-secondary", pageStyles.eyebrow)}>

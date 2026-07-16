@@ -112,6 +112,13 @@ const exerciseAlternativeSchema = z
   })
   .strict();
 
+const exerciseWarningSchema = z
+  .object({
+    type: z.enum(["missing_equipment"]),
+    message: z.string().min(1).max(500),
+  })
+  .strict();
+
 const exercisePreviewSchema = z
   .object({
     id: z.string().min(1).max(160),
@@ -121,6 +128,7 @@ const exercisePreviewSchema = z
     suggestedWeight: z.number().finite().nonnegative().optional(),
     weightUnit: weightUnitSchema.optional(),
     notes: z.string().min(1).max(500).optional(),
+    warnings: z.array(exerciseWarningSchema).max(8).optional(),
     detailTags: z.array(z.string().min(1).max(80)).max(8).optional(),
     editMetadata: z
       .object({

@@ -1,10 +1,12 @@
 import {
   getCurrentProfile,
+  getLiftLogicClientId,
   type UserProfileDto,
   type UserSettingsDto,
   type WorkoutPlanDto,
 } from "../services/api";
 import {
+  clearStoredWorkoutState,
   writeSubmittedAnswers,
   writeUserSettings,
 } from "./workoutStorage";
@@ -19,10 +21,28 @@ type CachedAppData = CurrentAppData & {
   cachedAt: string;
 };
 
-const APP_DATA_CACHE_KEY = "liftlogic:app-data:current";
+const APP_DATA_CACHE_KEY_PREFIX = "liftlogic:app-data:current";
+export const APP_DATA_REFRESH_STALE_MS = 60_000;
 const canUseStorage = () => typeof window !== "undefined";
 
 let inFlightCurrentAppData: Promise<CurrentAppData> | null = null;
+let currentCacheScope: string | null = null;
+
+const getDefaultCacheScope = () => {
+  if (!canUseStorage()) {
+    return "server";
+  }
+
+  return `client:${getLiftLogicClientId()}`;
+};
+
+const getAppDataCacheKey = () =>
+  `${APP_DATA_CACHE_KEY_PREFIX}:${currentCacheScope ?? getDefaultCacheScope()}`;
+
+export const setCurrentAppDataCacheScope = (scope: string | null) => {
+  currentCacheScope = scope ? `user:${scope}` : null;
+  inFlightCurrentAppData = null;
+};
 
 const readStoredJson = <TValue>(storageKey: string): TValue | null => {
   if (!canUseStorage()) {
@@ -57,11 +77,11 @@ const writeStoredJson = <TValue>(storageKey: string, value: TValue | null) => {
 };
 
 export const readCachedCurrentAppData = (): CachedAppData | null =>
-  readStoredJson<CachedAppData>(APP_DATA_CACHE_KEY);
+  readStoredJson<CachedAppData>(getAppDataCacheKey());
 
 export const writeCachedCurrentAppData = (appData: CurrentAppData | null) => {
   writeStoredJson(
-    APP_DATA_CACHE_KEY,
+    getAppDataCacheKey(),
     appData ? { ...appData, cachedAt: new Date().toISOString() } : null
   );
 
@@ -71,6 +91,48 @@ export const writeCachedCurrentAppData = (appData: CurrentAppData | null) => {
 
   writeUserSettings(appData.userSettings);
   writeSubmittedAnswers(appData.workoutPlan?.onboardingAnswers ?? null);
+};
+
+export const clearCachedCurrentAppData = (options?: {
+  clearAllScopes?: boolean;
+  clearWorkoutState?: boolean;
+}) => {
+  inFlightCurrentAppData = null;
+
+  if (options?.clearAllScopes && canUseStorage()) {
+    const storedKeys = Array.from(
+      { length: window.localStorage.length },
+      (_, index) => window.localStorage.key(index)
+    );
+    const scopedKeys = storedKeys.filter(
+      (storageKey): storageKey is string =>
+        typeof storageKey === "string" &&
+        storageKey.startsWith(`${APP_DATA_CACHE_KEY_PREFIX}:`)
+    );
+
+    scopedKeys.forEach((storageKey) =>
+      window.localStorage.removeItem(storageKey)
+    );
+  } else {
+    writeCachedCurrentAppData(null);
+  }
+
+  if (options?.clearWorkoutState) {
+    clearStoredWorkoutState();
+  }
+};
+
+export const isCachedCurrentAppDataStale = (
+  cachedAppData = readCachedCurrentAppData(),
+  staleAfterMs = APP_DATA_REFRESH_STALE_MS
+) => {
+  if (!cachedAppData) {
+    return true;
+  }
+
+  const cachedAt = new Date(cachedAppData.cachedAt).getTime();
+
+  return !Number.isFinite(cachedAt) || Date.now() - cachedAt > staleAfterMs;
 };
 
 export const updateCachedCurrentAppData = (

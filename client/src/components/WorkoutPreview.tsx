@@ -1,4 +1,11 @@
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import { ClockIcon } from "lucide-react";
@@ -207,7 +214,26 @@ const dayCardMotion = {
   }),
 };
 
-const WorkoutPreview = ({
+const getPreviewResetKey = (preview: GeneratedWorkoutPreview) =>
+  [
+    preview.programId,
+    preview.days
+      .map((day) =>
+        `${day.id}:${day.exercises
+          .map((exercise) => `${exercise.id}:${exercise.exerciseId}`)
+          .join(",")}`
+      )
+      .join("|"),
+  ].join("::");
+
+const WorkoutPreview = (props: WorkoutPreviewProps) => (
+  <WorkoutPreviewContent
+    key={getPreviewResetKey(props.preview)}
+    {...props}
+  />
+);
+
+const WorkoutPreviewContent = ({
   availableEquipment = [],
   editPresentation = "combined",
   editableExerciseIds,
@@ -255,6 +281,34 @@ const WorkoutPreview = ({
 
     setDayNavigationDirection(dayIndex > activeDayIndex ? 1 : -1);
     setActiveDayIndex(dayIndex);
+  };
+
+  const handleDayTabKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    dayIndex: number
+  ) => {
+    const lastDayIndex = workingPreview.days.length - 1;
+    let nextDayIndex: number | null = null;
+
+    if (event.key === "ArrowRight") {
+      nextDayIndex = dayIndex >= lastDayIndex ? 0 : dayIndex + 1;
+    } else if (event.key === "ArrowLeft") {
+      nextDayIndex = dayIndex <= 0 ? lastDayIndex : dayIndex - 1;
+    } else if (event.key === "Home") {
+      nextDayIndex = 0;
+    } else if (event.key === "End") {
+      nextDayIndex = lastDayIndex;
+    }
+
+    if (nextDayIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    selectDay(nextDayIndex);
+    window.requestAnimationFrame(() => {
+      dayTabRefs.current[nextDayIndex]?.focus();
+    });
   };
 
   const closeEditSheet = () => {
@@ -381,7 +435,7 @@ const WorkoutPreview = ({
   }, [availableEquipment, customExerciseSearch, selectedEditExercise]);
 
   const saveExerciseEdits = () => {
-    if (!selectedEditExercise || !onPreviewChange) {
+    if (!selectedEditExercise || !onPreviewChange || isCustomSwapSaveBlocked) {
       return;
     }
 
@@ -481,6 +535,12 @@ const WorkoutPreview = ({
   const selectedCustomExercise = customExerciseOptions.find(
     (option) => option.exercise.id === draftExerciseId
   );
+  const isCustomSwapSaveBlocked = Boolean(
+    isSwapOnlyEditor &&
+      showCustomExercisePicker &&
+      selectedEditExercise &&
+      draftExerciseId === selectedEditExercise.exerciseId
+  );
   const estimatedTime = activeDay
     ? formatEstimatedWorkoutTime(activeDay.exercises)
     : "";
@@ -514,6 +574,7 @@ const WorkoutPreview = ({
               aria-controls={`workout-day-panel-${day.id}`}
               className={clsx(styles.dayTab, isActive && styles.active)}
               onClick={() => selectDay(dayIndex)}
+              onKeyDown={(event) => handleDayTabKeyDown(event, dayIndex)}
             >
               <span className={styles.dayTabLabel}>
                 {formatWorkoutDisplayLabel(day.label)}
@@ -577,8 +638,14 @@ const WorkoutPreview = ({
               <div className="grid gap-5">
                 {activeDay.exercises.map((exercise, exerciseIndex) => {
                   const muscleTags = getExerciseMuscleTags(exercise.exerciseId);
-                  const hasEquipmentWarning =
+                  const structuredEquipmentWarning = exercise.warnings?.find(
+                    (warning) => warning.type === "missing_equipment"
+                  );
+                  const hasLegacyEquipmentWarning =
                     exercise.notes?.includes("Equipment warning:") ?? false;
+                  const hasEquipmentWarning = Boolean(
+                    structuredEquipmentWarning || hasLegacyEquipmentWarning
+                  );
 
                   return (
                   <article
@@ -669,8 +736,20 @@ const WorkoutPreview = ({
                             styles.exerciseCardNote,
                             hasEquipmentWarning && styles.exerciseCardWarningNote
                           )}
+                          role={hasEquipmentWarning ? "alert" : undefined}
                         >
                           {exercise.notes}
+                        </p>
+                      ) : null}
+                      {structuredEquipmentWarning && !exercise.notes ? (
+                        <p
+                          className={clsx(
+                            styles.exerciseCardNote,
+                            styles.exerciseCardWarningNote
+                          )}
+                          role="alert"
+                        >
+                          Missing equipment: {structuredEquipmentWarning.message}
                         </p>
                       ) : null}
                       {isReviewActions && canEditExercise(exercise) ? (
@@ -734,6 +813,7 @@ const WorkoutPreview = ({
           
           {
             label: activeEditMode === "weight" ? "Save weight" : "Save & Return",
+            disabled: isCustomSwapSaveBlocked,
             tone: "primary",
             onClick: saveExerciseEdits,
           },
@@ -865,6 +945,11 @@ const WorkoutPreview = ({
                         <p className={styles.customSwapWarning}>
                           Choosing an exercise outside the recommended alternatives may affect your plan balance, recovery, and goal fit.
                         </p>
+                        {isCustomSwapSaveBlocked ? (
+                          <p className="text-muted">
+                            Select a different exercise before saving this custom swap.
+                          </p>
+                        ) : null}
                         <label className={styles.exerciseSearchField}>
                           <span>Search exercises</span>
                           <input
@@ -929,9 +1014,20 @@ const WorkoutPreview = ({
                             );
                           })}
                           {customExerciseOptions.length === 0 ? (
-                            <p className="text-muted">
-                              No exercises match that search yet.
-                            </p>
+                            <div className="grid gap-2">
+                              <p className="text-muted">
+                                No exercises match that search yet.
+                              </p>
+                              {customExerciseSearch ? (
+                                <Button
+                                  label="Clear search"
+                                  size="small"
+                                  tone="gray"
+                                  variant="outline"
+                                  onClick={() => setCustomExerciseSearch("")}
+                                />
+                              ) : null}
+                            </div>
                           ) : null}
                         </div>
                         {selectedCustomExercise ? (

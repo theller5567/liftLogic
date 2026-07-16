@@ -29,6 +29,7 @@ import {
   resolveCurrentWorkoutFocusBlock,
   resolveCurrentWorkoutPreview,
 } from "../utils/workoutPlanPreview";
+import { updateCachedCurrentAppData } from "../utils/appDataCache";
 import { writeWorkoutFocusBlock } from "../utils/workoutStorage";
 import {
   findWorkoutSessionForDate,
@@ -133,13 +134,21 @@ const getWeekDays = (
 };
 
 const Dashboard = () => {
-  const { destination, error, isLoading, refresh, workoutPlan, profile } =
-    useUserFlow();
+  const {
+    destination,
+    error,
+    isLoading,
+    refresh,
+    refreshError,
+    workoutPlan,
+    profile,
+  } = useUserFlow();
   const navigate = useNavigate();
   const apiEnabled = isApiEnabled();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [startWorkoutError, setStartWorkoutError] = useState<string | null>(null);
   const [workoutSessionsError, setWorkoutSessionsError] = useState<string | null>(null);
+  const [sessionRetryIndex, setSessionRetryIndex] = useState(0);
   const [stopSpecializationError, setStopSpecializationError] = useState<string | null>(null);
   const [weekWorkoutSessions, setWeekWorkoutSessions] = useState<WorkoutSessionDto[]>([]);
   const [isStartingWorkout, setIsStartingWorkout] = useState(false);
@@ -290,7 +299,7 @@ const Dashboard = () => {
     return () => {
       isMounted = false;
     };
-  }, [destination, error, isLoading, selectedDate]);
+  }, [destination, error, isLoading, selectedDate, sessionRetryIndex]);
 
   const handleWorkoutSelect = (workoutDayId: string) => {
     setSelectedWorkoutByDate((currentSelections) => ({
@@ -342,7 +351,8 @@ const Dashboard = () => {
 
     try {
       if (apiEnabled) {
-        await clearWorkoutFocusBlock();
+        const { workoutPlan } = await clearWorkoutFocusBlock();
+        updateCachedCurrentAppData({ workoutPlan });
       } else {
         writeWorkoutFocusBlock(null);
       }
@@ -382,6 +392,12 @@ const Dashboard = () => {
   return (
     <AppShell>
       <section className={styles.dashboard}>
+        {refreshError ? (
+          <p className="text-muted">
+            Showing your saved dashboard while we reconnect:{" "}
+            {refreshError.message}
+          </p>
+        ) : null}
         <DashboardHeader
           displayName={profile?.displayName}
           photoUrl={profile?.photoUrl}
@@ -438,7 +454,9 @@ const Dashboard = () => {
               size="small"
               tone="gray"
               variant="outline"
-              onClick={() => setSelectedDate(new Date(selectedDate))}
+              onClick={() =>
+                setSessionRetryIndex((currentIndex) => currentIndex + 1)
+              }
             />
           </div>
         ) : null}

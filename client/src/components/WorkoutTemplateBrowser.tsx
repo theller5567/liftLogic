@@ -10,7 +10,9 @@ import "../styles/components/onboarding.scss";
 
 type WorkoutTemplateBrowserProps = {
   answers: OnboardingAnswers;
+  disabled?: boolean;
   onSelectTemplate: (templateId: string) => void;
+  pendingTemplateId?: string | null;
   selectedTemplateId?: string;
 };
 
@@ -33,7 +35,9 @@ const levelFilterOptions: Array<{ label: string; value: LevelFilter }> = [
 
 const WorkoutTemplateBrowser = ({
   answers,
+  disabled = false,
   onSelectTemplate,
+  pendingTemplateId,
   selectedTemplateId,
 }: WorkoutTemplateBrowserProps) => {
   const [goalFilter, setGoalFilter] = useState<GoalFilter>("all");
@@ -106,12 +110,16 @@ const WorkoutTemplateBrowser = ({
                 key={template.id}
                 type="button"
                 className={`workout-template-card ${isSelected ? "is-selected" : ""}`}
+                disabled={disabled}
                 onClick={() => onSelectTemplate(template.id)}
               >
                 <span className="workout-template-card-topline">
                   <span>{template.daysRequired} days</span>
                   <span>{template.experienceLevel}</span>
                   {isRecommended ? <span>Best match</span> : null}
+                  {pendingTemplateId === template.id ? (
+                    <span>Updating...</span>
+                  ) : null}
                 </span>
                 <strong>{template.name}</strong>
                 <span>{template.description}</span>

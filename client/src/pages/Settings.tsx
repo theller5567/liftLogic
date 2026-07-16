@@ -30,6 +30,7 @@ import {
   type WorkoutPlanDto,
 } from "../services/api";
 import { useUserFlow } from "../utils/userFlow";
+import { updateCachedCurrentAppData } from "../utils/appDataCache";
 import {
   applyUserTheme,
   resetUserTheme,
@@ -60,6 +61,15 @@ type DraftSettingsState = {
   draft: UserSettings;
   source: UserSettings;
 };
+
+const getComparableSettings = (settings: UserSettings) => ({
+  ...mergeUserSettings(settings),
+  equipmentInventory: [...(settings.equipmentInventory ?? [])].sort(),
+});
+
+const areSettingsEqual = (left: UserSettings, right: UserSettings) =>
+  JSON.stringify(getComparableSettings(left)) ===
+  JSON.stringify(getComparableSettings(right));
 
 const SettingsForm = ({
   initialSettings,
@@ -193,6 +203,7 @@ const SettingsForm = ({
       if (apiEnabled) {
         const { workoutPlan: nextWorkoutPlan } = await clearWorkoutFocusBlock();
         setWorkoutPlanOverride(nextWorkoutPlan);
+        updateCachedCurrentAppData({ workoutPlan: nextWorkoutPlan });
       } else {
         writeWorkoutFocusBlock(null);
       }
@@ -218,6 +229,10 @@ const SettingsForm = ({
   const equipmentInventory = getAvailableEquipmentFromSettings(
     draftSettings,
     currentWorkoutPlan?.onboardingAnswers
+  );
+  const hasUnsavedSettingsChanges = !areSettingsEqual(
+    draftSettings,
+    draftSettingsState.source
   );
 
   return (
@@ -292,9 +307,15 @@ const SettingsForm = ({
 
         <div className={styles.footerActions}>
           <Button
-            disabled={isSaving || isSettingsLoading}
+            disabled={isSaving || isSettingsLoading || !hasUnsavedSettingsChanges}
             icon={isSaving ? undefined : "edit"}
-            label={isSaving ? "Saving..." : "Save settings"}
+            label={
+              isSaving
+                ? "Saving..."
+                : hasUnsavedSettingsChanges
+                  ? "Save settings"
+                  : "No changes to save"
+            }
             size="large"
             tone="primary"
             onClick={handleSave}

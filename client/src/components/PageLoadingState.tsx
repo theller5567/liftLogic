@@ -7,7 +7,7 @@ type PageLoadingStateProps = {
   message?: string;
   onAction?: () => void;
   title?: string;
-  tone?: "loading" | "error";
+  tone?: "status" | "error";
 };
 
 const PageLoadingState = ({
@@ -15,8 +15,8 @@ const PageLoadingState = ({
   fullScreen = false,
   message,
   onAction,
-  title = "Loading...",
-  tone = "loading",
+  title = "Something needs attention",
+  tone = "status",
 }: PageLoadingStateProps) => (
   <section
     className={[
@@ -27,7 +27,6 @@ const PageLoadingState = ({
     role={tone === "error" ? "alert" : "status"}
     aria-live={tone === "error" ? "assertive" : "polite"}
   >
-    {tone === "loading" ? <span className={styles.spinner} aria-hidden="true" /> : null}
     <div>
       <strong>{title}</strong>
       {message ? <p>{message}</p> : null}

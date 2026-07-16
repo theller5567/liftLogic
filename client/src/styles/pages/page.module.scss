@@ -63,6 +63,40 @@
   }
 }
 
+.warningList {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid hsl(var(--clr-red-500-b) / 0.34);
+  border-radius: var(--br-8);
+  background: hsl(var(--clr-red-500-b) / 0.1);
+
+  strong,
+  p {
+    color: hsl(var(--clr-red-500-b));
+  }
+}
+
+.statusMessage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid hsl(var(--clr-primary-500-b) / 0.35);
+  border-radius: var(--br-8);
+  background: hsl(var(--clr-primary-500-b) / 0.12);
+  color: hsl(var(--clr-neutral-0-b));
+  font-size: 0.88rem;
+
+  p {
+    margin: 0;
+  }
+}
+
+.statusMessageError {
+  border-color: hsl(var(--clr-red-500-b) / 0.38);
+  background: hsl(var(--clr-red-500-b) / 0.12);
+}
+
 .checkmarkIcon, .reminder {
   width: 0.8rem;
   height: auto;
