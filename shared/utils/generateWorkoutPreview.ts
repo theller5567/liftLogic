@@ -2,6 +2,7 @@ import type { ExerciseKey, WeightUnit } from "../constants/weightEstimationRules
 import { weightEstimationRules } from "../constants/weightEstimationRules";
 import {
   exerciseLibrary,
+  type ExerciseDefinition,
   type WorkoutTemplate,
   type WorkoutTemplateWorkoutDay,
 } from "../constants/exercise-library";
@@ -55,6 +56,7 @@ export type GeneratedWorkoutExercisePreview = {
   weightUnit?: WeightUnit;
   notes?: string;
   detailTags?: string[];
+  editMetadata?: GeneratedWorkoutExerciseEditMetadata;
   exerciseAlternatives: GeneratedWorkoutExerciseAlternative[];
 };
 
@@ -62,6 +64,12 @@ export type GeneratedWorkoutExerciseAlternative = {
   exerciseId: string;
   label: string;
   note?: string;
+};
+
+export type GeneratedWorkoutExerciseEditMetadata = {
+  swapSource?: "recommended" | "custom";
+  originalExerciseId?: string;
+  originalLabel?: string;
 };
 
 export type GeneratedWorkoutDayPreview = {
@@ -270,7 +278,7 @@ function resolveSuggestedWeightForExercise(
   return suggestedWeight;
 }
 
-function getPrescriptionForExercise(
+export function getPrescriptionForExercise(
   exerciseId: string,
   goal: WorkoutGoal,
   answers: OnboardingAnswers
@@ -346,6 +354,137 @@ function getExerciseNotes(
   return undefined;
 }
 
+function getExerciseLabel(exerciseId: string) {
+  const exercise = getExerciseById(exerciseId);
+
+  return exercise?.displayName ?? exercise?.name ?? exerciseId;
+}
+
+function getExerciseAlternatives(exercise: ExerciseDefinition | null | undefined) {
+  return (exercise?.alternatives ?? []).map((alternative) => {
+    const alternativeExercise = getExerciseById(alternative.exerciseId);
+
+    return {
+      exerciseId: alternative.exerciseId,
+      label:
+        alternativeExercise?.displayName ??
+        alternativeExercise?.name ??
+        alternative.exerciseId,
+      ...(alternative.note ? { note: alternative.note } : {}),
+    };
+  });
+}
+
+function arePrescriptionsEqual(
+  left: WorkoutSetPrescription,
+  right: WorkoutSetPrescription
+) {
+  return (
+    left.sets === right.sets &&
+    left.reps === right.reps &&
+    left.restSeconds === right.restSeconds &&
+    left.intensity === right.intensity
+  );
+}
+
+export function buildExerciseReplacementPreview({
+  answers,
+  currentExercise,
+  goal,
+  nextExerciseId,
+  swapSource,
+}: {
+  answers: OnboardingAnswers;
+  currentExercise: GeneratedWorkoutExercisePreview;
+  goal: WorkoutGoal;
+  nextExerciseId: string;
+  swapSource: "recommended" | "custom";
+}): GeneratedWorkoutExercisePreview {
+  const currentDefinition = getExerciseById(currentExercise.exerciseId);
+  const nextDefinition = getExerciseById(nextExerciseId);
+  const nextLabel = getExerciseLabel(nextExerciseId);
+  const currentEstimatorKey = normalizeLibraryIdToEstimatorKey(
+    currentExercise.exerciseId
+  );
+  const nextEstimatorKey = normalizeLibraryIdToEstimatorKey(nextExerciseId);
+  const hasSameEstimatorKey =
+    Boolean(currentEstimatorKey && nextEstimatorKey) &&
+    currentEstimatorKey === nextEstimatorKey;
+  const hasSameMovementPattern =
+    Boolean(currentDefinition && nextDefinition) &&
+    currentDefinition?.movementPattern === nextDefinition?.movementPattern;
+  const nextPrescription = getPrescriptionForExercise(nextExerciseId, goal, answers);
+  const shouldKeepCurrentPrescription =
+    hasSameEstimatorKey && hasSameMovementPattern;
+  const prescription = shouldKeepCurrentPrescription
+    ? currentExercise.prescription
+    : nextPrescription;
+  const weightCache = new Map<ExerciseKey, number>();
+  const notes = [
+    swapSource === "custom"
+      ? "Custom swap selected outside recommended alternatives."
+      : undefined,
+    !arePrescriptionsEqual(currentExercise.prescription, prescription)
+      ? "Prescription was updated for the selected exercise."
+      : undefined,
+    currentExercise.suggestedWeight !== undefined && !hasSameEstimatorKey
+      ? "Weight was reset because this exercise uses a different movement pattern."
+      : undefined,
+    ...getExerciseSelectionNotes({
+      exercise: nextDefinition,
+      originalExercise: currentDefinition,
+    }),
+    getExerciseNotes(nextExerciseId, answers),
+    !nextEstimatorKey ? "Choose a comfortable starting load." : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const nextPreview: GeneratedWorkoutExercisePreview = {
+    ...currentExercise,
+    exerciseId: nextExerciseId,
+    label: nextLabel,
+    prescription,
+    ...(notes ? { notes } : { notes: undefined }),
+    detailTags: getExerciseDetailTags(nextDefinition),
+    editMetadata: {
+      swapSource,
+      originalExerciseId:
+        currentExercise.editMetadata?.originalExerciseId ??
+        currentExercise.exerciseId,
+      originalLabel:
+        currentExercise.editMetadata?.originalLabel ?? currentExercise.label,
+    },
+    exerciseAlternatives: getExerciseAlternatives(nextDefinition),
+  };
+
+  if (hasSameEstimatorKey && currentExercise.suggestedWeight !== undefined) {
+    return {
+      ...nextPreview,
+      suggestedWeight: currentExercise.suggestedWeight,
+      weightUnit: currentExercise.weightUnit ?? getWeightUnit(answers),
+    };
+  }
+
+  if (!nextEstimatorKey) {
+    const { suggestedWeight, weightUnit, ...previewWithoutWeight } = nextPreview;
+    void suggestedWeight;
+    void weightUnit;
+    return previewWithoutWeight;
+  }
+
+  return {
+    ...nextPreview,
+    suggestedWeight: resolveSuggestedWeightForExercise(
+      nextEstimatorKey,
+      answers,
+      weightCache,
+      new Set()
+    ),
+    weightUnit: getWeightUnit(answers),
+  };
+}
+
 function buildExercisePreview(
   exerciseId: string,
   dayId: string,
@@ -369,21 +508,8 @@ function buildExercisePreview(
     ? compatibleAlternative.alternative.exerciseId
     : exerciseId;
   const exercise = getExerciseById(resolvedExerciseId);
-  const label = exercise?.displayName ?? exercise?.name ?? resolvedExerciseId;
-  const exerciseAlternatives = (exercise?.alternatives ?? []).map(
-    (alternative) => {
-      const alternativeExercise = getExerciseById(alternative.exerciseId);
-
-      return {
-        exerciseId: alternative.exerciseId,
-        label:
-          alternativeExercise?.displayName ??
-          alternativeExercise?.name ??
-          alternative.exerciseId,
-        ...(alternative.note ? { note: alternative.note } : {}),
-      };
-    }
-  );
+  const label = getExerciseLabel(resolvedExerciseId);
+  const exerciseAlternatives = getExerciseAlternatives(exercise);
   const estimateFrom = normalizeLibraryIdToEstimatorKey(resolvedExerciseId);
   const missingEquipment = getMissingEquipmentLabels(exerciseId, availableEquipment);
   const substitutionNote =
@@ -392,7 +518,7 @@ function buildExercisePreview(
       : undefined;
   const missingEquipmentNote =
     !shouldSubstitute && missingEquipment.length
-      ? `Missing equipment: ${missingEquipment.join(", ")}.`
+      ? `Equipment warning: Requires ${missingEquipment.join(", ")}.`
       : undefined;
   const notes = [
     substitutionNote,

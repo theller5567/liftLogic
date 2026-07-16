@@ -121,6 +121,15 @@ const exercisePreviewSchema = z
     suggestedWeight: z.number().finite().nonnegative().optional(),
     weightUnit: weightUnitSchema.optional(),
     notes: z.string().min(1).max(500).optional(),
+    detailTags: z.array(z.string().min(1).max(80)).max(8).optional(),
+    editMetadata: z
+      .object({
+        swapSource: z.enum(["recommended", "custom"]).optional(),
+        originalExerciseId: z.string().min(1).max(120).optional(),
+        originalLabel: z.string().min(1).max(160).optional(),
+      })
+      .strict()
+      .optional(),
     exerciseAlternatives: z.array(exerciseAlternativeSchema).max(20),
   })
   .strict();

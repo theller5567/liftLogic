@@ -187,18 +187,7 @@ const OnboardingFlow = ({
       });
     }
 
-    if (answers.onboardingMode === "browse" && answers.goal) {
-      setValue("goal", undefined, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-      setValue("goalPriority", undefined, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
-    }
   }, [
-    answers.goal,
     answers.onboardingMode,
     answers.selectedWorkoutTemplateId,
     setValue,
