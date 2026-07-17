@@ -8,6 +8,8 @@ import IconPlus from '../assets/icons/plus-c.svg?react'
 import IconMinus from '../assets/icons/minus-c.svg?react'
 import IconGoogle from '../assets/icons/Google.svg?react'
 import IconReminder from '../assets/icons/051-reminder.svg?react'
+import IconSettings from '../assets/icons/013-user.svg?react'
+import IconSignout from '../assets/icons/exit.svg?react'
 
 import styles from '../styles/components/button.module.scss'
 
@@ -16,7 +18,7 @@ type ButtonVariant = 'outline' | 'ghost' | 'iconOnly'
 type ButtonSize = 'small' | 'medium' | 'large'
 type ButtonIconSize = 'small' | 'medium' | 'large'
 type ButtonIconPosition = 'left' | 'right'
-type ButtonIcon = 'chevronLeft' | 'chevronRight' | 'refresh' | 'edit' | 'plus' | 'minus' | 'google' | 'reminder'
+type ButtonIcon = 'chevronLeft' | 'chevronRight' | 'refresh' | 'settings' | 'edit' | 'plus' | 'minus' | 'google' | 'reminder' | 'exit'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   label?: string
@@ -42,6 +44,8 @@ const ICONS: Record<ButtonIcon, ComponentType<SVGProps<SVGSVGElement>>> = {
   minus: IconMinus,
   google: IconGoogle,
   reminder: IconReminder,
+  settings: IconSettings,
+  exit: IconSignout,
 }
 
 const Button = ({
@@ -78,7 +82,7 @@ const Button = ({
   const IconComponent = icon ? ICONS[icon] : null
   const iconMarkup = IconComponent ? (
     <span aria-hidden="true" className={styles.iconWrapper}>
-      <IconComponent className={clsx(styles.icon, icon === 'reminder' && styles.tintIcon)} />
+      <IconComponent className={clsx(styles.icon, icon !== 'google' && styles.tintIcon)} />
     </span>
   ) : null
 

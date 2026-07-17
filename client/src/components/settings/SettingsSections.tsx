@@ -88,7 +88,7 @@ export const ProgramSettingsSection = ({
   const isFocusActive = isWorkoutFocusBlockActive(activeFocusBlock);
 
   return (
-    <SectionAccordion defaultOpen icon={<ProgramIcon aria-hidden="true" />} title="Program">
+    <SectionAccordion icon={<ProgramIcon aria-hidden="true" />} title="Program">
       <div className={styles.summaryRow}>
         <span>Workout Plan</span>
         <strong>{currentWorkoutPlan?.suggestedPreview.label ?? "Not set"}</strong>

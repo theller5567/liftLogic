@@ -6,6 +6,7 @@ type AvatarProps = {
   photoUrl?: string;
   linkToSettings?: boolean;
   ariaLabel?: string;
+  onClick?: () => void;
 };
 
 const getInitials = (name?: string) => {
@@ -33,6 +34,7 @@ const avatarContent = (name?: string, photoUrl?: string) =>
 const Avatar = ({
   ariaLabel,
   name,
+  onClick,
   photoUrl,
   linkToSettings = false,
 }: AvatarProps) =>
@@ -44,6 +46,15 @@ const Avatar = ({
     >
       {avatarContent(name, photoUrl)}
     </Link>
+  ) : onClick ? (
+    <button
+      type="button"
+      className={styles.avatar}
+      aria-label={ariaLabel ?? "Open account menu"}
+      onClick={onClick}
+    >
+      {avatarContent(name, photoUrl)}
+    </button>
   ) : (
     <div className={styles.avatar} aria-label={ariaLabel ?? (name ? `${name} avatar` : "User avatar")}>
       {avatarContent(name, photoUrl)}

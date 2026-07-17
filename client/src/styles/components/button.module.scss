@@ -288,6 +288,11 @@ $button-variants: (
   :global(polyline) {
     fill: currentColor;
   }
+
+  :global(line),
+  :global(polyline) {
+    stroke: currentColor;
+  }
 }
 
 .label {
