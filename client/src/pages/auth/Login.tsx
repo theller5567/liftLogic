@@ -39,7 +39,7 @@ const Login = () => {
         </div>
         <div className={styles.actions}>
           <Button
-            label="Continue with Google"
+            label={isLoading ? "Signing in..." : "Continue with Google"}
             tone="primary"
             onClick={handleGoogleSignIn}
             disabled={isLoading}

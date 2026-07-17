@@ -91,7 +91,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     clearAuthError();
-    await signInWithPopup(firebaseAuth, googleAuthProvider);
+    setIsLoading(true);
+    setStatus("loading");
+
+    try {
+      await signInWithPopup(firebaseAuth, googleAuthProvider);
+    } catch (error) {
+      setIsLoading(false);
+      setStatus("signed_out");
+      throw error;
+    }
   }, [clearAuthError]);
 
   const value = useMemo<AuthContextValue>(
