@@ -233,25 +233,25 @@
 
 .equipment-picker {
   display: grid;
-  gap: 1rem;
+  gap: var(--ll-space-4);
   text-align: left;
 }
 
 .equipment-picker-header {
   display: grid;
-  gap: 0.35rem;
-  padding: 0.85rem;
-  border: 1px solid hsl(var(--clr-neutral-600-b) / 0.45);
-  border-radius: var(--br-8);
-  background: hsl(var(--clr-neutral-900-b) / 0.36);
+  gap: var(--ll-space-2);
+  padding: var(--ll-space-4);
+  border: 1px solid var(--ll-border-subtle);
+  border-radius: var(--ll-radius-card);
+  background: var(--ll-surface-subtle);
 
   strong {
-    color: hsl(var(--clr-neutral-0-b));
+    color: var(--ll-text-strong);
   }
 
   span {
-    color: hsl(var(--clr-neutral-100-b) / 0.78);
-    font-size: 0.84rem;
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-helper);
     line-height: 1.4;
   }
 }
@@ -264,10 +264,10 @@
 
 .equipment-preset-button,
 .equipment-item {
-  border: 1px solid hsl(var(--clr-neutral-600-b) / 0.55);
-  border-radius: var(--br-8);
-  background: hsl(var(--clr-neutral-900-b) / 0.45);
-  color: hsl(var(--clr-neutral-0-b));
+  border: 1px solid var(--ll-border-control);
+  border-radius: var(--ll-radius-control);
+  background: var(--ll-surface-control);
+  color: var(--ll-text-strong);
   cursor: pointer;
   text-align: left;
 }
@@ -275,6 +275,10 @@
 .equipment-preset-button {
   padding: 0.7rem 0.8rem;
   font-weight: 900;
+
+  &:hover {
+    border-color: hsl(var(--clr-secondary-500-b) / 0.5);
+  }
 }
 
 .equipment-category-list {
@@ -288,8 +292,8 @@
 
   h3 {
     margin: 0;
-    color: hsl(var(--clr-primary-500-b));
-    font-size: 0.76rem;
+    color: var(--ll-color-brand);
+    font-size: var(--ll-type-eyebrow);
     font-weight: 900;
     text-transform: uppercase;
   }
@@ -311,15 +315,15 @@
   }
 
   small {
-    color: hsl(var(--clr-neutral-100-b) / 0.74);
+    color: var(--ll-text-muted);
     line-height: 1.35;
   }
 }
 
 .equipment-item.is-selected {
-  border-color: hsl(var(--clr-secondary-500-b));
-  background: hsl(var(--clr-secondary-500-b) / 0.14);
-  box-shadow: 0 0 0 1px hsl(var(--clr-secondary-500-b) / 0.28);
+  border-color: hsl(var(--clr-secondary-500-b) / 0.72);
+  background: hsl(var(--clr-secondary-500-b) / 0.1);
+  box-shadow: inset 0.22rem 0 0 hsl(var(--clr-secondary-500-b));
 }
 
 @media (min-width: 44rem) {

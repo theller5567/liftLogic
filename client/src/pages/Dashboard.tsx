@@ -3,7 +3,6 @@ import { Navigate, useNavigate } from "react-router-dom";
 
 import AppShell from "../components/app/AppShell";
 import LoadingSpinner from "../components/LoadingSpinner";
-import DashboardHeader from "../components/dashboard/DashboardHeader";
 import WeekSelector, { type WeekDayOption } from "../components/dashboard/WeekSelector";
 import WorkoutCard from "../components/dashboard/WorkoutCard";
 import Button from "../components/Button";
@@ -390,7 +389,7 @@ const Dashboard = () => {
   }
 
   return (
-    <AppShell>
+    <AppShell displayName={profile?.displayName}>
       <section className={styles.dashboard}>
         {refreshError ? (
           <p className="text-muted">
@@ -398,10 +397,6 @@ const Dashboard = () => {
             {refreshError.message}
           </p>
         ) : null}
-        <DashboardHeader
-          displayName={profile?.displayName}
-          photoUrl={profile?.photoUrl}
-        />
         <WeekSelector
           days={weekDays}
           scheduleSummary={

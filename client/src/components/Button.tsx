@@ -16,7 +16,7 @@ type ButtonVariant = 'outline' | 'ghost' | 'iconOnly'
 type ButtonSize = 'small' | 'medium' | 'large'
 type ButtonIconSize = 'small' | 'medium' | 'large'
 type ButtonIconPosition = 'left' | 'right'
-type ButtonIcon = 'chevronLeft' | 'chevronRight' | 'chevronRight' | 'refresh' | 'edit' | 'plus' | 'minus' | 'google' | 'reminder'
+type ButtonIcon = 'chevronLeft' | 'chevronRight' | 'refresh' | 'edit' | 'plus' | 'minus' | 'google' | 'reminder'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   label?: string

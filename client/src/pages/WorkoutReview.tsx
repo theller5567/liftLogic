@@ -11,6 +11,7 @@ import {
   WORKOUT_FOCUS_AREA_LABELS,
   WORKOUT_FOCUS_DURATION_WEEKS,
 } from "../../../shared/types/workoutFocus.types";
+import AppShell from "../components/app/AppShell";
 import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
 import PageLoadingState from "../components/PageLoadingState";
@@ -300,7 +301,8 @@ const WorkoutReview = () => {
   };
 
   return (
-    <section className={clsx(pageStyles.shell, "grid gap-2")}>
+    <AppShell>
+      <section className={clsx(pageStyles.shell, "grid gap-2")}>
       {refreshError ? (
         <p className="text-muted">
           Showing your saved review while we reconnect: {refreshError.message}
@@ -539,7 +541,8 @@ const WorkoutReview = () => {
           </label>
         </div>
       </BottomSheet>
-    </section>
+      </section>
+    </AppShell>
   );
 };
 

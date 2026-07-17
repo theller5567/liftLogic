@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import AppShell from "../components/app/AppShell";
 import Button from "../components/Button";
+import PageHeader from "../components/ui/PageHeader";
 import { getWorkoutSessions } from "../services/api";
 import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
 import {
@@ -151,28 +152,28 @@ const Calendar = () => {
   return (
     <AppShell>
       <section className={styles.calendarPage}>
-        <header className={styles.calendarHeader}>
-          <div>
-            <p>Calendar</p>
-            <h1>{monthFormatter.format(visibleMonth)}</h1>
-          </div>
-          <div className={styles.monthControls}>
-            <button
-              aria-label="Previous month"
-              type="button"
-              onClick={() => handleMonthChange(getPreviousMonth(visibleMonth))}
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button
-              aria-label="Next month"
-              type="button"
-              onClick={() => handleMonthChange(getNextMonth(visibleMonth))}
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </header>
+        <PageHeader
+          eyebrow="Calendar"
+          title={monthFormatter.format(visibleMonth)}
+          action={
+            <div className={styles.monthControls}>
+              <button
+                aria-label="Previous month"
+                type="button"
+                onClick={() => handleMonthChange(getPreviousMonth(visibleMonth))}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                aria-label="Next month"
+                type="button"
+                onClick={() => handleMonthChange(getNextMonth(visibleMonth))}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          }
+        />
 
         {loadError ? <p className={styles.error}>{loadError}</p> : null}
 

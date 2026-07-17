@@ -1,7 +1,8 @@
 .calendarPage {
   display: grid;
-  gap: 1rem;
-  color: hsl(var(--clr-neutral-100-b));
+  gap: var(--ll-page-gap);
+  padding-block-end: var(--ll-bottom-nav-clearance);
+  color: var(--ll-text-body);
 }
 
 .calendarHeader,
@@ -74,10 +75,10 @@
   display: grid;
   place-items: center;
   gap: 0.35rem;
-  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.14);
-  border-radius: var(--br-8);
-  background: hsl(var(--clr-secondary-1100-b) / 0.82);
-  color: hsl(var(--clr-neutral-0-b));
+  border: 1px solid var(--ll-border-subtle);
+  border-radius: var(--ll-radius-card);
+  background: var(--ll-surface-subtle);
+  color: var(--ll-text-strong);
 
   span {
     font-weight: 900;
@@ -95,7 +96,7 @@
 }
 
 .daySelected {
-  border-color: hsl(var(--clr-secondary-500-b));
+  border-color: var(--ll-border-active);
   background: hsl(var(--clr-secondary-500-b) / 0.2);
 }
 
@@ -150,10 +151,10 @@
 .emptyState {
   display: grid;
   gap: 0.75rem;
-  padding: 0.9rem;
-  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.18);
-  border-radius: var(--br-8);
-  background: hsl(var(--clr-neutral-700-b) / 0.55);
+  padding: var(--ll-space-4);
+  border: 1px solid var(--ll-border-subtle);
+  border-radius: var(--ll-radius-card);
+  background: var(--ll-surface-card);
 }
 
 .sessionCard {
@@ -222,7 +223,7 @@
 
 .error {
   margin: 0;
-  color: hsl(var(--clr-red-500-b));
+  color: var(--ll-color-danger);
   font-size: 0.85rem;
   font-weight: 800;
 }

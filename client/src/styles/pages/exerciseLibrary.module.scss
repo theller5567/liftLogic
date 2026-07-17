@@ -16,9 +16,9 @@
 .libraryPage,
 .detailPage {
   display: grid;
-  gap: 1rem;
-  padding-block-end: 7rem;
-  color: hsl(var(--clr-neutral-100-b));
+  gap: var(--ll-page-gap);
+  padding-block-end: var(--ll-bottom-nav-clearance);
+  color: var(--ll-text-body);
 }
 
 .hero,
@@ -75,10 +75,10 @@
   position: relative;
   display: grid;
   gap: 0.85rem;
-  padding: 1rem;
-  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.16);
-  border-radius: var(--br-8);
-  background: hsl(var(--clr-neutral-800-b) / 0.55);
+  padding: var(--ll-space-4);
+  border: 1px solid var(--ll-border-subtle);
+  border-radius: var(--ll-radius-card);
+  background: var(--ll-surface-card);
 }
 
 .searchControls {
@@ -233,10 +233,10 @@
   display: grid;
   gap: 0.65rem;
   padding: 0.5rem 2.75rem 0.5rem 1rem;
-  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.16);
-  border-radius: var(--br-8);
-  background: hsl(var(--clr-secondary-200-b) / 0.55);
-  color: hsl(var(--clr-neutral-100-b));
+  border: 1px solid var(--ll-border-subtle);
+  border-radius: var(--ll-radius-card);
+  background: hsl(var(--clr-secondary-1100-b) / 0.86);
+  color: var(--ll-text-body);
   text-decoration: none;
   transition:
     border-color 160ms ease,
@@ -358,10 +358,10 @@
 .detailPanel {
   display: grid;
   gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.16);
-  border-radius: var(--br-8);
-  background: hsl(var(--clr-neutral-800-b) / 0.55);
+  padding: var(--ll-space-4);
+  border: 1px solid var(--ll-border-subtle);
+  border-radius: var(--ll-radius-card);
+  background: var(--ll-surface-card);
 }
 
 .loadMoreArea {

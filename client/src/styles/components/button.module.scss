@@ -155,13 +155,13 @@ $button-variants: (
   justify-content: center;
   gap: var(--button-gap);
   min-width: fit-content;
-  border-radius: var(--br-4);
+  border-radius: var(--ll-radius-control);
   border: 1px solid var(--button-border);
   background: var(--button-bg);
   color: var(--button-color);
   box-shadow: var(--button-shadow);
   font-weight: 800;
-  letter-spacing: -0.015em;
+  letter-spacing: var(--ls-0);
   cursor: pointer;
   transition:
     background-color 160ms ease,

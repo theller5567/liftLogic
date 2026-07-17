@@ -13,6 +13,8 @@ import {
   type MovementPattern,
 } from "../../../shared/constants/exercise-library";
 import AppShell from "../components/app/AppShell";
+import PageHeader from "../components/ui/PageHeader";
+import StatusPill from "../components/ui/StatusPill";
 import styles from "../styles/pages/exerciseLibrary.module.scss";
 
 // Most filters have an "all" option plus one of the real library values.
@@ -240,9 +242,16 @@ const ExerciseLibrary = () => {
     }, 350);
   };
 
-  const scollToTop = () => {
+  const scrollToTop = () => {
+    const appScrollContent = document.getElementById("app-scroll-content");
+
+    if (appScrollContent) {
+      appScrollContent.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }
+  };
 
   // Shared reset for both the top "Clear filters" button and empty state.
   const clearFilters = () => {
@@ -307,17 +316,12 @@ const ExerciseLibrary = () => {
   return (
     <AppShell>
       <section className={styles.libraryPage}>
-        <header className={styles.hero}>
-          <div>
-            <p>Exercise Library</p>
-            <h1>Find the right movement</h1>
-            <span>
-              Search exercises by muscle, equipment, difficulty, or movement
-              pattern.
-            </span>
-          </div>
-          <strong>{filteredExercises.length} exercises</strong>
-        </header>
+        <PageHeader
+          eyebrow="Exercise Library"
+          title="Find the right movement"
+          description="Search exercises by muscle, equipment, difficulty, or movement pattern."
+          action={<StatusPill tone="action">{filteredExercises.length} exercises</StatusPill>}
+        />
 
         <section className={styles.filters} aria-label="Exercise filters">
           <div className={styles.searchControls}>
@@ -516,7 +520,7 @@ const ExerciseLibrary = () => {
                 <button type="button" onClick={loadMoreExercises}>
                   Load more exercises
                 </button>
-                <button type="button" onClick={scollToTop}>
+                <button type="button" onClick={scrollToTop}>
                   Back to top
                 </button>
               </div>

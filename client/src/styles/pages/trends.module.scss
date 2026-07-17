@@ -1,8 +1,8 @@
 .trendsPage {
   display: grid;
-  gap: 1rem;
-  padding-block-end: 7rem;
-  color: hsl(var(--clr-neutral-100-b));
+  gap: var(--ll-page-gap);
+  padding-block-end: var(--ll-bottom-nav-clearance);
+  color: var(--ll-text-body);
 }
 
 .header {
@@ -10,7 +10,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding-block-end: 1rem;
+  padding-block: 1rem;
   border-bottom: 1px solid hsl(var(--clr-neutral-100-b) / 0.2);
 
   p,
@@ -58,7 +58,7 @@
 }
 
 .error {
-  color: hsl(var(--clr-secondary-500-b));
+  color: var(--ll-color-danger);
   font-weight: 800;
 }
 
@@ -69,9 +69,9 @@
 .previewNotice {
   display: grid;
   gap: 0.25rem;
-  padding: 0.85rem;
+  padding: var(--ll-space-4);
   border: 1px solid hsl(var(--clr-secondary-500-b) / 0.35);
-  border-radius: var(--br-8);
+  border-radius: var(--ll-radius-card);
   background: hsl(var(--clr-secondary-500-b) / 0.1);
 
   strong {
@@ -93,9 +93,9 @@
 .metricCard,
 .panel,
 .insightCard {
-  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.18);
-  border-radius: var(--br-8);
-  background: hsl(var(--clr-neutral-700-b) / 0.48);
+  border: 1px solid var(--ll-border-subtle);
+  border-radius: var(--ll-radius-card);
+  background: var(--ll-surface-card);
 }
 
 .metricCard {
@@ -138,8 +138,8 @@
 
 .panel {
   display: grid;
-  gap: 1rem;
-  padding: 0.95rem;
+  gap: var(--ll-space-4);
+  padding: var(--ll-space-4);
 }
 
 .panelHeader {
@@ -155,19 +155,19 @@
 
   p,
   span {
-    color: hsl(var(--clr-primary-500-b));
-    font-size: 0.68rem;
+    color: var(--ll-color-brand);
+    font-size: var(--ll-type-eyebrow);
     font-weight: 900;
     text-transform: uppercase;
   }
 
   h2 {
-    color: hsl(var(--clr-neutral-0-b));
+    color: var(--ll-text-strong);
     font-size: 1.1rem;
   }
 
   span {
-    color: hsl(var(--clr-neutral-100-b));
+    color: var(--ll-text-muted);
   }
 }
 

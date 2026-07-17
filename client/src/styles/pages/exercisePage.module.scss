@@ -1,8 +1,8 @@
 .exercisePage {
   display: grid;
-  gap: 1.25rem;
-  padding: 1.5rem 1rem 7rem;
-  color: hsl(var(--clr-neutral-100-b));
+  gap: var(--ll-section-gap);
+  padding: 1.5rem 1rem var(--ll-bottom-nav-clearance);
+  color: var(--ll-text-body);
 }
 
 .exercisePanel {
@@ -21,10 +21,10 @@
     place-items: center;
     width: 3rem;
     height: 3rem;
-    border: 1px solid hsl(var(--clr-neutral-300-b) / 0.28);
-    border-radius: var(--br-8);
-    background: hsl(var(--clr-neutral-900-b) / 0.68);
-    color: hsl(var(--clr-neutral-0-b));
+    border: 1px solid var(--ll-border-control);
+    border-radius: var(--ll-radius-control);
+    background: var(--ll-surface-control);
+    color: var(--ll-text-strong);
   }
 }
 
@@ -192,9 +192,9 @@
   align-content: center;
   gap: 0.25rem;
   padding: 0.85rem;
-  border: px solid hsl(var(--clr-neutral-0-b));
-  border-radius: var(--br-8);
-  background: hsl(var(--clr-neutral-900-b) / 0.38);
+  border: 1px solid var(--ll-border-subtle);
+  border-radius: var(--ll-radius-card);
+  background: var(--ll-surface-subtle);
 
   svg {
     width: 1.4rem;

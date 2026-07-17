@@ -5,6 +5,7 @@ type AvatarProps = {
   name?: string;
   photoUrl?: string;
   linkToSettings?: boolean;
+  ariaLabel?: string;
 };
 
 const getInitials = (name?: string) => {
@@ -29,17 +30,22 @@ const avatarContent = (name?: string, photoUrl?: string) =>
     <span>{getInitials(name)}</span>
   );
 
-const Avatar = ({ name, photoUrl, linkToSettings = false }: AvatarProps) =>
+const Avatar = ({
+  ariaLabel,
+  name,
+  photoUrl,
+  linkToSettings = false,
+}: AvatarProps) =>
   linkToSettings ? (
     <Link
       to="/settings"
       className={styles.avatar}
-      aria-label={name ? `${name} avatar` : "User avatar"}
+      aria-label={ariaLabel ?? "Open settings"}
     >
       {avatarContent(name, photoUrl)}
     </Link>
   ) : (
-    <div className={styles.avatar} aria-label={name ? `${name} avatar` : "User avatar"}>
+    <div className={styles.avatar} aria-label={ariaLabel ?? (name ? `${name} avatar` : "User avatar")}>
       {avatarContent(name, photoUrl)}
     </div>
   );

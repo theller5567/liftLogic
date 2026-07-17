@@ -1,8 +1,8 @@
 .workout {
   display: grid;
-  gap: 1rem;
-  padding: 1.5rem 1rem 7rem;
-  color: hsl(var(--clr-neutral-100-b));
+  gap: var(--ll-page-gap);
+  padding: 1rem 0 0;
+  color: var(--ll-text-body);
 }
 
 .header {
@@ -59,7 +59,8 @@
 .progressTrack {
   height: 0.45rem;
   overflow: hidden;
-  background: hsl(var(--clr-neutral-500-b));
+  border-radius: var(--br-full);
+  background: hsl(var(--clr-neutral-500-b) / 0.45);
 
   span {
     display: block;
@@ -88,10 +89,10 @@
   gap: 0.65rem;
   width: 100%;
   padding: 0.7rem;
-  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.2);
-  border-radius: 0.45rem;
-  background: hsl(var(--clr-neutral-700-b));
-  color: hsl(var(--clr-neutral-100-b));
+  border: 1px solid var(--ll-border-subtle);
+  border-radius: var(--ll-radius-card);
+  background: var(--ll-surface-card);
+  color: var(--ll-text-body);
   text-align: left;
 
   span:first-child {
@@ -187,7 +188,7 @@
 
 .error {
   margin: 0;
-  color: hsl(var(--clr-secondary-500-b));
+  color: var(--ll-color-danger);
   font-size: 0.85rem;
   font-weight: 700;
 }
@@ -338,7 +339,6 @@
 }
 
 .summaryActions {
-  position: sticky;
   bottom: 5rem;
   display: grid;
   gap: 0.65rem;

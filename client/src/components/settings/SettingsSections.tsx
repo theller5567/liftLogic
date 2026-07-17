@@ -1,8 +1,14 @@
-import { ChevronDown, Dumbbell, RotateCcw, SlidersHorizontal, Target } from "lucide-react";
-import type { ReactNode } from "react";
+import { Dumbbell, Target } from "lucide-react";
+import ProgramIcon from "../../assets/icons/001-notes.svg?react";
+import TrainingIcon from "../../assets/icons/003-weightlifting.svg?react";
+import RestTimerIcon from "../../assets/icons/005-cooldown.svg?react";
+import AppearanceIcon from "../../assets/icons/012-theme.svg?react";
+import AccountIcon from "../../assets/icons/013-user.svg?react";
 
 import type { WorkoutPlanDto } from "../../services/api";
 import EquipmentInventoryPicker from "../EquipmentInventoryPicker";
+import FormField, { SelectInput, TextInput } from "../ui/FormField";
+import SectionAccordion from "../ui/SectionAccordion";
 import type { EquipmentItemId } from "../../../../shared/constants/equipmentCatalog";
 import {
   WORKOUT_FOCUS_DURATION_WEEKS,
@@ -48,31 +54,6 @@ const formatFocusDate = (value: string) =>
     day: "numeric",
   }).format(new Date(value));
 
-type SettingsAccordionProps = {
-  children: ReactNode;
-  defaultOpen?: boolean;
-  icon: ReactNode;
-  title: string;
-};
-
-const SettingsAccordion = ({
-  children,
-  defaultOpen = false,
-  icon,
-  title,
-}: SettingsAccordionProps) => (
-  <details className={styles.settingsSection} open={defaultOpen}>
-    <summary className={styles.sectionHeader}>
-      <span className={styles.sectionHeaderTitle}>
-        {icon}
-        <h2>{title}</h2>
-      </span>
-      <ChevronDown className={styles.accordionIcon} aria-hidden="true" size={18} />
-    </summary>
-    <div className={styles.sectionContent}>{children}</div>
-  </details>
-);
-
 type ProgramSettingsSectionProps = {
   activeFocusBlock: WorkoutFocusBlock | null | undefined;
   currentWorkoutPlan: WorkoutPlanDto | null;
@@ -107,7 +88,7 @@ export const ProgramSettingsSection = ({
   const isFocusActive = isWorkoutFocusBlockActive(activeFocusBlock);
 
   return (
-    <SettingsAccordion defaultOpen icon={<RotateCcw size={18} />} title="Program">
+    <SectionAccordion defaultOpen icon={<ProgramIcon aria-hidden="true" />} title="Program">
       <div className={styles.summaryRow}>
         <span>Workout Plan</span>
         <strong>{currentWorkoutPlan?.suggestedPreview.label ?? "Not set"}</strong>
@@ -142,9 +123,8 @@ export const ProgramSettingsSection = ({
           workout on shorter plans.
         </p>
         <div className={styles.focusControls}>
-          <label className={styles.field}>
-            <span>Focus area</span>
-            <select
+          <FormField label="Focus area">
+            <SelectInput
               value={selectedFocusArea}
               onChange={(event) =>
                 onFocusAreaChange(event.target.value as WorkoutFocusArea)
@@ -155,11 +135,10 @@ export const ProgramSettingsSection = ({
                   {option.label}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className={styles.field}>
-            <span>Duration</span>
-            <select
+            </SelectInput>
+          </FormField>
+          <FormField label="Duration">
+            <SelectInput
               value={selectedFocusDuration}
               onChange={(event) =>
                 onFocusDurationChange(
@@ -172,8 +151,8 @@ export const ProgramSettingsSection = ({
                   {duration} weeks
                 </option>
               ))}
-            </select>
-          </label>
+            </SelectInput>
+          </FormField>
         </div>
         <div className={styles.focusActions}>
           <Button
@@ -201,7 +180,7 @@ export const ProgramSettingsSection = ({
         tone="secondary"
         onClick={onRedoOnboarding}
       />
-    </SettingsAccordion>
+    </SectionAccordion>
   );
 };
 
@@ -227,10 +206,9 @@ export const TrainingSettingsSection = ({
   };
 
   return (
-    <SettingsAccordion icon={<SlidersHorizontal size={18} />} title="Training">
-      <label className={styles.field}>
-        <span>Weight unit</span>
-        <select
+    <SectionAccordion icon={<TrainingIcon aria-hidden="true" />} title="Training">
+      <FormField label="Weight unit">
+        <SelectInput
           value={draftSettings.weightUnit}
           onChange={(event) =>
             onUpdateDraft((current) => ({
@@ -241,24 +219,23 @@ export const TrainingSettingsSection = ({
         >
           <option value="lb">Pounds (lb)</option>
           <option value="kg">Kilograms (kg)</option>
-        </select>
-      </label>
+        </SelectInput>
+      </FormField>
 
       <div className={styles.stepGrid}>
         {weightStepFields.map((field) => (
-          <label key={field.key} className={styles.field}>
-            <span>{field.label} step</span>
-            <input
+          <FormField key={field.key} label={`${field.label} step`}>
+            <TextInput
               min="0"
               step="0.5"
               type="number"
               value={toNumberInputValue(draftSettings.weightSteps[field.key])}
               onChange={(event) => updateWeightStep(field.key, event.target.value)}
             />
-          </label>
+          </FormField>
         ))}
       </div>
-    </SettingsAccordion>
+    </SectionAccordion>
   );
 };
 
@@ -266,7 +243,7 @@ export const RestTimerSettingsSection = ({
   draftSettings,
   onUpdateDraft,
 }: TrainingSettingsSectionProps) => (
-  <SettingsAccordion icon={<SlidersHorizontal size={18} />} title="Rest Timer">
+  <SectionAccordion icon={<RestTimerIcon aria-hidden="true" />} title="Rest Timer">
     <label className={styles.toggleRow}>
       <span>Auto-start after set</span>
       <input
@@ -284,9 +261,8 @@ export const RestTimerSettingsSection = ({
       />
     </label>
 
-    <label className={styles.field}>
-      <span>Default seconds</span>
-      <input
+    <FormField label="Default seconds">
+      <TextInput
         min="0"
         max="900"
         step="15"
@@ -308,8 +284,8 @@ export const RestTimerSettingsSection = ({
           }));
         }}
       />
-    </label>
-  </SettingsAccordion>
+    </FormField>
+  </SectionAccordion>
 );
 
 type EquipmentSettingsSectionProps = {
@@ -321,7 +297,7 @@ export const EquipmentSettingsSection = ({
   equipmentInventory,
   onEquipmentChange,
 }: EquipmentSettingsSectionProps) => (
-  <SettingsAccordion icon={<Dumbbell size={18} />} title="Equipment">
+  <SectionAccordion icon={<Dumbbell size={18} />} title="Equipment">
     <p className={styles.focusDescription}>
       Update the equipment you can use. Future plan recommendations and exercise
       substitutions will prefer this list.
@@ -330,7 +306,7 @@ export const EquipmentSettingsSection = ({
       selectedEquipment={equipmentInventory}
       onChange={onEquipmentChange}
     />
-  </SettingsAccordion>
+  </SectionAccordion>
 );
 
 type AppearanceSettingsSectionProps = {
@@ -358,7 +334,7 @@ export const AppearanceSettingsSection = ({
   };
 
   return (
-    <SettingsAccordion icon={<SlidersHorizontal size={18} />} title="Appearance">
+    <SectionAccordion icon={<AppearanceIcon aria-hidden="true" />} title="Appearance">
       <div className={styles.colorGrid}>
         <label className={styles.colorField}>
           <span>Primary</span>
@@ -390,7 +366,7 @@ export const AppearanceSettingsSection = ({
         variant="outline"
         onClick={onResetTheme}
       />
-    </SettingsAccordion>
+    </SectionAccordion>
   );
 };
 
@@ -405,7 +381,7 @@ export const AccountSettingsSection = ({
   emailLabel,
   onSignOut,
 }: AccountSettingsSectionProps) => (
-  <SettingsAccordion icon={<SlidersHorizontal size={18} />} title="Account">
+  <SectionAccordion icon={<AccountIcon aria-hidden="true" />} title="Account">
     <div className={styles.summaryRow}>
       <span>Name</span>
       <strong>{accountLabel}</strong>
@@ -421,5 +397,5 @@ export const AccountSettingsSection = ({
       variant="outline"
       onClick={onSignOut}
     />
-  </SettingsAccordion>
+  </SectionAccordion>
 );

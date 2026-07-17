@@ -15,6 +15,7 @@ import {
 } from "../../../shared/types/userSettings.types";
 import AppShell from "../components/app/AppShell";
 import Button from "../components/Button";
+import PageHeader from "../components/ui/PageHeader";
 import {
   AccountSettingsSection,
   AppearanceSettingsSection,
@@ -238,12 +239,10 @@ const SettingsForm = ({
   return (
     <AppShell>
       <section className={styles.settingsPage}>
-        <header className={styles.header}>
-          <div>
-            <p>Set Up</p>
-            <h1>Settings</h1>
-          </div>
-          <Button
+        <PageHeader
+          eyebrow="Set Up"
+          title="Settings"
+          action={<Button
             disabled={isSaving}
             icon="refresh"
             label="Reset"
@@ -251,8 +250,8 @@ const SettingsForm = ({
             tone="gray"
             variant="outline"
             onClick={handleResetDefaults}
-          />
-        </header>
+          />}
+        />
 
         {settingsError ? (
           <p className={styles.error}>Settings could not load from the API.</p>

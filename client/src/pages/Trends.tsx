@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, BarChart3, Clock3, Dumbbell } from "lucide-react";
 
 import AppShell from "../components/app/AppShell";
+import PageHeader from "../components/ui/PageHeader";
+import StatCard from "../components/ui/StatCard";
+import StatusPill from "../components/ui/StatusPill";
 import { getWorkoutSessions } from "../services/api";
 import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
 import { buildTrendsData, formatTrendVolume } from "../utils/trendsData";
@@ -33,14 +36,12 @@ const MetricCard = ({
   const Icon = metricIcons[metricIndex] ?? Activity;
 
   return (
-    <article className={styles.metricCard}>
-      <Icon aria-hidden="true" />
-      <div>
-        <p>{metric.label}</p>
-        <strong>{metric.value}</strong>
-        <span>{metric.detail}</span>
-      </div>
-    </article>
+    <StatCard
+      detail={metric.detail}
+      icon={Icon}
+      label={metric.label}
+      value={metric.value}
+    />
   );
 };
 
@@ -107,18 +108,16 @@ const Trends = () => {
   return (
     <AppShell>
       <section className={styles.trendsPage}>
-        <header className={styles.header}>
-          <div>
-            <p>Trends</p>
-            <h1>Progress at a glance</h1>
-            <span>
-              Track consistency, weekly volume, and the lifts that are moving.
-            </span>
-          </div>
-          <strong className={styles.dataMode}>
-            {trendsData.isMock ? "Example data" : "Live data"}
-          </strong>
-        </header>
+        <PageHeader
+          eyebrow="Trends"
+          title="Progress at a glance"
+          description="Track consistency, weekly volume, and the lifts that are moving."
+          action={
+            <StatusPill tone="action">
+              {trendsData.isMock ? "Example data" : "Live data"}
+            </StatusPill>
+          }
+        />
 
         {loadError ? <p className={styles.error}>{loadError}</p> : null}
         {isLoading ? <p className={styles.loading}>Loading trends...</p> : null}
