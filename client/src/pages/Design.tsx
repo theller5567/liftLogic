@@ -10,7 +10,7 @@ type ButtonPreview = {
 };
 
 type ButtonGroup = {
-  tone: "primary" | "white" | "gray" | "black" | "secondary";
+  tone: "primary" | "white" | "gray" | "black" | "secondary" | "danger";
   variants: ButtonPreview[];
 };
 
@@ -64,6 +64,16 @@ const buttonGroups: ButtonGroup[] = [
       { size: "large", disabled: true },
       { size: "medium", disabled: true },
       { size: "small", disabled: true },
+    ],
+  },
+  {
+    tone: "danger",
+    variants: [
+      { size: "large" },
+      { size: "medium" },
+      { size: "small" },
+      { size: "medium", variant: "outline" },
+      { size: "medium", variant: "ghost" },
     ],
   },
 ];

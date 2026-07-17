@@ -478,6 +478,10 @@ const ExerciseLibrary = () => {
                   getDifficultyCardClassName(exercise.difficulty)
                 )}
                 // The detail page will parse the stable id from this slug.
+                state={{
+                  returnLabel: "Exercise library",
+                  returnTo: "/exercise-library",
+                }}
                 to={`/exercise-library/${createExerciseSlug(exercise)}`}
               >
                 <strong>{getExerciseName(exercise)}</strong>
@@ -516,7 +520,7 @@ const ExerciseLibrary = () => {
                 <strong>Loading exercises...</strong>
               </div>
             ) : (
-              <div className="flex">
+              <div className={styles.loadMoreActions}>
                 <button type="button" onClick={loadMoreExercises}>
                   Load more exercises
                 </button>

@@ -37,6 +37,7 @@ import {
   resetUserTheme,
   useUserSettings,
 } from "../utils/userSettings";
+import BottomSheet from "../components/BottomSheet";
 import {
   readWorkoutFocusBlock,
   writePendingWorkoutFocusBlock,
@@ -99,6 +100,7 @@ const SettingsForm = ({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
   const currentWorkoutPlan = workoutPlanOverride ?? workoutPlan;
   const localFocusBlock = apiEnabled ? null : readWorkoutFocusBlock();
@@ -222,6 +224,7 @@ const SettingsForm = ({
   };
 
   const handleSignOut = async () => {
+    setSignOutConfirmOpen(false);
     await signOut();
     navigate("/", { replace: true });
   };
@@ -259,7 +262,32 @@ const SettingsForm = ({
         {saveError ? <p className={styles.error}>{saveError}</p> : null}
         {saveMessage ? <p className={styles.success}>{saveMessage}</p> : null}
 
+        <div className={styles.settingsOverview}>
+          <div>
+            <span>Quick settings</span>
+            <strong>{hasUnsavedSettingsChanges ? "Unsaved changes" : "Everything is current"}</strong>
+          </div>
+          <p>
+            Account and equipment are first because they affect access,
+            recommendations, and exercise substitutions.
+          </p>
+        </div>
+
         <div className={styles.sectionGrid}>
+          <AccountSettingsSection
+            accountLabel={accountLabel}
+            emailLabel={emailLabel}
+            onSignOut={() => setSignOutConfirmOpen(true)}
+          />
+          <EquipmentSettingsSection
+            equipmentInventory={equipmentInventory}
+            onEquipmentChange={(equipmentInventory) =>
+              updateDraft((current) => ({
+                ...current,
+                equipmentInventory,
+              }))
+            }
+          />
           <ProgramSettingsSection
             activeFocusBlock={activeFocusBlock}
             currentWorkoutPlan={currentWorkoutPlan}
@@ -283,31 +311,49 @@ const SettingsForm = ({
             draftSettings={draftSettings}
             onUpdateDraft={updateDraft}
           />
-          <EquipmentSettingsSection
-            equipmentInventory={equipmentInventory}
-            onEquipmentChange={(equipmentInventory) =>
-              updateDraft((current) => ({
-                ...current,
-                equipmentInventory,
-              }))
-            }
-          />
           <AppearanceSettingsSection
             draftSettings={draftSettings}
             onResetTheme={handleResetTheme}
             onUpdateDraft={updateDraft}
           />
-          <AccountSettingsSection
-            accountLabel={accountLabel}
-            emailLabel={emailLabel}
-            onSignOut={handleSignOut}
-          />
+        </div>
+
+        <div
+          className={styles.saveState}
+          data-state={
+            saveError
+              ? "error"
+              : isSaving
+                ? "saving"
+                : hasUnsavedSettingsChanges
+                  ? "dirty"
+                  : "clean"
+          }
+        >
+          <strong>
+            {saveError
+              ? "Save failed"
+              : isSaving
+                ? "Saving settings..."
+                : hasUnsavedSettingsChanges
+                  ? "You have unsaved changes"
+                  : "No changes to save"}
+          </strong>
+          <span>
+            {saveError
+              ? "Review the message above, then try saving again."
+              : isSaving
+                ? "Keep this page open while your settings sync."
+                : hasUnsavedSettingsChanges
+                  ? "Save when you are ready to apply these updates."
+                  : "Changes you make here will enable the save button."}
+          </span>
         </div>
 
         <div className={styles.footerActions}>
           <Button
             disabled={isSaving || isSettingsLoading || !hasUnsavedSettingsChanges}
-            icon={isSaving ? undefined : "edit"}
+            icon={!isSaving && hasUnsavedSettingsChanges ? "edit" : undefined}
             label={
               isSaving
                 ? "Saving..."
@@ -316,10 +362,37 @@ const SettingsForm = ({
                   : "No changes to save"
             }
             size="large"
-            tone="primary"
+            tone={hasUnsavedSettingsChanges ? "primary" : "gray"}
+            variant={hasUnsavedSettingsChanges ? undefined : "outline"}
             onClick={handleSave}
           />
         </div>
+        <BottomSheet
+          open={signOutConfirmOpen}
+          onClose={() => setSignOutConfirmOpen(false)}
+          eyebrow="Sign Out"
+          title="Sign out of LiftLogic?"
+          description="You can sign back in with Google whenever you are ready."
+          actions={[
+            {
+              label: "Cancel",
+              tone: "white",
+              variant: "outline",
+            },
+            {
+              label: "Sign out",
+              tone: "danger",
+              variant: "outline",
+              icon: "exit",
+              iconSize: "large",
+              onClick: handleSignOut,
+            },
+          ]}
+        >
+          <p className={styles.warningMessage}>
+            Any unsaved settings changes may be lost before you leave this session.
+          </p>
+        </BottomSheet>
       </section>
     </AppShell>
   );

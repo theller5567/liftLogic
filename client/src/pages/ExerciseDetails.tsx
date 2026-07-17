@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Dumbbell } from "lucide-react";
 
 import {
@@ -9,6 +9,7 @@ import {
   type MuscleGroup,
 } from "../../../shared/constants/exercise-library";
 import AppShell from "../components/app/AppShell";
+import InlineStatus from "../components/ui/InlineStatus";
 import styles from "../styles/pages/exerciseLibrary.module.scss";
 
 // The description is loaded asynchronously so the large description module
@@ -17,6 +18,11 @@ type DescriptionState =
   | { status: "loading"; description: null; error: null }
   | { status: "available"; description: ExerciseDescription; error: null }
   | { status: "unavailable"; description: null; error: string };
+
+type ExerciseDetailNavigationState = {
+  returnLabel?: string;
+  returnTo?: string;
+};
 
 // Same display-label map used by the library page. The shared data uses
 // stable ids; the UI converts them into friendly labels.
@@ -100,11 +106,14 @@ const ExerciseDetails = () => {
   // /exercise-library/:exerciseSlug.
   const { exerciseSlug } = useParams();
   const location = useLocation();
-  const navigationState = location.state as
-    | { returnLabel?: string; returnTo?: string }
-    | null;
-  const returnTo = navigationState?.returnTo ?? "/exercise-library";
-  const returnLabel = navigationState?.returnLabel ?? "Exercise library";
+  const navigate = useNavigate();
+  const navigationState = location.state as ExerciseDetailNavigationState | null;
+  const explicitReturnTo =
+    navigationState?.returnTo?.startsWith("/") ? navigationState.returnTo : null;
+  const canUseBrowserBack = location.key !== "default";
+  const returnLabel =
+    navigationState?.returnLabel ??
+    (canUseBrowserBack ? "Back" : "Exercise library");
   // Parse the stable exercise id once per slug change.
   const exerciseId = useMemo(
     () => getExerciseIdFromSlug(exerciseSlug),
@@ -197,13 +206,31 @@ const ExerciseDetails = () => {
     (muscle) => muscleLabels[muscle]
   );
 
+  const handleReturn = () => {
+    if (explicitReturnTo) {
+      navigate(explicitReturnTo);
+      return;
+    }
+
+    if (canUseBrowserBack) {
+      navigate(-1);
+      return;
+    }
+
+    navigate("/exercise-library");
+  };
+
   return (
     <AppShell>
       <section className={styles.detailPage}>
-        <Link className={styles.backLink} to={returnTo}>
+        <button
+          className={styles.backLink}
+          type="button"
+          onClick={handleReturn}
+        >
           <ArrowLeft aria-hidden="true" size={18} />
           {returnLabel}
-        </Link>
+        </button>
 
         <header className={styles.detailHero}>
           <div>
@@ -236,11 +263,15 @@ const ExerciseDetails = () => {
         </section>
 
         {descriptionState.status === "loading" ? (
-          <p className={styles.loadingText}>Loading exercise details...</p>
+          <InlineStatus tone="loading" title="Loading exercise details..." />
         ) : null}
 
         {descriptionState.error ? (
-          <p className={styles.errorText}>{descriptionState.error}</p>
+          <InlineStatus
+            tone="error"
+            title="Exercise details unavailable"
+            message={descriptionState.error}
+          />
         ) : null}
 
         {description ? (

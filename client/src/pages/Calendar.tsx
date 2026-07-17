@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import AppShell from "../components/app/AppShell";
 import Button from "../components/Button";
+import InlineStatus from "../components/ui/InlineStatus";
 import PageHeader from "../components/ui/PageHeader";
 import { getWorkoutSessions } from "../services/api";
 import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
@@ -175,7 +176,13 @@ const Calendar = () => {
           }
         />
 
-        {loadError ? <p className={styles.error}>{loadError}</p> : null}
+        {loadError ? (
+          <InlineStatus
+            tone="error"
+            title="Calendar could not refresh"
+            message={loadError}
+          />
+        ) : null}
 
         <div className={styles.weekdayGrid} aria-hidden="true">
           {weekdayLabels.map((weekday) => (
@@ -215,7 +222,13 @@ const Calendar = () => {
               <p>Selected day</p>
               <h2>{detailDateFormatter.format(selectedDate)}</h2>
             </div>
-            {isLoading ? <span>Loading...</span> : null}
+            {isLoading ? (
+              <InlineStatus
+                className={styles.dayDetailsStatus}
+                tone="loading"
+                title="Loading sessions..."
+              />
+            ) : null}
           </div>
 
           {selectedDateSessions.length > 0 ? (

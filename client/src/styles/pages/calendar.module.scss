@@ -45,8 +45,8 @@
   button {
     display: grid;
     place-items: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
     border: 1px solid hsl(var(--clr-neutral-300-b) / 0.24);
     border-radius: var(--br-full);
     background: hsl(var(--clr-neutral-900-b) / 0.45);
@@ -79,6 +79,7 @@
   border-radius: var(--ll-radius-card);
   background: var(--ll-surface-subtle);
   color: var(--ll-text-strong);
+  cursor: pointer;
 
   span {
     font-weight: 900;
@@ -88,6 +89,23 @@
     width: 0.45rem;
     height: 0.45rem;
     border-radius: var(--br-full);
+  }
+}
+
+@media (max-width: 24rem) {
+  .calendarHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .weekdayGrid,
+  .monthGrid {
+    gap: 0.25rem;
+  }
+
+  .dayButton {
+    min-height: 3rem;
+    border-radius: var(--br-8);
   }
 }
 
@@ -140,6 +158,12 @@
     color: hsl(var(--clr-neutral-0-b));
     font-size: 1.15rem;
   }
+}
+
+.dayDetailsStatus {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--ll-radius-control);
 }
 
 .sessionList {

@@ -34,14 +34,14 @@ $button-sizes: (
     gap: 0.5rem,
   ),
   medium: (
-    min-height: 2rem,
+    min-height: 2.75rem,
     padding: 0.9rem 1.35rem,
     font-size: var(--fs-400),
     gap: 0.5rem,
   ),
   small: (
-    min-height: 1.25rem,
-    padding: 0.2rem 0.625rem,
+    min-height: 2.25rem,
+    padding: 0.45rem 0.75rem,
     font-size: var(--fs-400),
     gap: 0.3rem,
   ),
@@ -139,6 +139,50 @@ $button-variants: (
       border: transparent,
     ),
   ),
+  'danger': (
+    'solid': (
+      bg: hsl-token(--clr-red-500-b),
+      color: hsl-token(--clr-neutral-0-b),
+      shadow: inset 0 1px 0 hsl-token(--clr-neutral-0-b, 0.16),
+    ),
+    'outline': (
+      bg: transparent,
+      color: var(--ll-color-danger),
+      border: hsl-token(--clr-red-500-b, 0.8),
+    ),
+    'ghost': (
+      bg: hsl-token(--clr-red-500-b, 0.1),
+      color: var(--ll-color-danger),
+      border: hsl-token(--clr-red-500-b, 0.35),
+    ),
+    'iconOnly': (
+      bg: transparent,
+      color: var(--ll-color-danger),
+      border: transparent,
+    ),
+  ),
+  'error': (
+    'solid': (
+      bg: hsl-token(--clr-red-500-b),
+      color: hsl-token(--clr-neutral-0-b),
+      shadow: inset 0 1px 0 hsl-token(--clr-neutral-0-b, 0.16),
+    ),
+    'outline': (
+      bg: transparent,
+      color: var(--ll-color-danger),
+      border: hsl-token(--clr-red-500-b, 0.8),
+    ),
+    'ghost': (
+      bg: hsl-token(--clr-red-500-b, 0.1),
+      color: var(--ll-color-danger),
+      border: hsl-token(--clr-red-500-b, 0.35),
+    ),
+    'iconOnly': (
+      bg: transparent,
+      color: var(--ll-color-danger),
+      border: transparent,
+    ),
+  ),
 );
 
 .button {
@@ -228,7 +272,7 @@ $button-variants: (
   padding: 0;
 
   &.button--small {
-    --button-icon-only-size: 1.5rem;
+    --button-icon-only-size: 2.25rem;
     --button-icon-size: 1rem;
   }
 
@@ -276,23 +320,12 @@ $button-variants: (
   display: block;
   width: var(--button-icon-size);
   height: var(--button-icon-size);
+  flex: 0 0 var(--button-icon-size);
+  overflow: visible;
 }
 
 .tintIcon {
   color: currentColor;
-
-  :global(path),
-  :global(circle),
-  :global(rect),
-  :global(polygon),
-  :global(polyline) {
-    fill: currentColor;
-  }
-
-  :global(line),
-  :global(polyline) {
-    stroke: currentColor;
-  }
 }
 
 .label {

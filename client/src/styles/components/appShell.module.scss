@@ -92,8 +92,10 @@
 
 .navItem {
   min-width: 0;
+  min-height: 4rem;
   display: grid;
   justify-items: center;
+  align-content: center;
   gap: 0.2rem;
   padding: 0.45rem 0.25rem 0.35rem;
   border-radius: var(--br-8);
@@ -198,6 +200,18 @@
   }
 }
 
+.accountSheetWarning {
+  margin: 0;
+  padding: var(--ll-space-3);
+  border: 1px solid hsl(var(--clr-primary-500-b) / 0.32);
+  border-radius: var(--ll-radius-card);
+  background: hsl(var(--clr-primary-500-b) / 0.1);
+  color: var(--ll-text-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 @media (max-width: 40rem) {
   .appShell {
     width: 100%;
@@ -211,5 +225,47 @@
 
   .appHeader {
     padding-inline: 1rem;
+  }
+}
+
+@media (max-width: 24rem) {
+  .appHeader {
+    gap: 0.75rem;
+  }
+
+  .appBrand {
+    font-size: 1.35rem;
+  }
+
+  .profileSummary {
+    p {
+      display: none;
+    }
+
+    strong {
+      max-width: 5rem;
+      overflow: hidden;
+      font-size: 0.9rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .avatar {
+    width: 2.65rem;
+    height: 2.65rem;
+  }
+
+  .bottomNavigation {
+    padding-inline: 0.45rem;
+  }
+
+  .navItem {
+    font-size: 0.58rem;
+
+    svg {
+      width: 1.55rem;
+      height: 1.55rem;
+    }
   }
 }

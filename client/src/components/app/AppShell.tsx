@@ -15,6 +15,7 @@ const AppShell = ({ children, displayName }: AppShellProps) => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const [accountSheetOpen, setAccountSheetOpen] = useState(false);
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
   const resolvedDisplayName = displayName ?? user?.displayName ?? undefined;
   const accountName = resolvedDisplayName ?? "LiftLogic user";
   const accountEmail = user?.email ?? "Signed in with Google";
@@ -27,10 +28,15 @@ const AppShell = ({ children, displayName }: AppShellProps) => {
     navigate("/settings");
   };
 
-  const handleSignOut = () => {
+  const requestSignOut = () => {
     setAccountSheetOpen(false);
+    setSignOutConfirmOpen(true);
+  };
+
+  const handleSignOut = () => {
+    setSignOutConfirmOpen(false);
     void signOut().then(() => {
-      navigate("/login", { replace: true });
+      navigate("/", { replace: true });
     });
   };
 
@@ -78,7 +84,7 @@ const AppShell = ({ children, displayName }: AppShellProps) => {
             variant: "outline",
             icon: "exit",
             iconSize: "large",
-            onClick: handleSignOut,
+            onClick: requestSignOut,
           },
         ]}
       >
@@ -93,6 +99,31 @@ const AppShell = ({ children, displayName }: AppShellProps) => {
             <span>{accountEmail}</span>
           </div>
         </div>
+      </BottomSheet>
+      <BottomSheet
+        open={signOutConfirmOpen}
+        onClose={() => setSignOutConfirmOpen(false)}
+        eyebrow="Sign Out"
+        title="Sign out of LiftLogic?"
+        description="You can sign back in with Google whenever you are ready."
+        actions={[
+          {
+            label: "Cancel",
+            tone: "white",
+            variant: "outline",
+          },
+          {
+            label: "Sign out",
+            tone: "danger",
+            variant: "outline",
+            icon: "exit",
+            onClick: handleSignOut,
+          },
+        ]}
+      >
+        <p className={styles.accountSheetWarning}>
+          Any unsaved changes may be lost before you leave this session.
+        </p>
       </BottomSheet>
     </div>
   );

@@ -16,7 +16,7 @@ const OnboardingStepActions = ({
   return (
     <div className="flex justify-between gap-4">
       <Button type="button" onClick={onBack} disabled={!canGoBack} label="Back" tone="gray" />
-      <Button type="button" onClick={onNext} label={isLastStep ? "Finish" : "Next"} tone="secondary" />
+      <Button type="button" onClick={onNext} label={isLastStep ? "Finish" : "Next"} tone="primary" />
     </div>
   );
 };

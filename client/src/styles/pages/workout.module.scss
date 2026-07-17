@@ -1,7 +1,7 @@
 .workout {
   display: grid;
   gap: var(--ll-page-gap);
-  padding: 1rem 0 0;
+  padding: 1rem 0 var(--ll-bottom-nav-clearance);
   color: var(--ll-text-body);
 }
 
@@ -88,6 +88,7 @@
   align-items: center;
   gap: 0.65rem;
   width: 100%;
+  min-height: 4.25rem;
   padding: 0.7rem;
   border: 1px solid var(--ll-border-subtle);
   border-radius: var(--ll-radius-card);
@@ -181,7 +182,7 @@
 
 .footerActions {
   position: sticky;
-  bottom: 5rem;
+  bottom: calc(5rem + env(safe-area-inset-bottom));
   display: grid;
   margin-top: 0.5rem;
 }
@@ -339,7 +340,7 @@
 }
 
 .summaryActions {
-  bottom: 5rem;
+  bottom: calc(5rem + env(safe-area-inset-bottom));
   display: grid;
   gap: 0.65rem;
   margin-top: 0.5rem;

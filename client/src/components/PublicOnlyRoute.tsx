@@ -2,6 +2,7 @@ import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 
 import LoadingSpinner from "./LoadingSpinner";
+import PageLoadingState from "./PageLoadingState";
 import { useAuth } from "../context/useAuth";
 import { isAuthSessionExpiredError } from "../services/api";
 import { useUserFlow } from "../utils/userFlow";
@@ -12,6 +13,7 @@ const PublicOnlyRoute = ({ children }: { children: ReactNode }) => {
     destination,
     error,
     isLoading: isFlowLoading,
+    refresh,
   } = useUserFlow(Boolean(user));
 
   if (isAuthLoading || (user && isFlowLoading)) {
@@ -19,7 +21,15 @@ const PublicOnlyRoute = ({ children }: { children: ReactNode }) => {
   }
 
   if (user && error && !isAuthSessionExpiredError(error)) {
-    return <p className="text-muted">We could not load your account yet. Please refresh.</p>;
+    return (
+      <PageLoadingState
+        fullScreen
+        tone="error"
+        title="We could not load your account"
+        message="Your sign-in worked, but your profile data did not finish loading."
+        onAction={refresh}
+      />
+    );
   }
 
   if (user && destination) {

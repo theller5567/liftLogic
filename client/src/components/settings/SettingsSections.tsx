@@ -391,9 +391,10 @@ export const AccountSettingsSection = ({
       <strong>{emailLabel}</strong>
     </div>
     <Button
+      icon="exit"
       label="Sign out"
-      size="medium"
-      tone="gray"
+      size="large"
+      tone="danger"
       variant="outline"
       onClick={onSignOut}
     />

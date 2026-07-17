@@ -13,7 +13,7 @@ import IconSignout from '../assets/icons/exit.svg?react'
 
 import styles from '../styles/components/button.module.scss'
 
-type ButtonTone = 'primary' | 'white' | 'gray' | 'black' | 'secondary'
+type ButtonTone = 'primary' | 'white' | 'gray' | 'black' | 'secondary' | 'danger' | 'error'
 type ButtonVariant = 'outline' | 'ghost' | 'iconOnly'
 type ButtonSize = 'small' | 'medium' | 'large'
 type ButtonIconSize = 'small' | 'medium' | 'large'
@@ -80,9 +80,10 @@ const Button = ({
   )
 
   const IconComponent = icon ? ICONS[icon] : null
+  const shouldTintIcon = icon ? icon !== 'google' : false
   const iconMarkup = IconComponent ? (
     <span aria-hidden="true" className={styles.iconWrapper}>
-      <IconComponent className={clsx(styles.icon, icon !== 'google' && styles.tintIcon)} />
+      <IconComponent className={clsx(styles.icon, shouldTintIcon && styles.tintIcon)} />
     </span>
   ) : null
 

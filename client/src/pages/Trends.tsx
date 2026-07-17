@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, BarChart3, Clock3, Dumbbell } from "lucide-react";
 
 import AppShell from "../components/app/AppShell";
+import InlineStatus from "../components/ui/InlineStatus";
 import PageHeader from "../components/ui/PageHeader";
 import StatCard from "../components/ui/StatCard";
 import StatusPill from "../components/ui/StatusPill";
@@ -119,8 +120,16 @@ const Trends = () => {
           }
         />
 
-        {loadError ? <p className={styles.error}>{loadError}</p> : null}
-        {isLoading ? <p className={styles.loading}>Loading trends...</p> : null}
+        {loadError ? (
+          <InlineStatus
+            tone="error"
+            title="Trends could not refresh"
+            message={loadError}
+          />
+        ) : null}
+        {isLoading ? (
+          <InlineStatus tone="loading" title="Loading trends..." />
+        ) : null}
 
         {trendsData.isMock ? (
           <article className={styles.previewNotice}>

@@ -37,6 +37,46 @@
   gap: var(--ll-space-4);
 }
 
+.settingsOverview,
+.saveState {
+  display: grid;
+  gap: var(--ll-space-2);
+  padding: var(--ll-space-4);
+  border: 1px solid var(--ll-border-subtle);
+  border-radius: var(--ll-radius-card);
+  background: var(--ll-surface-subtle);
+}
+
+.settingsOverview {
+  div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--ll-space-3);
+  }
+
+  span {
+    color: var(--ll-color-brand);
+    font-size: var(--ll-type-eyebrow);
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 0.9rem;
+    text-align: right;
+  }
+
+  p {
+    margin: 0;
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-helper);
+    font-weight: 700;
+    line-height: 1.4;
+  }
+}
+
 .settingsSection {
   padding: var(--ll-space-4);
   border: 1px solid var(--ll-border-subtle);
@@ -217,6 +257,36 @@
   margin-block-start: 0.25rem;
 }
 
+.saveState {
+  &[data-state="dirty"] {
+    border-color: hsl(var(--clr-secondary-500-b) / 0.34);
+    background: hsl(var(--clr-secondary-500-b) / 0.08);
+  }
+
+  &[data-state="saving"] {
+    border-color: hsl(var(--clr-primary-500-b) / 0.34);
+    background: hsl(var(--clr-primary-500-b) / 0.08);
+  }
+
+  &[data-state="error"] {
+    border-color: hsl(var(--clr-red-500-b) / 0.36);
+    background: hsl(var(--clr-red-500-b) / 0.08);
+  }
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+
+  span {
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-helper);
+    font-weight: 700;
+    line-height: 1.35;
+  }
+}
+
 .error,
 .success {
   margin: 0;
@@ -230,6 +300,18 @@
 
 .success {
   color: var(--ll-color-brand);
+}
+
+.warningMessage {
+  margin: 0;
+  padding: var(--ll-space-3);
+  border: 1px solid hsl(var(--clr-primary-500-b) / 0.32);
+  border-radius: var(--ll-radius-card);
+  background: hsl(var(--clr-primary-500-b) / 0.1);
+  color: var(--ll-text-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 @media (min-width: 760px) {

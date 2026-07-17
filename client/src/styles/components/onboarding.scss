@@ -240,7 +240,7 @@
 .equipment-picker-header {
   display: grid;
   gap: var(--ll-space-2);
-  padding: var(--ll-space-4);
+  padding: var(--ll-space-3);
   border: 1px solid var(--ll-border-subtle);
   border-radius: var(--ll-radius-card);
   background: var(--ll-surface-subtle);
@@ -275,6 +275,7 @@
 .equipment-preset-button {
   padding: 0.7rem 0.8rem;
   font-weight: 900;
+  text-align: center;
 
   &:hover {
     border-color: hsl(var(--clr-secondary-500-b) / 0.5);
@@ -305,10 +306,11 @@
 }
 
 .equipment-item {
+  position: relative;
   display: grid;
   gap: 0.25rem;
   min-height: 2.6rem;
-  padding: 0.7rem 0.8rem;
+  padding: 0.7rem 2.5rem 0.7rem 0.8rem;
 
   span {
     font-weight: 850;
@@ -321,9 +323,26 @@
 }
 
 .equipment-item.is-selected {
-  border-color: hsl(var(--clr-secondary-500-b) / 0.72);
-  background: hsl(var(--clr-secondary-500-b) / 0.1);
-  box-shadow: inset 0.22rem 0 0 hsl(var(--clr-secondary-500-b));
+  border-color: hsl(var(--clr-primary-500-b) / 0.56);
+  background: hsl(var(--clr-primary-500-b) / 0.1);
+  box-shadow: inset 0.2rem 0 0 hsl(var(--clr-primary-500-b));
+}
+
+.equipment-item.is-selected::after {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  right: 0.8rem;
+  display: inline-grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: var(--br-full);
+  background: hsl(var(--clr-primary-500-b));
+  color: hsl(var(--clr-neutral-900-b));
+  font-size: 0.9rem;
+  font-weight: 900;
+  transform: translateY(-50%);
 }
 
 @media (min-width: 44rem) {

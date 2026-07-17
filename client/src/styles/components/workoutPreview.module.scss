@@ -6,6 +6,11 @@
   display: flex;
   overflow-x: auto;
   scroll-padding-inline: 1rem;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 .dayTabs {
   display: flex;
@@ -16,6 +21,7 @@
   .dayTab {
     display: flex;
     align-items: center;
+    min-height: 2.75rem;
     padding: 0.5rem 0.75rem;
     border-radius: 0.85rem;
     border: 1px solid transparent;
@@ -212,6 +218,9 @@
 .exerciseInfoLink {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
   margin-inline-start: 0.45rem;
   color: hsl(var(--clr-secondary-500-b));
   text-decoration: none;
@@ -388,6 +397,7 @@
 @media (max-width: 36rem) {
   .exerciseCardHeader {
     align-items: start;
+    flex-wrap: wrap;
   }
 
   .exerciseActions {
@@ -403,6 +413,43 @@
   .exerciseStats {
     div {
       padding-inline: 0.65rem;
+    }
+  }
+}
+
+@media (max-width: 24rem) {
+  .dayCard {
+    padding: 1rem;
+  }
+
+  .workoutSummary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    li {
+      padding: 0.85rem;
+
+      & + li::before {
+        display: none;
+      }
+    }
+  }
+
+  .exerciseCard {
+    grid-template-columns: 1.35rem minmax(0, 1fr);
+    padding: 0.85rem;
+  }
+
+  .exerciseStats {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+
+    div {
+      padding-inline: 0;
+
+      & + div::before {
+        display: none;
+      }
     }
   }
 }
