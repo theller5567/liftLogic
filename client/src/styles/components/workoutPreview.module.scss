@@ -343,11 +343,18 @@
 }
 
 .reviewExerciseActions {
-  display: flex;
-  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.6rem;
   padding-block-start: 0.25rem;
   width: 100%;
+
+  .exerciseEditButton {
+    width: 100%;
+    min-width: 0;
+    flex-basis: auto;
+  }
 }
 
 .exerciseStats {

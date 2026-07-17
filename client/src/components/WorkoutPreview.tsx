@@ -782,33 +782,33 @@ const WorkoutPreviewContent = ({
                           Missing equipment: {structuredEquipmentWarning.message}
                         </p>
                       ) : null}
-                      {isReviewActions && canEditExercise(exercise) ? (
-                        <div className={styles.reviewExerciseActions}>
-                          {canChangeWeight(exercise) ? (
-                            <Button
-                              label="Change weight"
-                              size="small"
-                              icon="edit"
-                              variant="outline"
-                              tone="white"
-                              className={styles.exerciseEditButton}
-                              onClick={() => editExercise(exercise, "weight")}
-                            />
-                          ) : null}
-                          {canSwapExercise(exercise) ? (
-                            <Button
-                              label="Swap exercise"
-                              size="small"
-                              icon="refresh"
-                              variant="outline"
-                              tone="white"
-                              className={styles.exerciseEditButton}
-                              onClick={() => editExercise(exercise, "swap")}
-                            />
-                          ) : null}
-                        </div>
-                      ) : null}
                     </div>
+                    {isReviewActions && canEditExercise(exercise) ? (
+                      <div className={styles.reviewExerciseActions}>
+                        {canChangeWeight(exercise) ? (
+                          <Button
+                            label="Change weight"
+                            size="small"
+                            icon="edit"
+                            variant="outline"
+                            tone="white"
+                            className={styles.exerciseEditButton}
+                            onClick={() => editExercise(exercise, "weight")}
+                          />
+                        ) : null}
+                        {canSwapExercise(exercise) ? (
+                          <Button
+                            label="Swap exercise"
+                            size="small"
+                            icon="refresh"
+                            variant="outline"
+                            tone="white"
+                            className={styles.exerciseEditButton}
+                            onClick={() => editExercise(exercise, "swap")}
+                          />
+                        ) : null}
+                      </div>
+                    ) : null}
                   </article>
                 );
                 })}
