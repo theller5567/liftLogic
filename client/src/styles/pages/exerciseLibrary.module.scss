@@ -17,6 +17,7 @@
 .detailPage {
   display: grid;
   gap: var(--ll-page-gap);
+  padding-top: 1rem;
   padding-block-end: var(--ll-bottom-nav-clearance);
   color: var(--ll-text-body);
 }

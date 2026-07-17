@@ -209,6 +209,28 @@
   }
 }
 
+.exerciseInfoLink {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 0.45rem;
+  color: hsl(var(--clr-secondary-500-b));
+  text-decoration: none;
+  vertical-align: middle;
+
+  &:focus-visible {
+    outline: 2px solid hsl(var(--clr-secondary-500-b) / 0.78);
+    outline-offset: 0.2rem;
+    border-radius: var(--br-8);
+  }
+}
+
+.infoIcon {
+  width: 1.15rem;
+  height: 1.15rem;
+  color: currentColor;
+  cursor: pointer;
+}
+
 .muscleTags {
   display: flex;
   flex-wrap: wrap;

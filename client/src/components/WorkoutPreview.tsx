@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Link, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import { ClockIcon } from "lucide-react";
@@ -33,6 +34,7 @@ import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
 import Weights from "../assets/icons/010-weights.svg?react";
 import LifeLine from "../assets/icons/047-life-line.svg?react";
 import TotalSets from "../assets/icons/total-sets.svg?react";
+import InfoIcon from "../assets/icons/information-button.svg?react";
 import type {
   GeneratedWorkoutExerciseAlternative,
   GeneratedWorkoutExercisePreview,
@@ -156,6 +158,17 @@ const getExerciseMuscleTags = (exerciseId: string) =>
 const getExerciseDisplayName = (exercise: ExerciseDefinition) =>
   exercise.displayName ?? exercise.name;
 
+const createExerciseSlug = (exerciseId: string, fallbackLabel: string) => {
+  const exercise = getExerciseById(exerciseId);
+  const label = exercise ? getExerciseDisplayName(exercise) : fallbackLabel;
+  const nameSlug = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  return `${nameSlug}_${exerciseId}`;
+};
+
 const normalizeSearchValue = (value: string) => value.trim().toLowerCase();
 
 const hasSharedPrimaryMuscle = (
@@ -241,6 +254,7 @@ const WorkoutPreviewContent = ({
   preview,
   onPreviewChange,
 }: WorkoutPreviewProps) => {
+  const location = useLocation();
   const { settings } = useUserSettings();
   const [workingPreview, setWorkingPreview] =
     useState<GeneratedWorkoutPreview>(preview);
@@ -522,6 +536,12 @@ const WorkoutPreviewContent = ({
     workingPreview.days[resolvedActiveDayIndex] ??
     workingPreview.days[0];
   const isReviewActions = editPresentation === "review_actions";
+  const exerciseDetailReturnLabel = location.pathname.includes("workout-review")
+    ? "Workout review"
+    : location.pathname.includes("plan")
+      ? "Plan"
+      : "Workout";
+  const exerciseDetailReturnTo = `${location.pathname}${location.search}`;
   const isWeightOnlyEditor = activeEditMode === "weight";
   const isSwapOnlyEditor = activeEditMode === "swap";
   const showsWeightEditor =
@@ -663,7 +683,23 @@ const WorkoutPreviewContent = ({
                       <div className={styles.exerciseCardHeader}>
                         <div className={styles.exerciseTitleGroup}>
                         <div className={styles.exerciseTitleContent}>
-                          <strong>{exercise.label}</strong>
+                          <strong>
+                            {exercise.label}
+                            <Link
+                              aria-label={`View ${exercise.label} details`}
+                              className={styles.exerciseInfoLink}
+                              state={{
+                                returnLabel: exerciseDetailReturnLabel,
+                                returnTo: exerciseDetailReturnTo,
+                              }}
+                              to={`/exercise-library/${createExerciseSlug(
+                                exercise.exerciseId,
+                                exercise.label
+                              )}`}
+                            >
+                              <InfoIcon className={styles.infoIcon} />
+                            </Link>
+                          </strong>
                           {muscleTags.length > 0 ? (
                             <div className={styles.muscleTags}>
                               {muscleTags.map((muscleTag) => (
