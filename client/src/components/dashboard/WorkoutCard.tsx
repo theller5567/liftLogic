@@ -65,7 +65,10 @@ const WorkoutCard = ({
           <h2>{isSelectedDateToday ? "Today's Workout" : "Selected Workout"}</h2>
           <span>{dateFormatter.format(date)}</span>
         </div>
-        <p>{completionPercentage}% Completed</p>
+        <p className={completionPercentage === 100 ? styles.completionComplete : undefined}>
+          {completionPercentage}% Completed
+        </p>
+        
       </div>
 
       {workoutDay ? (
@@ -126,6 +129,7 @@ const WorkoutCard = ({
             {!isWorkoutCompleted && isSelectedDateToday ? (
               <Button
               disabled={isStartingWorkout || isWorkoutCompleted}
+              loading={isStartingWorkout}
               label={
                 isStartingWorkout
                   ? "Opening..."

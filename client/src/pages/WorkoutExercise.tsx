@@ -675,6 +675,7 @@ const WorkoutExercise = () => {
                       
                     <Button
                       disabled={isSaving}
+                      loading={isSaving}
                       label="Log set"
                       size="large"
                       tone="primary"
@@ -720,6 +721,7 @@ const WorkoutExercise = () => {
             allSetsCompleted && styles.finishExerciseReady
           )}
           disabled={isSaving}
+          loading={isSaving}
           label={finishExerciseLabel}
           size="large"
           tone={allSetsCompleted ? "primary" : "black"}

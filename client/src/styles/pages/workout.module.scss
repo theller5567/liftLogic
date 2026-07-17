@@ -66,7 +66,10 @@
     display: block;
     height: 100%;
     background: hsl(var(--clr-primary-500-b));
-    transition: width 0.2s ease;
+    box-shadow: 0 0 1rem hsl(var(--clr-primary-500-b) / 0.22);
+    transition:
+      width var(--ll-motion-duration-page) var(--ll-motion-ease-enter),
+      box-shadow var(--ll-motion-duration-standard) var(--ll-motion-ease-standard);
   }
 }
 
@@ -95,6 +98,13 @@
   background: var(--ll-surface-card);
   color: var(--ll-text-body);
   text-align: left;
+  transform-origin: center;
+  transition:
+    background var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    border-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    box-shadow var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    transform var(--ll-motion-duration-micro) var(--ll-motion-ease-standard);
 
   span:first-child {
     display: grid;
@@ -104,6 +114,11 @@
     border-radius: 50%;
     background: hsl(var(--clr-neutral-900-b));
     color: hsl(var(--clr-primary-500-b));
+    transition:
+      background var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+      color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+      transform var(--ll-motion-duration-standard) var(--ll-motion-ease-standard);
+
     svg {
       max-width: 70%;
       height: auto;
@@ -157,6 +172,10 @@
     border-color: hsl(var(--clr-primary-500-b) / 0.65);
   }
 
+  &:active {
+    transform: scale(0.985);
+  }
+
   small {
     border-color: hsl(var(--clr-primary-500-b));
     background: hsl(var(--clr-primary-500-b));
@@ -168,15 +187,61 @@
 .exerciseItemComplete {
   border-color: hsl(var(--clr-primary-500-b));
   color: hsl(var(--clr-neutral-100-b) / 0.78);
+  animation: exercise-complete-pulse var(--ll-motion-duration-standard) var(--ll-motion-ease-enter);
 
   span:first-child {
-    color: hsl(var(--clr-neutral-100-b));
+    background: hsl(var(--clr-primary-500-b));
+    color: hsl(var(--clr-neutral-900-b));
+    animation: exercise-check-pop var(--ll-motion-duration-standard) var(--ll-motion-ease-enter);
   }
 
   small {
     border-color: hsl(var(--clr-neutral-500-b));
     background: var(--surface-panel);
     color: hsl(var(--clr-neutral-100-b) / 0.72);
+  }
+}
+
+@keyframes exercise-complete-pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(1.01);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes exercise-check-pop {
+  0% {
+    transform: scale(0.82);
+  }
+
+  70% {
+    transform: scale(1.08);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressTrack span,
+  .exerciseItem,
+  .exerciseItemComplete,
+  .exerciseItem span:first-child,
+  .exerciseItemComplete span:first-child {
+    transition-duration: 1ms;
+  }
+
+  .exerciseItemComplete,
+  .exerciseItemComplete span:first-child {
+    animation: none;
   }
 }
 

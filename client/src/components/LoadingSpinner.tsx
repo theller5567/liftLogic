@@ -9,7 +9,10 @@ const LoadingSpinner = ({
   label = "Loading...",
   fullScreen = false,
 }: LoadingSpinnerProps) => (
-  <div className={fullScreen ? styles.fullScreen : styles.inline} role="status">
+  <div
+    className={`${fullScreen ? styles.fullScreen : styles.inline} ll-motion-slide-up`}
+    role="status"
+  >
     <span className={styles.spinner} aria-hidden="true" />
     <span>{label}</span>
   </div>

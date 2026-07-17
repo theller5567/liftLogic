@@ -59,7 +59,7 @@
     hsl(var(--clr-secondary-500-b)),
     hsl(var(--clr-primary-500-b))
   );
-  transition: width 220ms ease;
+  transition: width var(--ll-motion-duration-page) var(--ll-motion-ease-enter);
 }
 
 .onboarding-section-pills {

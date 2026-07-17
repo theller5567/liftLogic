@@ -122,7 +122,7 @@
 .accordionIcon {
   flex: 0 0 auto;
   color: hsl(var(--clr-neutral-100-b));
-  transition: transform 160ms ease;
+  transition: transform var(--ll-motion-duration-micro) var(--ll-motion-ease-standard);
 }
 
 .sectionContent {

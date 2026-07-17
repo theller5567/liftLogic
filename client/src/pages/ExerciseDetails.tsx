@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Dumbbell } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import {
   exerciseLibrary,
@@ -242,7 +242,7 @@ const ExerciseDetails = () => {
               {formatLabel(exercise.difficulty ?? "beginner")}
             </span>
           </div>
-          <Dumbbell aria-hidden="true" />
+          {/* <Dumbbell aria-hidden="true" /> */}
         </header>
 
         <section className={styles.detailSummary}>

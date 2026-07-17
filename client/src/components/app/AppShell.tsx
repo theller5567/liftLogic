@@ -1,10 +1,18 @@
 import { useState, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/useAuth";
 import BottomSheet from "../BottomSheet";
 import BottomNavigation from "./BottomNavigation";
 import Avatar from "./Avatar";
 import styles from "../../styles/components/appShell.module.scss";
+import {
+  fadeMotion,
+  getDuration,
+  motionDurations,
+  pageTransition,
+  slideUpMotion,
+} from "../../utils/motion";
 
 type AppShellProps = {
   children: ReactNode;
@@ -13,6 +21,8 @@ type AppShellProps = {
 
 const AppShell = ({ children, displayName }: AppShellProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefersReducedMotion = useReducedMotion();
   const { signOut, user } = useAuth();
   const [accountSheetOpen, setAccountSheetOpen] = useState(false);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
@@ -39,6 +49,11 @@ const AppShell = ({ children, displayName }: AppShellProps) => {
       navigate("/", { replace: true });
     });
   };
+  const pageMotion = prefersReducedMotion ? fadeMotion : slideUpMotion;
+  const contentTransition = {
+    ...pageTransition,
+    duration: getDuration(motionDurations.page, prefersReducedMotion),
+  };
 
   return (
     <div className={styles.appShell}>
@@ -61,7 +76,19 @@ const AppShell = ({ children, displayName }: AppShellProps) => {
           </div>
       </header>
       <div id="app-scroll-content" className={styles.appContent}>
-        {children}
+        <AnimatePresence mode="wait" initial={!prefersReducedMotion}>
+          <motion.div
+            key={location.pathname}
+            className={styles.appPageTransition}
+            variants={pageMotion}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={contentTransition}
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </div>
       <BottomNavigation />
       <BottomSheet

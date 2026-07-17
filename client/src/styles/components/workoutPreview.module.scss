@@ -19,6 +19,7 @@
   min-width: max-content;
   padding-block-start: 0.5rem;
   .dayTab {
+    position: relative;
     display: flex;
     align-items: center;
     min-height: 2.75rem;
@@ -32,14 +33,47 @@
     font-weight: 800;
     cursor: pointer;
     transition:
-      background-color 160ms ease,
-      border-color 160ms ease,
-      color 160ms ease;
+      background-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+      border-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+      box-shadow var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+      color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+      transform var(--ll-motion-duration-micro) var(--ll-motion-ease-standard);
+
+    &::after {
+      content: "";
+      position: absolute;
+      right: 0.65rem;
+      bottom: -0.38rem;
+      left: 0.65rem;
+      height: 0.16rem;
+      border-radius: var(--br-full);
+      background: hsl(var(--clr-secondary-500-b));
+      opacity: 0;
+      transform: scaleX(0.4);
+      transition:
+        opacity var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+        transform var(--ll-motion-duration-standard) var(--ll-motion-ease-standard);
+    }
 
     &.active {
       background: hsl(var(--clr-secondary-500-b) / 0.12);
       border-color: hsl(var(--clr-secondary-500-b) / 0.55);
       color: hsl(var(--clr-neutral-0-b));
+      box-shadow: 0 0 0 2px hsl(var(--clr-secondary-500-b) / 0.08);
+
+      &::after {
+        opacity: 1;
+        transform: scaleX(1);
+      }
+    }
+
+    &:hover {
+      border-color: hsl(var(--clr-secondary-500-b) / 0.38);
+      color: hsl(var(--clr-neutral-0-b));
+    }
+
+    &:active {
+      transform: scale(0.985);
     }
 
     &:focus-visible {
@@ -458,6 +492,8 @@
   padding: 1rem;
   border-radius: 1rem;
   background: hsl(var(--clr-neutral-300-b) / 0.05);
+  animation: editor-section-enter var(--ll-motion-duration-standard) var(--ll-motion-ease-enter);
+
   .headerContent {
     h3 {
       margin-block-end: 0.5rem;
@@ -514,10 +550,12 @@
   color: hsl(var(--clr-neutral-0-b));
   text-align: left;
   cursor: pointer;
+  transform-origin: center;
   transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    transform 160ms ease;
+    background-color var(--ll-motion-duration-micro) var(--ll-motion-ease-standard),
+    border-color var(--ll-motion-duration-micro) var(--ll-motion-ease-standard),
+    box-shadow var(--ll-motion-duration-micro) var(--ll-motion-ease-standard),
+    transform var(--ll-motion-duration-micro) var(--ll-motion-ease-standard);
 }
 
 
@@ -534,6 +572,9 @@
 .movementOption--selected {
   border-color: hsl(var(--clr-secondary-500-b));
   background: hsl(var(--clr-secondary-500-b) / 0.12);
+  box-shadow: 0 0 0 1px hsl(var(--clr-secondary-500-b) / 0.28);
+  animation: selected-option-pop var(--ll-motion-duration-standard) var(--ll-motion-ease-enter);
+
   .statusIconWrapper, .movementIconWrapper {
     color: hsl(var(--clr-secondary-500-b));
   }
@@ -578,6 +619,7 @@ span.activePill {
   gap: 0.85rem;
   padding-block-start: 0.75rem;
   border-top: 1px solid hsl(var(--clr-neutral-600-b) / 0.35);
+  animation: editor-section-enter var(--ll-motion-duration-standard) var(--ll-motion-ease-enter);
 }
 
 .customSwapWarning {
@@ -589,6 +631,44 @@ span.activePill {
   color: hsl(var(--clr-neutral-0-b));
   font-size: 0.78rem;
   line-height: 1.4;
+}
+
+@keyframes editor-section-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.45rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes selected-option-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  55% {
+    transform: scale(1.01);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .movementOption {
+    transition-duration: 1ms;
+  }
+
+  .editorSection,
+  .movementOption--selected,
+  .customSwapArea {
+    animation: none;
+  }
 }
 
 .exerciseSearchField {

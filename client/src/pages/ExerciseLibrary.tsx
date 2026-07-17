@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Search } from "lucide-react";
 import clsx from "clsx";
+import { motion, useReducedMotion } from "framer-motion";
 
 import {
   exerciseLibrary,
@@ -16,6 +17,11 @@ import AppShell from "../components/app/AppShell";
 import PageHeader from "../components/ui/PageHeader";
 import StatusPill from "../components/ui/StatusPill";
 import styles from "../styles/pages/exerciseLibrary.module.scss";
+import {
+  getDuration,
+  motionDurations,
+  motionEasings,
+} from "../utils/motion";
 
 // Most filters have an "all" option plus one of the real library values.
 // This helper type keeps each select strongly typed without making separate
@@ -23,6 +29,7 @@ import styles from "../styles/pages/exerciseLibrary.module.scss";
 type FilterValue<TValue extends string> = "all" | TValue;
 
 const EXERCISE_BATCH_SIZE = 30;
+const MAX_STAGGERED_CARDS = 12;
 
 // The exercise data stores muscle ids in code-friendly snake_case.
 // This map turns those ids into labels that are nicer for users to read.
@@ -126,6 +133,7 @@ const getExerciseSearchText = (exercise: ExerciseDefinition) =>
     .toLowerCase();
 
 const ExerciseLibrary = () => {
+  const prefersReducedMotion = useReducedMotion();
   // Each filter is controlled state. Updating any of these values causes the
   // filtered exercise list below to recompute.
   const [query, setQuery] = useState("");
@@ -227,6 +235,15 @@ const ExerciseLibrary = () => {
 
   const visibleExercises = filteredExercises.slice(0, visibleCount);
   const hasMoreExercises = visibleCount < filteredExercises.length;
+  const resultsMotionKey = [
+    query.trim(),
+    categoryFilter,
+    muscleFilter,
+    equipmentFilter,
+    difficultyFilter,
+    movementFilter,
+    visibleCount,
+  ].join("|");
 
   const loadMoreExercises = () => {
     if (isLoadingMore || !hasMoreExercises) {
@@ -461,8 +478,21 @@ const ExerciseLibrary = () => {
             </div>
           ) : null}
         </section>
-        <div className={styles.exerciseGrid}>
-          {visibleExercises.map((exercise) => {
+        <motion.div
+          key={resultsMotionKey}
+          className={styles.exerciseGrid}
+          initial={prefersReducedMotion ? false : "initial"}
+          animate="animate"
+          variants={{
+            initial: {},
+            animate: {
+              transition: {
+                staggerChildren: prefersReducedMotion ? 0 : 0.018,
+              },
+            },
+          }}
+        >
+          {visibleExercises.map((exercise, index) => {
             // Show a compact set of muscle tags on the card. The detail page
             // has the full muscle and description information.
             const muscleTags = [
@@ -471,8 +501,24 @@ const ExerciseLibrary = () => {
             ].slice(0, 4);
 
             return (
-              <Link
+              <motion.div
                 key={exercise.id}
+                variants={{
+                  initial: {
+                    opacity: index < MAX_STAGGERED_CARDS ? 0 : 1,
+                    y: index < MAX_STAGGERED_CARDS ? 10 : 0,
+                  },
+                  animate: { opacity: 1, y: 0 },
+                }}
+                transition={{
+                  duration: getDuration(
+                    motionDurations.standard,
+                    prefersReducedMotion
+                  ),
+                  ease: motionEasings.enter,
+                }}
+              >
+              <Link
                 className={clsx(
                   styles.exerciseCard,
                   getDifficultyCardClassName(exercise.difficulty)
@@ -508,14 +554,18 @@ const ExerciseLibrary = () => {
                   size={22}
                 />
               </Link>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
 
         {hasMoreExercises || isLoadingMore ? (
           <div className={styles.loadMoreArea}>
             {isLoadingMore ? (
-              <div className={styles.loadMoreStatus} role="status">
+              <div
+                className={clsx(styles.loadMoreStatus, "ll-motion-fade-in")}
+                role="status"
+              >
                 <span aria-hidden="true" />
                 <strong>Loading exercises...</strong>
               </div>

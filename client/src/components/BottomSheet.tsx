@@ -4,11 +4,16 @@ import {
   motion,
   useReducedMotion,
 } from "framer-motion";
-import { type ComponentProps, type ReactNode, useEffect, useId } from "react";
+import { type ComponentProps, type ReactNode, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import Button from "./Button";
 import styles from "../styles/components/bottomSheet.module.scss";
+import {
+  getDuration,
+  motionDurations,
+  sheetSpringTransition,
+} from "../utils/motion";
 
 type BottomSheetAction = Omit<ComponentProps<typeof Button>, "type" | "onClick"> & {
   label: string;
@@ -48,6 +53,8 @@ const BottomSheet = ({
   const titleId = useId();
   const descriptionId = useId();
   const prefersReducedMotion = useReducedMotion();
+  const sheetRef = useRef<HTMLElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -55,7 +62,12 @@ const BottomSheet = ({
     }
 
     const previousOverflow = document.body.style.overflow;
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(() => {
+      sheetRef.current?.focus({ preventScroll: true });
+    });
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -66,8 +78,10 @@ const BottomSheet = ({
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
+      window.cancelAnimationFrame(focusFrame);
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
+      previousFocusRef.current?.focus({ preventScroll: true });
     };
   }, [open, onClose]);
 
@@ -83,15 +97,26 @@ const BottomSheet = ({
     return null;
   }
 
+  const overlayTransition = {
+    duration: getDuration(motionDurations.standard, prefersReducedMotion),
+  };
+  const sheetTransition = prefersReducedMotion
+    ? { duration: 0 }
+    : sheetSpringTransition;
+  const contentTransition = {
+    duration: getDuration(motionDurations.standard, prefersReducedMotion),
+    delay: prefersReducedMotion ? 0 : 0.07,
+  };
+
   return createPortal(
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {open ? (
         <motion.div
           className={styles.viewport}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: prefersReducedMotion ? 0 : 0.18 }}
+          transition={overlayTransition}
         >
           <button
             type="button"
@@ -100,21 +125,26 @@ const BottomSheet = ({
             onClick={closeOnOverlayClick ? onClose : undefined}
           />
           <motion.section
+            ref={sheetRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={title ? titleId : undefined}
             aria-describedby={description ? descriptionId : undefined}
+            tabIndex={-1}
             className={clsx(styles.sheet, styles[`sheet--${variant}`], className)}
             onClick={(event) => event.stopPropagation()}
-            initial={{ y: prefersReducedMotion ? 0 : "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: prefersReducedMotion ? 0 : "100%" }}
-            transition={{
-              type: "spring",
-              stiffness: 360,
-              damping: 34,
-              mass: 0.9,
+            initial={{
+              opacity: prefersReducedMotion ? 1 : 0,
+              scale: prefersReducedMotion ? 1 : 0.98,
+              y: prefersReducedMotion ? 0 : "100%",
             }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{
+              opacity: prefersReducedMotion ? 1 : 0,
+              scale: prefersReducedMotion ? 1 : 0.98,
+              y: prefersReducedMotion ? 0 : "100%",
+            }}
+            transition={sheetTransition}
           >
             {showHandle ? <span aria-hidden="true" className={styles.handle} /> : null}
 
@@ -146,10 +176,31 @@ const BottomSheet = ({
               </header>
             ) : null}
 
-            <div className={styles.content}>{children}</div>
+            <motion.div
+              className={styles.content}
+              initial={{
+                opacity: prefersReducedMotion ? 1 : 0,
+                y: prefersReducedMotion ? 0 : 8,
+              }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={contentTransition}
+            >
+              {children}
+            </motion.div>
 
             {actions?.length ? (
-              <footer className={styles.actions}>
+              <motion.footer
+                className={styles.actions}
+                initial={{
+                  opacity: prefersReducedMotion ? 1 : 0,
+                  y: prefersReducedMotion ? 0 : 10,
+                }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  ...contentTransition,
+                  delay: prefersReducedMotion ? 0 : 0.1,
+                }}
+              >
                 {actions.map((action, index) => (
                   <Button
                     key={action.label + index}
@@ -158,7 +209,7 @@ const BottomSheet = ({
                     onClick={() => handleActionClick(action)}
                   />
                 ))}
-              </footer>
+              </motion.footer>
             ) : null}
           </motion.section>
         </motion.div>

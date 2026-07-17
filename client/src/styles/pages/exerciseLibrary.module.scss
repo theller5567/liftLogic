@@ -111,6 +111,9 @@
   border: 1px solid hsl(var(--clr-neutral-300-b) / 0.2);
   border-radius: var(--br-8);
   background: hsl(var(--clr-neutral-900-b) / 0.55);
+  transition:
+    border-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    box-shadow var(--ll-motion-duration-standard) var(--ll-motion-ease-standard);
 
   svg {
     flex: 0 0 auto;
@@ -140,6 +143,11 @@
   outline-offset: 2px;
 }
 
+.searchField div:focus-within {
+  border-color: hsl(var(--clr-secondary-500-b) / 0.48);
+  box-shadow: 0 0 0 3px hsl(var(--clr-secondary-500-b) / 0.08);
+}
+
 .filterPanel select {
   min-height: 2.7rem;
   padding: 0.65rem 0.75rem;
@@ -161,6 +169,19 @@
   font: inherit;
   font-weight: 800;
   cursor: pointer;
+  transition:
+    background-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    border-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    transform var(--ll-motion-duration-micro) var(--ll-motion-ease-standard);
+
+  &:hover {
+    border-color: hsl(var(--clr-secondary-500-b) / 0.45);
+  }
+
+  &:active {
+    transform: scale(0.985);
+  }
 }
 
 .filterMenu {
@@ -180,6 +201,12 @@
   }
 }
 
+.filterMenu[open] summary {
+  border-color: hsl(var(--clr-secondary-500-b) / 0.62);
+  background: hsl(var(--clr-secondary-500-b) / 0.12);
+  color: hsl(var(--clr-secondary-500-b));
+}
+
 .filterPanel {
   position: absolute;
   z-index: 3;
@@ -194,6 +221,7 @@
   border-radius: var(--br-8);
   background: hsl(var(--clr-neutral-900-b));
   box-shadow: 0 1rem 2.5rem hsl(0 0% 0% / 0.32);
+  animation: ll-slide-up var(--ll-motion-duration-standard) var(--ll-motion-ease-enter) both;
 
   button {
     align-self: end;
@@ -214,6 +242,7 @@
     background: hsl(var(--clr-secondary-500-b) / 0.1);
     color: hsl(var(--clr-neutral-0-b));
     font-size: 0.8rem;
+    animation: ll-fade-in var(--ll-motion-duration-standard) var(--ll-motion-ease-enter) both;
   }
 
   button:last-child {
@@ -240,10 +269,12 @@
   background: hsl(var(--clr-secondary-1100-b) / 0.86);
   color: var(--ll-text-body);
   text-decoration: none;
+  transform-origin: center;
   transition:
-    border-color 160ms ease,
-    transform 160ms ease,
-    background-color 160ms ease;
+    border-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    box-shadow var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    transform var(--ll-motion-duration-micro) var(--ll-motion-ease-standard),
+    background-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard);
     &:before {
       content: "";
       position: absolute;
@@ -258,11 +289,16 @@
     transform: translateY(-2px);
     border-color: hsl(var(--clr-secondary-500-b) / 0.46);
     background: hsl(var(--clr-neutral-700-b) / 0.52);
+    box-shadow: 0 0.8rem 1.5rem hsl(var(--clr-neutral-900-b) / 0.2);
 
     .cardChevron {
       color: hsl(var(--clr-secondary-500-b));
       transform: translateX(0.18rem);
     }
+  }
+
+  &:active {
+    transform: scale(0.99);
   }
 
   &:focus-visible {
@@ -283,8 +319,8 @@
   bottom: 0.8rem;
   color: hsl(var(--clr-neutral-100-b) / 0.58);
   transition:
-    color 160ms ease,
-    transform 160ms ease;
+    color var(--ll-motion-duration-micro) var(--ll-motion-ease-standard),
+    transform var(--ll-motion-duration-micro) var(--ll-motion-ease-standard);
 }
 
 .exerciseCardBeginner::before {
@@ -383,9 +419,9 @@
     font-weight: 850;
     cursor: pointer;
     transition:
-      border-color 160ms ease,
-      background-color 160ms ease,
-      transform 160ms ease;
+      border-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+      background-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+      transform var(--ll-motion-duration-micro) var(--ll-motion-ease-standard);
 
     &:hover {
       transform: translateY(-1px);
@@ -428,6 +464,7 @@
     border-top-color: hsl(var(--clr-primary-500-b));
     border-radius: var(--br-full);
     animation: spin 800ms linear infinite;
+    filter: drop-shadow(0 0 0.55rem hsl(var(--clr-primary-500-b) / 0.16));
   }
 
   strong {
@@ -450,6 +487,18 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes detail-section-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.55rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -490,6 +539,13 @@
   border: 1px solid hsl(var(--clr-neutral-300-b) / 0.16);
   border-radius: var(--br-8);
   background: hsl(var(--clr-neutral-800-b) / 0.55);
+  animation: detail-section-enter var(--ll-motion-duration-standard) var(--ll-motion-ease-enter) both;
+
+  @for $index from 1 through 3 {
+    &:nth-child(#{$index}) {
+      animation-delay: calc((#{$index} - 1) * 45ms);
+    }
+  }
 
   span {
     color: hsl(var(--clr-neutral-100-b) / 0.74);
@@ -507,6 +563,16 @@
 .detailGrid {
   display: grid;
   gap: 0.85rem;
+}
+
+.detailGrid > * {
+  animation: detail-section-enter var(--ll-motion-duration-standard) var(--ll-motion-ease-enter) both;
+}
+
+@for $index from 1 through 8 {
+  .detailGrid > *:nth-child(#{$index}) {
+    animation-delay: calc((#{$index} - 1) * 45ms);
+  }
 }
 
 .overviewPanel h2,
@@ -610,5 +676,22 @@
 
   .exerciseGrid {
     gap: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exerciseCard,
+  .cardChevron,
+  .loadMoreArea button {
+    transition-duration: 1ms;
+  }
+
+  .detailSummary article,
+  .detailGrid > * {
+    animation: none;
+  }
+
+  .loadMoreStatus span {
+    animation: none;
   }
 }

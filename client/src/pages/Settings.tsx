@@ -354,6 +354,7 @@ const SettingsForm = ({
           <Button
             disabled={isSaving || isSettingsLoading || !hasUnsavedSettingsChanges}
             icon={!isSaving && hasUnsavedSettingsChanges ? "edit" : undefined}
+            loading={isSaving}
             label={
               isSaving
                 ? "Saving..."

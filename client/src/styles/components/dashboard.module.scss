@@ -41,6 +41,10 @@
   }
 }
 
+.completionComplete {
+  color: hsl(var(--clr-primary-500-b));
+}
+
 .weekPanel {
   display: grid;
   gap: 1rem;
@@ -90,6 +94,12 @@
   background: hsl(var(--clr-secondary-1100-b));
   color: hsl(var(--clr-neutral-300-b));
   cursor: pointer;
+  transition:
+    background-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    border-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    box-shadow var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    transform var(--ll-motion-duration-micro) var(--ll-motion-ease-standard);
 
   span {
     font-size: 0.8rem;
@@ -101,11 +111,20 @@
     font-size: 1.05rem;
     padding-block-end: 0.2rem;
   }
+
+  &:hover {
+    border-color: hsl(var(--clr-secondary-500-b) / 0.42);
+  }
+
+  &:active {
+    transform: scale(0.975);
+  }
 }
 
 .dayButtonSelected {
   background: hsl(var(--clr-secondary-500-b));
   color: hsl(var(--clr-neutral-0-b));
+  box-shadow: 0 0 0 3px hsl(var(--clr-secondary-500-b) / 0.14);
 
   strong {
     color: hsl(var(--clr-neutral-0-b));
@@ -127,6 +146,10 @@
   // top: -0.8rem;
   border-radius: var(--br-full);
   border: 1px solid hsl(var(--clr-neutral-300-b) / 0.25);
+  transition:
+    background-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    box-shadow var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    transform var(--ll-motion-duration-standard) var(--ll-motion-ease-standard);
   
 }
 
@@ -141,6 +164,7 @@
 .workoutDotStartedToday {
   background: hsl(var(--clr-secondary-500-b));
   box-shadow: 0 0 0 3px hsl(var(--clr-secondary-500-b) / 0.22);
+  transform: scale(1.12);
 }
 
 .workoutDotToday {
@@ -211,6 +235,13 @@
     font-weight: 900;
     white-space: nowrap;
   }
+  .completionComplete {
+    color: hsl(var(--clr-primary-500-b));
+  }
+}
+
+.completionComplete {
+  color: hsl(var(--clr-primary-500-b));
 }
 
 .workoutCard,

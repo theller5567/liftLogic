@@ -24,10 +24,17 @@
   border-top-color: hsl(var(--clr-primary-500-b));
   border-radius: var(--br-full);
   animation: spin 800ms linear infinite;
+  filter: drop-shadow(0 0 0.9rem hsl(var(--clr-primary-500-b) / 0.18));
 }
 
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
   }
 }

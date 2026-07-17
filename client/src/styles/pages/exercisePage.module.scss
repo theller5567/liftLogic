@@ -96,12 +96,22 @@
     height: 0.42rem;
     border-radius: var(--br-full);
     background: hsl(var(--clr-neutral-300-b) / 0.28);
+    transform-origin: center;
+    transition:
+      background var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+      box-shadow var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+      transform var(--ll-motion-duration-standard) var(--ll-motion-ease-standard);
   }
 }
 
 .progressBars .progressComplete,
 .progressBars .progressActive {
   background: hsl(var(--clr-primary-500-b));
+}
+
+.progressBars .progressActive {
+  box-shadow: 0 0 0 0.2rem hsl(var(--clr-primary-500-b) / 0.12);
+  transform: scaleX(1.12);
 }
 
 .exerciseMeta {
@@ -242,6 +252,13 @@
   background: hsl(var(--clr-neutral-900-b) / 0.48);
   color: hsl(var(--clr-neutral-100-b) / 0.58);
   scroll-snap-align: start;
+  transform-origin: center;
+  transition:
+    background var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    border-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    box-shadow var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    transform var(--ll-motion-duration-micro) var(--ll-motion-ease-standard);
 
   span,
   small {
@@ -265,12 +282,14 @@
   border-color: hsl(var(--clr-primary-500-b));
   background: hsl(var(--clr-primary-500-b));
   color: hsl(var(--clr-neutral-900-b));
+  animation: set-complete-pulse var(--ll-motion-duration-standard) var(--ll-motion-ease-enter);
 }
 
 .todaySetActive {
   border-color: hsl(var(--clr-secondary-500-b));
   box-shadow: 0 0 0 1px hsl(var(--clr-secondary-500-b) / 0.28);
   color: hsl(var(--clr-secondary-500-b));
+  transform: translateY(-0.08rem);
 }
 
 .previousCard {
@@ -315,6 +334,13 @@
   border: 1px solid hsl(var(--clr-neutral-300-b) / 0.22);
   border-radius: var(--br-8);
   background: hsl(var(--clr-neutral-900-b) / 0.42);
+  transform-origin: center top;
+  transition:
+    background var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    border-color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    box-shadow var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    transform var(--ll-motion-duration-standard) var(--ll-motion-ease-standard);
 
   header {
     display: grid;
@@ -373,6 +399,10 @@
   border-radius: var(--br-full);
   background: hsl(var(--clr-neutral-900-b));
   color: hsl(var(--clr-neutral-300-b));
+  transition:
+    background var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    color var(--ll-motion-duration-standard) var(--ll-motion-ease-standard),
+    transform var(--ll-motion-duration-standard) var(--ll-motion-ease-standard);
 
   svg {
     max-width: 60%;
@@ -385,6 +415,7 @@
   border-left-color: hsl(var(--clr-secondary-500-b));
   border-left-width: 3px;
   box-shadow: none;
+  animation: active-set-enter var(--ll-motion-duration-standard) var(--ll-motion-ease-enter);
 
   header {
     padding-block-end: 0.85rem;
@@ -402,10 +433,12 @@
   border-left-color: hsl(var(--clr-primary-500-b));
   border-left-width: 3px;
   box-shadow: none;
+  animation: set-complete-pulse var(--ll-motion-duration-standard) var(--ll-motion-ease-enter);
 
   .setStatusIcon {
     background: hsl(var(--clr-primary-500-b));
     color: hsl(var(--clr-neutral-900-b));
+    animation: set-check-pop var(--ll-motion-duration-standard) var(--ll-motion-ease-enter);
   }
 }
 
@@ -446,6 +479,14 @@
     border-radius: var(--br-full);
     background: transparent;
     color: hsl(var(--clr-neutral-0-b));
+    transition:
+      border-color var(--ll-motion-duration-micro) var(--ll-motion-ease-standard),
+      color var(--ll-motion-duration-micro) var(--ll-motion-ease-standard),
+      transform var(--ll-motion-duration-micro) var(--ll-motion-ease-standard);
+
+    &:active {
+      transform: scale(0.94);
+    }
   }
 
   button:last-child {
@@ -472,6 +513,7 @@
 
 .finishExerciseReady {
   color: hsl(var(--clr-neutral-900-b));
+  animation: ready-action-pop var(--ll-motion-duration-standard) var(--ll-motion-ease-enter);
 }
 
 .restTimerCard {
@@ -483,6 +525,7 @@
   border: 1px solid hsl(var(--clr-secondary-500-b) / 0.35);
   border-radius: var(--br-8);
   background: hsl(var(--clr-secondary-500-b) / 0.08);
+  animation: rest-timer-enter var(--ll-motion-duration-page) var(--ll-motion-ease-enter);
 
   > span {
     display: grid;
@@ -509,6 +552,87 @@
     color: hsl(var(--clr-neutral-100-b) / 0.68);
     font-size: 0.82rem;
     font-weight: 700;
+  }
+}
+
+@keyframes active-set-enter {
+  from {
+    opacity: 0.84;
+    transform: translateY(0.35rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes set-complete-pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(1.015);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes set-check-pop {
+  0% {
+    transform: scale(0.82);
+  }
+
+  70% {
+    transform: scale(1.08);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes ready-action-pop {
+  from {
+    box-shadow: 0 0 0 0 hsl(var(--clr-primary-500-b) / 0);
+  }
+
+  to {
+    box-shadow: 0 0 0 0.25rem hsl(var(--clr-primary-500-b) / 0);
+  }
+}
+
+@keyframes rest-timer-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.7rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressBars span,
+  .todaySetTile,
+  .setPanel,
+  .setStatusIcon,
+  .stepper button {
+    transition-duration: 1ms;
+  }
+
+  .todaySetComplete,
+  .setActive,
+  .setComplete,
+  .setComplete .setStatusIcon,
+  .finishExerciseReady,
+  .restTimerCard {
+    animation: none;
   }
 }
 

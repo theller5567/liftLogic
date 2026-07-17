@@ -23,6 +23,7 @@ const PageLoadingState = ({
       styles.loadingState,
       fullScreen ? styles.fullScreen : "",
       tone === "error" ? styles.error : "",
+      "ll-motion-slide-up",
     ].join(" ")}
     role={tone === "error" ? "alert" : "status"}
     aria-live={tone === "error" ? "assertive" : "polite"}

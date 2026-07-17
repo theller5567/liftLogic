@@ -29,6 +29,10 @@ import {
   buildExerciseReplacementPreview,
   type GeneratedWorkoutPreview,
 } from "../utils/generateWorkoutPreview";
+import {
+  createHorizontalSlideMotion,
+  pageTransition,
+} from "../utils/motion";
 import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
 import Weights from "../assets/icons/010-weights.svg?react";
@@ -215,17 +219,7 @@ const formatEstimatedWorkoutTime = (
   return `${roundedMinutes} min`;
 };
 
-const dayCardMotion = {
-  initial: (direction: DayNavigationDirection) => ({
-    opacity: 0,
-    x: direction > 0 ? 48 : -48,
-  }),
-  animate: { opacity: 1, x: 0 },
-  exit: (direction: DayNavigationDirection) => ({
-    opacity: 0,
-    x: direction > 0 ? -48 : 48,
-  }),
-};
+const dayCardMotion = createHorizontalSlideMotion();
 
 const getPreviewResetKey = (preview: GeneratedWorkoutPreview) =>
   [
@@ -618,7 +612,7 @@ const WorkoutPreviewContent = ({
               initial="initial"
               animate="animate"
               exit="exit"
-              transition={{ duration: 0.24, ease: "easeOut" }}
+              transition={pageTransition}
               className={clsx(styles.dayCard, "grid gap-4 border-panel")}
             >
               <header className="grid gap-1">

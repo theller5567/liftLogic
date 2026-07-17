@@ -175,6 +175,7 @@ const Workout = () => {
       <div className={styles.footerActions}>
         <Button
           disabled={isSaving}
+          loading={isSaving}
           label={workoutActionLabel}
           size="large"
           tone={isWorkoutCompleted ? "primary" : "black"}

@@ -353,6 +353,7 @@ const WorkoutReview = () => {
           />
           <Button
             disabled={hasPendingRequest}
+            loading={isCompletingReview}
             label={
               isCompletingReview
                 ? "Saving..."
@@ -462,6 +463,7 @@ const WorkoutReview = () => {
         actions={[
           {
             disabled: hasPendingRequest,
+            loading: isCompletingReview,
             label: isCompletingReview ? "Saving..." : "Continue with edits",
             tone: "primary",
             onClick: () => setShowFocusOffer(true),
@@ -491,6 +493,7 @@ const WorkoutReview = () => {
         actions={[
           {
             disabled: hasPendingRequest,
+            loading: isCompletingReview,
             label: isCompletingReview ? "Saving..." : "Skip for now",
             tone: "white",
             variant: "outline",
@@ -499,6 +502,7 @@ const WorkoutReview = () => {
           },
           {
             disabled: hasPendingRequest,
+            loading: isCompletingReview,
             label: isCompletingReview ? "Saving..." : "Review focus block",
             tone: "primary",
             onClick: startSpecializationReview,

@@ -26,6 +26,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
   rounded?: boolean
   disabled?: boolean
+  loading?: boolean
   size?: ButtonSize
   icon?: ButtonIcon
   iconSize?: ButtonIconSize
@@ -59,6 +60,7 @@ const Button = ({
   iconPosition = 'left',
   className,
   disabled,
+  loading = false,
   type = 'button',
   ariaLabel,
   ...props
@@ -86,18 +88,22 @@ const Button = ({
       <IconComponent className={clsx(styles.icon, shouldTintIcon && styles.tintIcon)} />
     </span>
   ) : null
+  const loadingMarkup = loading ? (
+    <span aria-hidden="true" className={styles.loadingSpinner} />
+  ) : null
 
   return (
     <button
       aria-label={ariaLabel}
+      aria-busy={loading || undefined}
       className={classes}
-      disabled={disabled}
+      disabled={disabled || loading}
       type={type}
       {...props}
     >
-      {iconPosition === 'left' ? iconMarkup : null}
+      {loading ? loadingMarkup : iconPosition === 'left' ? iconMarkup : null}
       {label && <span className={styles.label}>{label}</span>}
-      {iconPosition === 'right' ? iconMarkup : null}
+      {!loading && iconPosition === 'right' ? iconMarkup : null}
     </button>
   )
 }

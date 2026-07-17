@@ -26,6 +26,8 @@ const InlineStatus = ({
     className={clsx(
       styles.inlineStatus,
       styles[`inlineStatus-${tone}`],
+      "ll-motion-fade-in",
+      tone === "loading" && "ll-motion-shimmer",
       className
     )}
     role={tone === "error" ? "alert" : "status"}
