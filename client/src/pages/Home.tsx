@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useLocation } from "react-router-dom";
 import IconDumbbell from "../assets/icons/dumbbell.svg?react";
 import IconGrowth from "../assets/icons/growth.svg?react";
 import IconTarget from "../assets/icons/target.svg?react";
@@ -9,11 +10,24 @@ import { useAuth } from "../context/useAuth";
 import styles from "../styles/pages/auth.module.scss";
 
 const Home = () => {
-  const { isConfigured, isLoading, signInWithGoogle } = useAuth();
+  const location = useLocation();
+  const {
+    authError,
+    clearAuthError,
+    isConfigured,
+    isLoading,
+    signInWithGoogle,
+    status,
+  } = useAuth();
+  const locationState = location.state as { message?: string } | null;
   const [error, setError] = useState<string | null>(null);
+  const isSigningIn = isLoading || status === "loading";
+  const statusMessage =
+    error ?? locationState?.message ?? authError?.message ?? null;
 
   const handleGoogleSignIn = async () => {
     setError(null);
+    clearAuthError();
 
     try {
       await signInWithGoogle();
@@ -87,17 +101,18 @@ const Home = () => {
           transition={{ delay: 0.58, duration: 0.42, ease: "easeOut" }}
         >
           <Button
-            label="Continue with Google"
+            label={isSigningIn ? "Signing in..." : "Continue with Google"}
             tone="primary"
             size="large"
+            loading={isSigningIn}
             onClick={handleGoogleSignIn}
-            disabled={isLoading}
+            disabled={isSigningIn}
             icon="google"
           />
           <p className={styles.authHint}>
             New here? We will create your account with Google.
           </p>
-          {error ? <p className={styles.error}>{error}</p> : null}
+          {statusMessage ? <p className={styles.error}>{statusMessage}</p> : null}
         </motion.div>
       </div>
     </section>

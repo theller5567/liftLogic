@@ -16,8 +16,12 @@ const PublicOnlyRoute = ({ children }: { children: ReactNode }) => {
     refresh,
   } = useUserFlow(Boolean(user));
 
-  if (isAuthLoading || (user && isFlowLoading)) {
-    return <LoadingSpinner fullScreen label="Loading account..." />;
+  if (isAuthLoading) {
+    return <LoadingSpinner fullScreen label="Checking your LiftLogic session..." />;
+  }
+
+  if (user && isFlowLoading) {
+    return <LoadingSpinner fullScreen label="Loading your program..." />;
   }
 
   if (user && error && !isAuthSessionExpiredError(error)) {
