@@ -1,6 +1,7 @@
 import Button from "../Button";
 import { Timer } from "lucide-react";
 import type { GeneratedWorkoutDayPreview } from "../../utils/generateWorkoutPreview";
+import { formatShortMonthDay } from "../../utils/dateFormatting";
 import { formatWorkoutDisplayLabel } from "../../utils/workoutDisplayLabel";
 import styles from "../../styles/components/dashboard.module.scss";
 import { useNavigate } from "react-router-dom";
@@ -20,11 +21,6 @@ type WorkoutCardProps = {
   workoutDay: GeneratedWorkoutDayPreview | null;
   sessionId?: string;
 };
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  day: "numeric",
-  month: "short",
-});
 
 const WorkoutCard = ({
   actionLabel = "Start Workout",
@@ -63,7 +59,7 @@ const WorkoutCard = ({
       <div className={styles.workoutHeading}>
         <div>
           <h2>{isSelectedDateToday ? "Today's Workout" : "Selected Workout"}</h2>
-          <span>{dateFormatter.format(date)}</span>
+          <span>{formatShortMonthDay(date)}</span>
         </div>
         <p className={completionPercentage === 100 ? styles.completionComplete : undefined}>
           {completionPercentage}% Completed

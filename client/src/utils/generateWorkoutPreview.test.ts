@@ -138,6 +138,36 @@ describe("generateWorkoutPreview", () => {
     ]);
   });
 
+  it("uses height and body weight as mild starting-weight conservatism for beginners", () => {
+    const baseAnswers = {
+      ageRange: "19_29",
+      availableTrainingDays: 3,
+      equipmentAccess: "full_gym",
+      experienceLevel: "beginner",
+      gender: "male",
+      goal: "strength",
+      recentTrainingConsistency: "brand_new",
+      selectedWorkoutTemplateId: "starting_strength",
+      weightUnit: "lb",
+    } as const;
+    const standardPreview = generateWorkoutPreview(baseAnswers);
+    const guidedPreview = generateWorkoutPreview({
+      ...baseAnswers,
+      bodyWeight: 285,
+      heightInches: 68,
+    });
+    const standardDeadlift = standardPreview.days[0].exercises.find(
+      (exercise) => exercise.exerciseId === "deadlift"
+    );
+    const guidedDeadlift = guidedPreview.days[0].exercises.find(
+      (exercise) => exercise.exerciseId === "deadlift"
+    );
+
+    expect(guidedDeadlift?.suggestedWeight).toBeLessThan(
+      standardDeadlift?.suggestedWeight ?? 0
+    );
+  });
+
   it("generates suggested weights for weighted exercises in workout templates", () => {
     const missingWeights = exerciseLibrary.workoutTemplates.flatMap((template) => {
       const preview = generateWorkoutPreview({

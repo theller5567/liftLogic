@@ -75,6 +75,29 @@
   }
 }
 
+.tradeoffList,
+.substitutionList {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid hsl(var(--clr-neutral-600-b) / 0.5);
+  border-radius: var(--br-8);
+  background: hsl(var(--clr-neutral-900-b) / 0.34);
+}
+
+.tradeoffList {
+  strong {
+    color: hsl(var(--clr-neutral-100-b));
+  }
+}
+
+.substitutionList {
+  border-color: hsl(var(--clr-secondary-500-b) / 0.34);
+  background: hsl(var(--clr-secondary-500-b) / 0.1);
+
+  strong {
+    color: hsl(var(--clr-secondary-500-b));
+  }
+}
+
 .statusMessage {
   display: flex;
   flex-wrap: wrap;

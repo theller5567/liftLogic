@@ -4,6 +4,7 @@ import type { OnboardingAnswers } from "../../../../shared/types/onboarding.type
 
 import NumberStep from "./steps/NumberStep";
 import SingleSelectStep from "./steps/SingleSelectStep";
+import MultiSelectStep from "./steps/MultiSelectStep";
 import EquipmentInventoryStep from "./steps/EquipmentInventoryStep";
 import WorkoutTemplateBrowserStep from "./steps/WorkoutTemplateBrowserStep";
 import type { OnboardingStep } from "./types";
@@ -40,6 +41,15 @@ const OnboardingStepContent = ({
 
           {step.type === "number" ? (
             <NumberStep
+              key={step.id}
+              control={control}
+              step={step}
+              fieldName={step.field as Path<OnboardingAnswers>}
+            />
+          ) : null}
+
+          {step.type === "multi_select" ? (
+            <MultiSelectStep
               key={step.id}
               control={control}
               step={step}

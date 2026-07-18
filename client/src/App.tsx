@@ -1,7 +1,7 @@
 
 import './App.css'
 import { lazy, Suspense } from 'react'
-import { BrowserRouter as Router, Navigate, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Navigate, Routes, Route, useLocation } from 'react-router-dom'
 import { AuthProvider } from './context/AuthProvider'
 import ProtectedRoute from './components/ProtectedRoute'
 import PublicOnlyRoute from './components/PublicOnlyRoute'
@@ -11,6 +11,7 @@ const Calendar = lazy(() => import('./pages/Calendar'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Design = lazy(() => import('./pages/Design'))
 const FocusReview = lazy(() => import('./pages/FocusReview'))
+const FirstRunWelcome = lazy(() => import('./pages/FirstRunWelcome'))
 const Home = lazy(() => import('./pages/Home'))
 const Onboarding = lazy(() => import('./pages/Onboarding'))
 const Plan = lazy(() => import('./pages/Plan'))
@@ -25,6 +26,17 @@ const Logout = lazy(() => import('./pages/auth/Logout'))
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'))
 const ExerciseLibrary = lazy(() => import('./pages/ExerciseLibrary'))
 const ExerciseDetails = lazy(() => import('./pages/ExerciseDetails'))
+
+const RouteFallback = () => {
+  const location = useLocation()
+  const normalizedPathname = location.pathname.replace(/^\/+/, '/')
+
+  if (normalizedPathname !== location.pathname) {
+    return <Navigate to={`${normalizedPathname}${location.search}`} replace />
+  }
+
+  return <Navigate to="/" replace />
+}
 
 function App() {
   return (
@@ -47,6 +59,14 @@ function App() {
               />
               <Route path="/logout" element={<Logout />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route
+                path="/welcome"
+                element={
+                  <ProtectedRoute>
+                    <FirstRunWelcome />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/onboarding"
                 element={
@@ -148,6 +168,7 @@ function App() {
                 <Route path="exercise/:exerciseIndex" element={<WorkoutExercise />} />
               </Route>
               <Route path="/design" element={<Design />} />
+              <Route path="*" element={<RouteFallback />} />
             </Routes>
           </Suspense>
         </Router>

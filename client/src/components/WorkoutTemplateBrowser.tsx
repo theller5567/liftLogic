@@ -102,7 +102,7 @@ const WorkoutTemplateBrowser = ({
 
       <div className="workout-template-list">
         {filteredRecommendations.map(
-          ({ isRecommended, matchReasons, tags, template, warnings }) => {
+          ({ explanation, isRecommended, tags, template }) => {
             const isSelected = selectedTemplateId === template.id;
 
             return (
@@ -136,18 +136,42 @@ const WorkoutTemplateBrowser = ({
                     </span>
                   ))}
                 </span>
-                <span className="workout-template-reasons">
-                  {matchReasons.slice(0, 3).map((reason) => (
-                    <span key={reason}>{reason}</span>
-                  ))}
+                <span className="workout-template-explanation">
+                  {explanation.whyThisPlan.length > 0 ? (
+                    <span>
+                      <strong>Why this plan</strong>
+                      {explanation.whyThisPlan.slice(0, 3).map((reason) => (
+                        <small key={reason}>{reason}</small>
+                      ))}
+                    </span>
+                  ) : null}
+                  {explanation.tradeoffs.length > 0 ? (
+                    <span>
+                      <strong>Tradeoffs</strong>
+                      {explanation.tradeoffs.slice(0, 2).map((tradeoff) => (
+                        <small key={tradeoff}>{tradeoff}</small>
+                      ))}
+                    </span>
+                  ) : null}
+                  {explanation.thingsToCheck.length > 0 ? (
+                    <span className="is-warning">
+                      <strong>Things to check</strong>
+                      {explanation.thingsToCheck.slice(0, 2).map((warning) => (
+                        <small key={warning}>{warning}</small>
+                      ))}
+                    </span>
+                  ) : null}
+                  {explanation.suggestedSubstitutions.length > 0 ? (
+                    <span className="is-substitution">
+                      <strong>Suggested substitutions</strong>
+                      {explanation.suggestedSubstitutions
+                        .slice(0, 2)
+                        .map((suggestion) => (
+                          <small key={suggestion}>{suggestion}</small>
+                        ))}
+                    </span>
+                  ) : null}
                 </span>
-                {warnings.length > 0 ? (
-                  <span className="workout-template-warnings">
-                    {warnings.map((warning) => (
-                      <span key={warning}>{warning}</span>
-                    ))}
-                  </span>
-                ) : null}
               </button>
             );
           }

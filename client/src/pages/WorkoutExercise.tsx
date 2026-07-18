@@ -1,40 +1,39 @@
-import {
-  ArrowLeft,
-  Check,
-  ChevronRight,
-  ChevronUp,
-  Info,
-  Minus,
-  MoreVertical,
-  Plus,
-} from "lucide-react";
-import ActiveSet from "../assets/icons/activeSet.svg?react";
-import Target from "../assets/icons/target.svg?react";
-import InfoData from "../assets/icons/info.svg?react";
 import clsx from "clsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
 import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
+import WorkoutExerciseHeader from "../components/workout-session/WorkoutExerciseHeader";
+import WorkoutExercisePerformance from "../components/workout-session/WorkoutExercisePerformance";
+import WorkoutRestTimerCard from "../components/workout-session/WorkoutRestTimerCard";
+import WorkoutSetPanel from "../components/workout-session/WorkoutSetPanel";
 // import DevDataInspector from "../components/dev/DevDataInspector";
 import { completeWorkoutSession, updateWorkoutSession } from "../services/api";
 import type {
+  WorkoutBadgeId,
   WorkoutExerciseLog,
   WorkoutSessionDto,
   WorkoutSetLog,
 } from "../../../shared/types/workoutSession.types";
+import { workoutBadgeOptions } from "../../../shared/constants/workout-badges";
 import { weightEstimationRules } from "../../../shared/constants/weightEstimationRules";
 import type { WeightStepKey } from "../../../shared/types/userSettings.types";
 import { normalizeLibraryIdToEstimatorKey } from "../../../shared/utils/exerciseLibraryAdapter";
 import {
   getMostRecentPriorWeekExerciseLog,
-  getProgressionTargetReps,
   shouldShowWeightIncreaseAdvisory,
 } from "../utils/workoutAdvisory";
-import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
 import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
+import { createExerciseSlugFromParts } from "../utils/exerciseLibraryDisplay";
+import {
+  formatTimer,
+  getActiveSetIndex,
+  getDefaultReps,
+  getDefaultWeight,
+} from "../utils/workoutSetFormatting";
+import { areAllWorkoutExercisesCompleted } from "../utils/workoutSessionStats";
 import styles from "../styles/pages/exercisePage.module.scss";
 
 type AdvisoryAttempt = {
@@ -45,17 +44,10 @@ type AdvisoryAttempt = {
 
 type SetUiState = "active" | "completed" | "inactive";
 
-const formatTimer = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+type NoteBadgeDraft = {
+  badgeIds: WorkoutBadgeId[];
+  exerciseNotes: string;
 };
-
-const getDefaultReps = (set: WorkoutSetLog) =>
-  set.actualReps ?? getProgressionTargetReps(set.targetReps) ?? 0;
-
-const getDefaultWeight = (exerciseLog: WorkoutExerciseLog, set: WorkoutSetLog) =>
-  set.weight ?? exerciseLog.prescriptionSnapshot.suggestedWeight ?? 0;
 
 const updateSetLog = (
   exerciseLog: WorkoutExerciseLog,
@@ -73,21 +65,6 @@ const updateSetLog = (
   };
 };
 
-const formatSetSummary = (setLog: WorkoutSetLog) =>
-  `${setLog.weight ?? 0} ${setLog.weightUnit ?? ""} x ${setLog.actualReps ?? 0}`;
-
-const getActiveSetIndex = (sets: WorkoutSetLog[]) =>
-  sets.findIndex((setLog) => !setLog.completed);
-
-const createExerciseInfoSlug = (label: string, exerciseId: string) => {
-  const nameSlug = label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-
-  return `${nameSlug}_${exerciseId}`;
-};
-
 const getSetUiState = (
   setLog: WorkoutSetLog,
   setIndex: number,
@@ -99,22 +76,6 @@ const getSetUiState = (
 
   return setIndex === activeSetIndex ? "active" : "inactive";
 };
-
-const getSetClassName = (setState: SetUiState) => {
-  if (setState === "completed") {
-    return styles.setComplete;
-  }
-
-  if (setState === "active") {
-    return styles.setActive;
-  }
-
-  return styles.setInactive;
-};
-
-const areAllExercisesCompleted = (exerciseLogs: WorkoutExerciseLog[]) =>
-  exerciseLogs.length > 0 &&
-  exerciseLogs.every((exerciseLog) => exerciseLog.completed);
 
 const getWeightStepKey = (exerciseId: string): WeightStepKey => {
   const canonicalKey = normalizeLibraryIdToEstimatorKey(exerciseId);
@@ -138,6 +99,9 @@ const WorkoutExercise = () => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [advisoryAttempt, setAdvisoryAttempt] =
     useState<AdvisoryAttempt | null>(null);
+  const [noteBadgeDraft, setNoteBadgeDraft] = useState<NoteBadgeDraft | null>(
+    null
+  );
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
   const todaySetRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const showRestTimer = false;
@@ -195,7 +159,9 @@ const WorkoutExercise = () => {
   const allSetsCompleted =
     Boolean(activeExercise?.sets.length) &&
     completedSetCount === activeExercise?.sets.length;
-  const allExercisesCompleted = areAllExercisesCompleted(session.exerciseLogs);
+  const allExercisesCompleted = areAllWorkoutExercisesCompleted(
+    session.exerciseLogs
+  );
   const activeExerciseStepKey = activeExercise
     ? getWeightStepKey(activeExercise.exerciseId)
     : "default";
@@ -265,7 +231,9 @@ const WorkoutExercise = () => {
       });
       setSession(workoutSession);
       setRestSeconds(null);
-      navigate(`/workout/${workoutSession._id}/summary`);
+      navigate(`/workout/${workoutSession._id}/summary`, {
+        state: { showWorkoutNotes: true },
+      });
       return workoutSession;
     } catch (completeError) {
       setSaveError(
@@ -384,7 +352,7 @@ const WorkoutExercise = () => {
 
     if (
       session.status !== "completed" &&
-      areAllExercisesCompleted(nextExerciseLogs)
+      areAllWorkoutExercisesCompleted(nextExerciseLogs)
     ) {
       await completeSessionWithLogs(nextExerciseLogs);
       return;
@@ -409,7 +377,7 @@ const WorkoutExercise = () => {
       return;
     }
 
-    if (areAllExercisesCompleted(session.exerciseLogs)) {
+    if (areAllWorkoutExercisesCompleted(session.exerciseLogs)) {
       await completeSessionWithLogs(session.exerciseLogs);
       return;
     }
@@ -434,6 +402,58 @@ const WorkoutExercise = () => {
     }
   };
 
+  const openNoteBadgeSheet = () => {
+    if (!activeExercise) {
+      return;
+    }
+
+    setNoteBadgeDraft({
+      badgeIds: activeExercise.badgeIds,
+      exerciseNotes: activeExercise.notes ?? "",
+    });
+  };
+
+  const toggleDraftBadge = (badgeId: WorkoutBadgeId) => {
+    setNoteBadgeDraft((currentDraft) => {
+      if (!currentDraft) {
+        return currentDraft;
+      }
+
+      return {
+        ...currentDraft,
+        badgeIds: currentDraft.badgeIds.includes(badgeId)
+          ? currentDraft.badgeIds.filter(
+              (currentBadgeId) => currentBadgeId !== badgeId
+            )
+          : [...currentDraft.badgeIds, badgeId],
+      };
+    });
+  };
+
+  const saveNoteBadgeDraft = async () => {
+    if (!activeExercise || !noteBadgeDraft) {
+      return;
+    }
+
+    const nextExerciseLogs = session.exerciseLogs.map((exerciseLog, index) => {
+      if (index !== activeExerciseIndex) {
+        return exerciseLog;
+      }
+
+      return {
+        ...exerciseLog,
+        badgeIds: noteBadgeDraft.badgeIds,
+        notes: noteBadgeDraft.exerciseNotes.trim() || undefined,
+      };
+    });
+
+    const savedSession = await persistExerciseLogs(nextExerciseLogs);
+
+    if (savedSession) {
+      setNoteBadgeDraft(null);
+    }
+  };
+
   if (!Number.isInteger(activeExerciseIndex)) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -455,265 +475,64 @@ const WorkoutExercise = () => {
       {saveError ? <p className={styles.error}>{saveError}</p> : null}
 
       <article className={styles.exercisePanel}>
-        <header className={styles.exerciseHeader}>
-          <button
-            type="button"
-            aria-label="Back to workout"
-            onClick={() => navigate(`/workout/${session._id}`)}
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <div className={styles.exerciseProgress}>
-            <p>
-              Exercise {activeExerciseIndex + 1} of {session.exerciseLogs.length}
-            </p>
-            <div className={styles.progressBars}>
-              {session.exerciseLogs.map((exerciseLog, index) => (
-                <span
-                  key={exerciseLog.slotId}
-                  className={clsx(
-                    exerciseLog.completed && styles.progressComplete,
-                    index === activeExerciseIndex && styles.progressActive
-                  )}
-                />
-              ))}
-            </div>
-          </div>
-          {showDevDataInspector ? (
-            <button
-              type="button"
-              className={styles.exerciseInfoButton}
-              aria-label="Open full exercise information"
-              data-tooltip="Open full exercise information"
-              onClick={() =>
-                navigate(
-                  `/exercise-library/${createExerciseInfoSlug(
-                    activeExercise.label,
-                    activeExercise.exerciseId
-                  )}`,
-                  {
-                    state: {
-                      returnLabel: "Back to workout",
-                      returnTo: `/workout/${session._id}/exercise/${activeExerciseIndex}`,
-                    },
-                  }
-                )
+        <WorkoutExerciseHeader
+          activeExerciseIndex={activeExerciseIndex}
+          exerciseLogs={session.exerciseLogs}
+          onBack={() => navigate(`/workout/${session._id}`)}
+          onOpenExerciseInfo={() =>
+            navigate(
+              `/exercise-library/${createExerciseSlugFromParts(
+                activeExercise.exerciseId,
+                activeExercise.label
+              )}`,
+              {
+                state: {
+                  returnLabel: "Back to workout",
+                  returnTo: `/workout/${session._id}/exercise/${activeExerciseIndex}`,
+                },
               }
-            >
-              <InfoData className={styles.infoDataIcon} />
-            </button>
-          ) : (
-            <button type="button" aria-label="Exercise options">
-              <MoreVertical size={18} />
-            </button>
-          )}
-        </header>
-        <div className={styles.exerciseMeta}>
-          <div className={styles.exerciseTitle}>
-            <div>
-              <h1>{activeExercise.label}</h1>
-              <p><Target /> {formatWorkoutDisplayLabel(session.programDayLabel)}</p>
-            </div>
-            <span>
-              {completedSetCount} / {activeExercise.sets.length} sets
-            </span>
-          </div>
-
-          <div className={styles.performanceGrid}>
-            <section className={styles.previousPerformance}>
-              <p>Previous</p>
-              {previousDisplaySet ? (
-                <div className={styles.previousCard}>
-                  <span>Set {previousDisplaySet.setNumber}</span>
-                  <strong>
-                    {previousDisplaySet.weight ??
-                      previousExerciseLog?.prescriptionSnapshot.suggestedWeight ??
-                      0}
-                  </strong>
-                  <small>
-                    {previousDisplaySet.weightUnit ??
-                      previousExerciseLog?.prescriptionSnapshot.weightUnit ??
-                      activeExercise.prescriptionSnapshot.weightUnit}
-                    {" x "}
-                    {getDefaultReps(previousDisplaySet)}
-                  </small>
-                </div>
-              ) : (
-                <div className={styles.previousCard}>
-                  
-                  <strong>N/A</strong>
-                </div>
-              )}
-            </section>
-            <section className={styles.currentPerformance}>
-              <p>Today</p>
-              <div className={styles.todaySetScroller}>
-                {activeExercise.sets.map((setLog, setIndex) => {
-                  const setState = getSetUiState(
-                    setLog,
-                    setIndex,
-                    activeSetIndex
-                  );
-
-                  return (
-                    <div
-                      key={setLog.setNumber}
-                      ref={(node) => {
-                        todaySetRefs.current[setIndex] = node;
-                      }}
-                      className={clsx(
-                        styles.todaySetTile,
-                        setState === "completed" && styles.todaySetComplete,
-                        setState === "active" && styles.todaySetActive
-                      )}
-                    >
-                      <span>Set {setLog.setNumber}</span>
-                      <strong>{getDefaultWeight(activeExercise, setLog)}</strong>
-                      <small>
-                        {setLog.weightUnit ??
-                          activeExercise.prescriptionSnapshot.weightUnit}
-                        {" x "}
-                        {getDefaultReps(setLog)}
-                      </small>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          </div>
-          <small>We suggest a weight you can complete {activeExercise.prescriptionSnapshot.reps} reps with good form.</small>
-        </div>
+            )
+          }
+          showExerciseInfo={showDevDataInspector}
+        />
+        <WorkoutExercisePerformance
+          activeExercise={activeExercise}
+          activeSetIndex={activeSetIndex}
+          completedSetCount={completedSetCount}
+          previousDisplaySet={previousDisplaySet}
+          previousExerciseLog={previousExerciseLog}
+          programDayLabel={session.programDayLabel}
+          todaySetRefs={todaySetRefs}
+        />
 
         <div className={styles.setList}>
           {activeExercise.sets.map((setLog, setIndex) => {
             const setState = getSetUiState(setLog, setIndex, activeSetIndex);
-            const isActiveSet = setState === "active";
 
             return (
-              <section
+              <WorkoutSetPanel
                 key={setLog.setNumber}
-                className={clsx(styles.setPanel, getSetClassName(setState))}
-              >
-                <header>
-                  <span className={styles.setStatusIcon}>
-                    {setState === "completed" ? <Check size={18} /> : <ActiveSet />}
-                  </span>
-                  <div>
-                    <h2>Set {setLog.setNumber}</h2>
-                    <small>{setLog.targetReps} reps</small>
-                  </div>
-                  {setState === "completed" ? (
-                    <>
-                      <strong>{formatSetSummary(setLog)}</strong>
-                      <ChevronRight size={22} />
-                    </>
-                  ) : null}
-                  {setState === "active" ? (
-                    <>
-                      <em>Current set</em>
-                      <ChevronUp size={22} />
-                    </>
-                  ) : null}
-                  {setState === "inactive" ? <ChevronRight size={22} /> : null}
-                </header>
-
-                {isActiveSet ? (
-                  <>
-                    <div className={styles.stepperRow}>
-                      <p>Weight</p>
-                      <div className={styles.stepper}>
-                        <button
-                          type="button"
-                          aria-label="Decrease weight"
-                          onClick={() => handleWeightChange(setIndex, "decrease")}
-                        >
-                          <Minus size={18} />
-                        </button>
-                        <strong>
-                          {getDefaultWeight(activeExercise, setLog)}{" "}
-                          {setLog.weightUnit ??
-                            activeExercise.prescriptionSnapshot.weightUnit}
-                        </strong>
-                        <button
-                          type="button"
-                          aria-label="Increase weight"
-                          onClick={() => handleWeightChange(setIndex, "increase")}
-                        >
-                          <Plus size={18} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className={styles.stepperRow}>
-                      <p>Reps</p>
-                      <div className={styles.stepper}>
-                        <button
-                          type="button"
-                          aria-label="Decrease reps"
-                          onClick={() => handleRepsChange(setIndex, "decrease")}
-                        >
-                          <Minus size={18} />
-                        </button>
-                        <strong>{getDefaultReps(setLog)}</strong>
-                        <button
-                          type="button"
-                          aria-label="Increase reps"
-                          onClick={() => handleRepsChange(setIndex, "increase")}
-                        >
-                          <Plus size={18} />
-                        </button>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      label="Add Note or Badge"
-                      className={styles.noteAction}
-                      icon="edit"
-                      tone="secondary"
-                      variant="outline"
-                    />
-                      
-                    <Button
-                      disabled={isSaving}
-                      loading={isSaving}
-                      label="Log set"
-                      size="large"
-                      tone="primary"
-                      onClick={() => handleLogSet(setIndex)}
-                    />
-                    
-                  </>
-                ) : null}
-              </section>
+                activeExercise={activeExercise}
+                isSaving={isSaving}
+                onLogSet={handleLogSet}
+                onOpenNoteBadge={openNoteBadgeSheet}
+                onRepsChange={handleRepsChange}
+                onWeightChange={handleWeightChange}
+                setIndex={setIndex}
+                setLog={setLog}
+                setState={setState}
+              />
             );
           })}
         </div>
 
-        {showRestTimer &&<aside className={styles.restTimerCard}>
-          <span>
-            <Info size={18} />
-          </span>
-          <div>
-            <strong>
-              Rest Timer:{" "}
-              {restSeconds !== null && restSeconds > 0
-                ? formatTimer(restSeconds)
-                : formatTimer(activeExerciseRestSeconds)}
-            </strong>
-            <p>Take your time. Quality reps over rushing.</p>
-          </div>
-          <Button
-            label={
-              restSeconds !== null && restSeconds > 0
-                ? "Timer active"
-                : "Start timer"
-            }
-            size="medium"
-            tone="secondary"
-            variant="outline"
-            onClick={handleStartRestTimer}
+        {showRestTimer ? (
+          <WorkoutRestTimerCard
+            activeExerciseRestSeconds={activeExerciseRestSeconds}
+            onStartRestTimer={handleStartRestTimer}
+            restSeconds={restSeconds}
           />
-        </aside>}
+        ) : null}
 
         <Button
           className={clsx(
@@ -728,6 +547,70 @@ const WorkoutExercise = () => {
           onClick={handleFinishExercise}
         />
       </article>
+
+      <BottomSheet
+        open={Boolean(noteBadgeDraft)}
+        onClose={() => setNoteBadgeDraft(null)}
+        title="Exercise notes"
+        eyebrow={activeExercise.label}
+        description="Capture anything that should inform the next time this movement appears."
+        variant="full"
+        actions={[
+          {
+            label: "Save notes",
+            tone: "primary",
+            loading: isSaving,
+            closeOnClick: false,
+            onClick: saveNoteBadgeDraft,
+          },
+          {
+            label: "Cancel",
+            tone: "gray",
+            onClick: () => setNoteBadgeDraft(null),
+          },
+        ]}
+      >
+        {noteBadgeDraft ? (
+          <div className={styles.noteBadgeForm}>
+            <label>
+              <span>Exercise note</span>
+              <textarea
+                value={noteBadgeDraft.exerciseNotes}
+                maxLength={1000}
+                placeholder="Example: Keep elbows tucked. Try more weight only if every set feels clean."
+                onChange={(event) =>
+                  setNoteBadgeDraft({
+                    ...noteBadgeDraft,
+                    exerciseNotes: event.currentTarget.value,
+                  })
+                }
+              />
+            </label>
+
+            <div className={styles.badgeGrid} aria-label="Exercise badges">
+              {workoutBadgeOptions.map((badge) => {
+                const isSelected = noteBadgeDraft.badgeIds.includes(badge.id);
+
+                return (
+                  <button
+                    key={badge.id}
+                    type="button"
+                    className={clsx(
+                      styles.badgeOption,
+                      isSelected && styles.badgeOptionSelected
+                    )}
+                    aria-pressed={isSelected}
+                    onClick={() => toggleDraftBadge(badge.id)}
+                  >
+                    <strong>{badge.label}</strong>
+                    <span>{badge.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </BottomSheet>
 
       <BottomSheet
         open={Boolean(advisoryAttempt)}

@@ -196,7 +196,6 @@
 .workout-template-card-topline,
 .workout-template-tags,
 .workout-template-week,
-.workout-template-reasons,
 .workout-template-warnings {
   display: flex;
   flex-wrap: wrap;
@@ -206,7 +205,6 @@
 .workout-template-card-topline span,
 .workout-template-tags span,
 .workout-template-week span,
-.workout-template-reasons span,
 .workout-template-warnings span {
   padding: 0.25rem 0.5rem;
   border-radius: var(--br-full);
@@ -221,9 +219,51 @@
   font-weight: 800;
 }
 
-.workout-template-reasons span {
-  background: hsl(var(--clr-primary-500-b) / 0.14);
+.workout-template-explanation {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.workout-template-explanation > span {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid hsl(var(--clr-neutral-600-b) / 0.42);
+  border-radius: var(--br-8);
+  background: hsl(var(--clr-neutral-900-b) / 0.32);
+}
+
+.workout-template-explanation strong {
   color: hsl(var(--clr-primary-500-b));
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workout-template-explanation small {
+  color: hsl(var(--clr-neutral-100-b));
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.workout-template-explanation .is-warning {
+  border-color: hsl(var(--clr-red-500-b) / 0.34);
+  background: hsl(var(--clr-red-500-b) / 0.1);
+}
+
+.workout-template-explanation .is-warning strong {
+  color: hsl(var(--clr-red-500-b));
+}
+
+.workout-template-explanation .is-substitution {
+  border-color: hsl(var(--clr-secondary-500-b) / 0.34);
+  background: hsl(var(--clr-secondary-500-b) / 0.1);
+}
+
+.workout-template-explanation .is-substitution strong {
+  color: hsl(var(--clr-secondary-500-b));
 }
 
 .workout-template-warnings span {

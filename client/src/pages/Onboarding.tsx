@@ -34,13 +34,12 @@ const Onboarding = () => {
           readSubmittedAnswers() ??
           readDraftAnswers() ??
           undefined
-        : !isApiEnabled()
-          ? readDraftAnswers() ?? readSubmittedAnswers() ?? undefined
-          : undefined,
+        : readDraftAnswers() ??
+          (!isApiEnabled() ? readSubmittedAnswers() ?? undefined : undefined),
     [isRedoMode, workoutPlan]
   );
   const [initialStepIndex] = useState<number>(() =>
-    isRedoMode ? 0 : !isApiEnabled() ? readDraftStepIndex() : 0
+    isRedoMode ? 0 : readDraftAnswers() ? readDraftStepIndex() : 0
   );
 
   const handleAnswersChange = useCallback((answers: OnboardingAnswers) => {

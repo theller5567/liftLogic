@@ -2,7 +2,53 @@
 
 ## Purpose
 
-LiftLogic helps users create, review, and follow personalized strength training programs. The app starts with Google auth, collects onboarding details, generates a starter program, lets the user review or edit it, and then routes them into a dashboard for following the plan.
+LiftLogic helps users train with progressive overload by remembering what happened in each workout and using that history to guide the next one. The app should make it easy to see what was planned, what was actually performed, what improved, what stalled, and what should happen next.
+
+The app starts with Google auth, welcomes first-time users into setup, collects onboarding details, generates a starter program, lets the user review or edit it, and then routes them into a dashboard for following the plan. Long term, the recommendation system should rely less on static onboarding answers and more on real training behavior: completed sets, missed reps, skipped exercises, performance trends, recovery signals, and exercise preferences.
+
+## Product North Star
+
+LiftLogic is not just a workout template picker or a workout log. It is a training memory system.
+
+The core promise:
+
+> LiftLogic tracks your sets, reps, weights, exercise choices, and workout outcomes so each future session can be more informed than the last.
+
+Every major feature should support one or more of these goals:
+
+- Help the user know what to do today.
+- Help the user understand what happened last time.
+- Help the user progress safely through weight, reps, sets, exercise selection, or recovery.
+- Help the user recognize when a lift, muscle group, or plan needs adjustment.
+- Help the user stay consistent without feeling overwhelmed.
+
+## Original Product Intent
+
+This section should preserve the early prompts and ideas that shaped the app. Add the original AI prompts here when available so future design and engineering decisions can stay connected to the reason LiftLogic was created.
+
+### Distilled Intent
+
+- Emphasize progressive overload.
+- Track what happens during workouts in enough detail to assist future workouts.
+- Use workout history to make future recommendations smarter, safer, and more personal.
+- Start with hypertrophy-focused and strength-focused training paths.
+- Use onboarding to understand goals, body measurements, experience, and training context.
+- Let users edit onboarding/profile information later as their goals, body, equipment, or schedule changes.
+- Treat workout logging as one of the most important parts of the app, not a secondary feature.
+- Allow notes at both the workout level and exercise level.
+- Help users decide whether to increase weight, repeat the same load, or stay conservative based on previous performance.
+- Warn users when they try to increase weight after failing to complete the planned sets or reps last time.
+- Support exercise and workout badges such as `improve form`, `felt great`, or `feeling weak`.
+- Track actual rest time between sets, even when the app provides suggested timers.
+- Make logged training details useful for the next time the user performs the same exercise.
+
+### Original Prompt 1
+
+> I am wanting to create a workout app using React. This app will make use of AI. I plan to start off with two different workout routines. The 1st workout routine is to get the body in good shape and use more hypertrophy exercises. The second workout routine will be more for strength gain. Both of these workouts will be based heavily on progressive overload. I am not asking you to create these workout routines, i will give them to you later. When a user first comes to the app they will need to create an account and then login. THey will be presented with a getting started screen upon first logging in that will ask for basic knowledge of there goals and body measurements. This information can be edited at anytime later if needed. Right now i am mainly asking for other suggestions for features for this app or any thoughts based on the information i have provided you so far.
+
+### Original Prompt 2
+
+> I think one of the more important parts of the app will be the workout logging. workout log will allow the user to right notes next to every exercise and a overall workout note. the ability to decide if the user wants to go up in weight on the next time they perform the exercise or current exercise(if the user was not able to perform the correct sets at the required weight to proceed in increasing the weight a popup will show asking the user to confirm and let them know they did not finish all the sets with the current weight last time they did the exercise and urge them to remain at current weight until they can perform all the reps and sets before increasing weight.) Allow users to attach badges to each exercise and workout(example: improve form, felt great!, feeling weak, etc..). the log should allow the user to record the rest time the user actually used between sets and reps even though the app will automatically set these timers based on workout and exercise automatically. In my opinion one of the biggest steps to success when trying to gain muscle is recording every workout and exercise in great detail to better inform you on how you should attack you next workout or the next time you perform a specific exercise. do you have any additional thoughts on this?
 
 ## Current Functionality
 
@@ -13,7 +59,8 @@ LiftLogic helps users create, review, and follow personalized strength training 
 - Generated workout preview based on onboarding answers.
 - Editable workout preview before the program is accepted.
 - Dashboard routing based on workout plan state:
-  - no plan: onboarding
+  - no plan and no onboarding draft: first-run welcome
+  - no plan with onboarding draft: onboarding
   - plan not reviewed: workout review
   - reviewed plan: dashboard
 - Workout session API foundation for in-progress and completed workout logs.
@@ -94,7 +141,8 @@ Current local storage responsibilities:
 4. Server verifies the token and upserts `userProfiles` by Firebase UID/clientId.
 5. Server returns the profile and current `WorkoutPlan`.
 6. Client routes based on the plan:
-   - missing plan -> onboarding
+   - missing plan and no onboarding draft -> first-run welcome
+   - missing plan with onboarding draft -> onboarding
    - unreviewed plan -> workout review
    - reviewed plan -> dashboard
 7. Onboarding submission creates or replaces the user's `WorkoutPlan`.
@@ -119,6 +167,11 @@ Current local storage responsibilities:
   - active workout page
   - set, rep, weight, and completion logging
   - connect the workout page UI to the workout session API
+- Progressive overload guidance:
+  - compare today's targets against the user's previous performance
+  - recommend when to increase weight, add reps, repeat the same load, or reduce load
+  - explain the recommendation in plain language
+  - account for missed sets, failed reps, skipped movements, notes, and user feedback
 - Calendar and workout history:
   - planned workout dates
   - completed-day indicators
@@ -128,6 +181,8 @@ Current local storage responsibilities:
   - activity and consistency graphs
   - strength progression
   - volume or performance summaries
+  - stalled-lift and improving-lift callouts
+  - muscle-group or movement-pattern progress summaries
 - Settings/setup:
   - profile name and avatar controls
   - weight unit preference
@@ -138,7 +193,9 @@ Current local storage responsibilities:
 
 ### Exercise Logs
 
-Exercise logs are currently nested inside workout sessions. They capture:
+Exercise logs are currently nested inside workout sessions. They are the foundation for progressive overload recommendations and should capture enough detail to reconstruct what happened in a workout later.
+
+They capture:
 
 - `exerciseId`
 - `exerciseLabel`
@@ -148,6 +205,15 @@ Exercise logs are currently nested inside workout sessions. They capture:
 - `weightUnit`
 - `completed`
 - `notes`
+
+Future exercise log improvements:
+
+- per-set difficulty or RPE
+- failed reps or missed target reason
+- pain/discomfort flags
+- exercise substitutions made during the session
+- whether the user wants to avoid or keep an exercise next time
+- recommendation outcome, such as `increase_weight`, `add_reps`, `repeat`, or `reduce_load`
 
 ### User Preferences
 
@@ -172,6 +238,10 @@ Likely aggregate examples:
 - total volume
 - exercise estimated strength
 - consistency streaks
+- progression streaks by exercise
+- stalled lifts
+- skipped or disliked exercises
+- muscle-group volume over time
 
 ## Development Workflow
 

@@ -5,6 +5,9 @@ import {
 import type {
   ExerciseDefinition,
   ExerciseDifficulty,
+  ExerciseImpactLevel,
+  ExerciseJointConcern,
+  ExerciseMetadataLevel,
   MovementPattern,
   MuscleGroup,
 } from "../constants/exercise-library";
@@ -16,6 +19,16 @@ import { getExerciseById } from "./exerciseLibraryAdapter";
 
 export type ExerciseIntelligenceGoal = "hypertrophy" | "strength" | "hybrid";
 export type ExerciseIntelligenceLevel = "beginner" | "intermediate" | "advanced";
+export type ExerciseMetadata = {
+  recoveryCost: ExerciseMetadataLevel;
+  technicalComplexity: ExerciseMetadataLevel;
+  jointStress: ExerciseMetadataLevel;
+  impactLevel: ExerciseImpactLevel;
+  setupComplexity: ExerciseMetadataLevel;
+  timeCost: "short" | "moderate" | "long";
+  bestForGoals: ("hypertrophy" | "strength" | "hybrid" | "conditioning" | "skill")[];
+  avoidIfJointConcern: ExerciseJointConcern[];
+};
 
 const difficultyRank: Record<ExerciseIntelligenceLevel, number> = {
   beginner: 0,
@@ -50,6 +63,99 @@ const coreMovementPatterns = new Set<MovementPattern>([
   "vertical_press",
   "vertical_pull",
 ]);
+
+const highTechnicalPatterns = new Set<MovementPattern>([
+  "get_up",
+  "olympic_lift",
+]);
+
+const moderateTechnicalPatterns = new Set<MovementPattern>([
+  "hinge",
+  "jump",
+  "lunge",
+  "rotation",
+  "squat",
+  "step_up",
+  "vertical_press",
+]);
+
+const highImpactPatterns = new Set<MovementPattern>(["jump"]);
+
+const moderateImpactPatterns = new Set<MovementPattern>([
+  "conditioning",
+  "sled",
+]);
+
+const shoulderConcernPatterns = new Set<MovementPattern>([
+  "fly",
+  "horizontal_press",
+  "lateral_raise",
+  "olympic_lift",
+  "pullover",
+  "push_up",
+  "scapular_control",
+  "triceps_extension",
+  "vertical_press",
+]);
+
+const elbowConcernPatterns = new Set<MovementPattern>([
+  "curl",
+  "push_up",
+  "triceps_extension",
+  "triceps_pushdown",
+]);
+
+const wristConcernPatterns = new Set<MovementPattern>([
+  "front_raise",
+  "get_up",
+  "olympic_lift",
+  "push_up",
+  "wrist_extension",
+  "wrist_flexion",
+]);
+
+const lowerBackConcernPatterns = new Set<MovementPattern>([
+  "carry",
+  "hinge",
+  "horizontal_pull",
+  "olympic_lift",
+  "squat",
+]);
+
+const hipConcernPatterns = new Set<MovementPattern>([
+  "get_up",
+  "hinge",
+  "hip_abduction",
+  "hip_adduction",
+  "hip_extension",
+  "hip_thrust",
+  "lunge",
+  "squat",
+  "step_up",
+]);
+
+const kneeConcernPatterns = new Set<MovementPattern>([
+  "jump",
+  "lunge",
+  "sled",
+  "squat",
+  "step_up",
+]);
+
+const ankleConcernPatterns = new Set<MovementPattern>([
+  "calf_raise",
+  "jump",
+  "lunge",
+  "squat",
+  "step_up",
+  "tibialis_raise",
+]);
+
+const levelValue: Record<ExerciseMetadataLevel, number> = {
+  low: 1,
+  moderate: 2,
+  high: 3,
+};
 
 const titleCase = (value: string) =>
   value
@@ -141,6 +247,211 @@ export function getGoalFitScore(
   }
 
   return isCompound ? 0.95 : 0.82;
+}
+
+function getDerivedRecoveryCost(exercise: ExerciseDefinition): ExerciseMetadataLevel {
+  if (exercise.recoveryCost) {
+    return exercise.recoveryCost;
+  }
+
+  if (
+    exercise.movementPattern === "olympic_lift" ||
+    (isCompoundExercise(exercise) &&
+      exercise.primaryMuscles.some((muscle) =>
+        ["glutes", "hamstrings", "quadriceps", "lower_back"].includes(muscle)
+      ))
+  ) {
+    return "high";
+  }
+
+  if (isCompoundExercise(exercise) || exercise.targetType === "distance") {
+    return "moderate";
+  }
+
+  return "low";
+}
+
+function getDerivedTechnicalComplexity(
+  exercise: ExerciseDefinition
+): ExerciseMetadataLevel {
+  if (exercise.technicalComplexity) {
+    return exercise.technicalComplexity;
+  }
+
+  if (
+    exercise.difficulty === "advanced" ||
+    highTechnicalPatterns.has(exercise.movementPattern)
+  ) {
+    return "high";
+  }
+
+  if (
+    exercise.laterality === "unilateral" ||
+    moderateTechnicalPatterns.has(exercise.movementPattern)
+  ) {
+    return "moderate";
+  }
+
+  return "low";
+}
+
+function getDerivedImpactLevel(exercise: ExerciseDefinition): ExerciseImpactLevel {
+  if (exercise.impactLevel) {
+    return exercise.impactLevel;
+  }
+
+  if (highImpactPatterns.has(exercise.movementPattern)) {
+    return "high";
+  }
+
+  if (moderateImpactPatterns.has(exercise.movementPattern)) {
+    return "moderate";
+  }
+
+  if (exercise.targetType === "time" || exercise.movementPattern === "isometric_hold") {
+    return "none";
+  }
+
+  return "low";
+}
+
+function getDerivedSetupComplexity(
+  exercise: ExerciseDefinition
+): ExerciseMetadataLevel {
+  if (exercise.setupComplexity) {
+    return exercise.setupComplexity;
+  }
+
+  if (
+    exercise.movementPattern === "olympic_lift" ||
+    exercise.equipmentType === "barbell" ||
+    exercise.equipmentType === "mixed"
+  ) {
+    return "high";
+  }
+
+  if (
+    exercise.equipmentType === "cable" ||
+    exercise.equipmentType === "machine" ||
+    exercise.equipmentType === "smith_machine" ||
+    exercise.equipmentType === "assisted_machine"
+  ) {
+    return "moderate";
+  }
+
+  return "low";
+}
+
+function getDerivedTimeCost(exercise: ExerciseDefinition): ExerciseMetadata["timeCost"] {
+  if (exercise.timeCost) {
+    return exercise.timeCost;
+  }
+
+  if (
+    exercise.targetType === "distance" ||
+    exercise.movementPattern === "conditioning" ||
+    exercise.movementPattern === "sled" ||
+    exercise.movementPattern === "olympic_lift"
+  ) {
+    return "long";
+  }
+
+  if (isCompoundExercise(exercise)) {
+    return "moderate";
+  }
+
+  return "short";
+}
+
+function getDerivedBestForGoals(
+  exercise: ExerciseDefinition
+): ExerciseMetadata["bestForGoals"] {
+  if (exercise.bestForGoals?.length) {
+    return exercise.bestForGoals;
+  }
+
+  if (
+    exercise.category === "conditioning" ||
+    exercise.movementPattern === "conditioning" ||
+    exercise.movementPattern === "sled" ||
+    exercise.movementPattern === "jump"
+  ) {
+    return ["conditioning", "hybrid"];
+  }
+
+  if (exercise.movementPattern === "olympic_lift") {
+    return ["skill", "strength", "hybrid"];
+  }
+
+  if (isIsolationExercise(exercise)) {
+    return ["hypertrophy"];
+  }
+
+  if (isCompoundExercise(exercise)) {
+    return ["strength", "hybrid", "hypertrophy"];
+  }
+
+  return ["hybrid"];
+}
+
+function getDerivedJointConcerns(
+  exercise: ExerciseDefinition
+): ExerciseJointConcern[] {
+  if (exercise.avoidIfJointConcern?.length) {
+    return exercise.avoidIfJointConcern;
+  }
+
+  const concerns = new Set<ExerciseJointConcern>();
+  const pattern = exercise.movementPattern;
+
+  if (shoulderConcernPatterns.has(pattern)) concerns.add("shoulders");
+  if (elbowConcernPatterns.has(pattern)) concerns.add("elbows");
+  if (wristConcernPatterns.has(pattern)) concerns.add("wrists");
+  if (lowerBackConcernPatterns.has(pattern)) concerns.add("lower_back");
+  if (hipConcernPatterns.has(pattern)) concerns.add("hips");
+  if (kneeConcernPatterns.has(pattern)) concerns.add("knees");
+  if (ankleConcernPatterns.has(pattern)) concerns.add("ankles");
+
+  if (exercise.id.includes("dip")) {
+    concerns.add("shoulders");
+    concerns.add("elbows");
+  }
+
+  return [...concerns];
+}
+
+export function getExerciseMetadata(
+  exercise: ExerciseDefinition | null | undefined
+): ExerciseMetadata | null {
+  if (!exercise) {
+    return null;
+  }
+
+  const impactLevel = getDerivedImpactLevel(exercise);
+  const technicalComplexity = getDerivedTechnicalComplexity(exercise);
+  const recoveryCost = getDerivedRecoveryCost(exercise);
+  const setupComplexity = getDerivedSetupComplexity(exercise);
+  const jointConcerns = getDerivedJointConcerns(exercise);
+  const jointStress =
+    exercise.jointStress ??
+    (impactLevel === "high" ||
+    technicalComplexity === "high" ||
+    jointConcerns.length >= 3
+      ? "high"
+      : jointConcerns.length > 0
+        ? "moderate"
+        : "low");
+
+  return {
+    recoveryCost,
+    technicalComplexity,
+    jointStress,
+    impactLevel,
+    setupComplexity,
+    timeCost: getDerivedTimeCost(exercise),
+    bestForGoals: getDerivedBestForGoals(exercise),
+    avoidIfJointConcern: jointConcerns,
+  };
 }
 
 export function getFocusRelevanceScore(
@@ -356,6 +667,12 @@ export function summarizeExercisePool(
       difficultyFitAverage: 0,
       equipmentFitRatio: 0,
       goalFitAverage: 0,
+      highImpactRatio: 0,
+      highRecoveryRatio: 0,
+      jointConcernMatchRatio: 0,
+      jointStressAverage: 0,
+      longTimeCostRatio: 0,
+      technicalComplexityAverage: 0,
     };
   }
 
@@ -364,6 +681,10 @@ export function summarizeExercisePool(
   const total = exercises.length;
   const sum = (values: number[]) =>
     values.reduce((current, value) => current + value, 0);
+  const metadata = exercises
+    .map((exercise) => getExerciseMetadata(exercise))
+    .filter((details): details is ExerciseMetadata => Boolean(details));
+  const userJointConcerns = answers.jointConcerns ?? [];
 
   return {
     accessoryRatio:
@@ -388,6 +709,24 @@ export function summarizeExercisePool(
       ) / total,
     goalFitAverage:
       sum(exercises.map((exercise) => getGoalFitScore(exercise, goal))) / total,
+    highImpactRatio:
+      metadata.filter((details) => details.impactLevel === "high").length / total,
+    highRecoveryRatio:
+      metadata.filter((details) => details.recoveryCost === "high").length / total,
+    jointConcernMatchRatio: userJointConcerns.length
+      ? metadata.filter((details) =>
+          details.avoidIfJointConcern.some((concern) =>
+            userJointConcerns.includes(concern)
+          )
+        ).length / total
+      : 0,
+    jointStressAverage:
+      sum(metadata.map((details) => levelValue[details.jointStress])) / total,
+    longTimeCostRatio:
+      metadata.filter((details) => details.timeCost === "long").length / total,
+    technicalComplexityAverage:
+      sum(metadata.map((details) => levelValue[details.technicalComplexity])) /
+      total,
   };
 }
 

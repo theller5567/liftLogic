@@ -27,8 +27,14 @@ const createWorkoutPlan = (
   }) as WorkoutPlanDto;
 
 describe("user flow destination", () => {
-  it("sends users without a workout plan to onboarding", () => {
-    expect(getUserFlowDestination(null)).toBe("/onboarding");
+  it("sends first-run users without a workout plan to welcome", () => {
+    expect(getUserFlowDestination(null)).toBe("/welcome");
+  });
+
+  it("sends users with an onboarding draft back to onboarding", () => {
+    expect(
+      getUserFlowDestination(null, { hasOnboardingDraft: true })
+    ).toBe("/onboarding");
   });
 
   it("sends users with an unreviewed plan to workout review", () => {

@@ -101,6 +101,23 @@ export type ExerciseLoadType =
   | "machine"
   | "timed";
 export type ExerciseTargetType = "reps" | "time" | "distance" | "calories";
+export type ExerciseMetadataLevel = "low" | "moderate" | "high";
+export type ExerciseImpactLevel = "none" | "low" | "moderate" | "high";
+export type ExerciseTimeCost = "short" | "moderate" | "long";
+export type ExerciseBestForGoal =
+  | "hypertrophy"
+  | "strength"
+  | "hybrid"
+  | "conditioning"
+  | "skill";
+export type ExerciseJointConcern =
+  | "shoulders"
+  | "elbows"
+  | "wrists"
+  | "lower_back"
+  | "hips"
+  | "knees"
+  | "ankles";
 
 export interface ExerciseAlternativeRef {
   exerciseId: string;
@@ -145,6 +162,14 @@ export interface ExerciseDefinition {
   isCompound?: boolean;
   primaryEquipment?: string;
   secondaryEquipment?: string[];
+  recoveryCost?: ExerciseMetadataLevel;
+  technicalComplexity?: ExerciseMetadataLevel;
+  jointStress?: ExerciseMetadataLevel;
+  impactLevel?: ExerciseImpactLevel;
+  setupComplexity?: ExerciseMetadataLevel;
+  timeCost?: ExerciseTimeCost;
+  bestForGoals?: ExerciseBestForGoal[];
+  avoidIfJointConcern?: ExerciseJointConcern[];
 }
 
 export interface WorkoutTemplateWorkoutDay {

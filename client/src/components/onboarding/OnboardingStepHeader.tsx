@@ -5,7 +5,14 @@ type OnboardingStepHeaderProps = {
   visibleSteps: OnboardingStep[];
 };
 
-const SECTION_ORDER = ["Plan", "Goals", "Profile", "Schedule", "Starting Weights"] as const;
+const SECTION_ORDER = [
+  "Plan",
+  "Goals",
+  "Profile",
+  "Schedule",
+  "Preferences",
+  "Starting Weights",
+] as const;
 type OnboardingSection = (typeof SECTION_ORDER)[number];
 
 const OnboardingStepHeader = ({

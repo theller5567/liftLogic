@@ -329,6 +329,107 @@
   }
 }
 
+.summaryNotes {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.2);
+  border-radius: 0.45rem;
+  background: hsl(var(--clr-neutral-700-b) / 0.65);
+
+  h2,
+  p {
+    margin: 0;
+  }
+
+  h2 {
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 1.1rem;
+  }
+}
+
+.summaryNotePreview {
+  color: hsl(var(--clr-neutral-100-b) / 0.75);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.summaryNotesForm {
+  display: grid;
+  gap: 0.75rem;
+
+  label {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  label span {
+    color: hsl(var(--clr-neutral-100-b));
+    font-size: 0.78rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 7rem;
+    resize: vertical;
+    padding: 0.85rem;
+    border: 1px solid var(--ll-border-control);
+    border-radius: var(--ll-radius-control);
+    background: var(--ll-surface-control);
+    color: var(--ll-text-strong);
+    line-height: 1.35;
+
+    &::placeholder {
+      color: var(--ll-text-faint);
+    }
+
+    &:focus-visible {
+      outline: 2px solid hsl(var(--clr-secondary-500-b) / 0.8);
+      outline-offset: 2px;
+    }
+  }
+}
+
+.summaryBadgeGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.summaryBadge {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--ll-border-control);
+  border-radius: 999px;
+  background: var(--ll-surface-control);
+  color: var(--ll-text-muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+
+  &:focus-visible {
+    outline: 2px solid hsl(var(--clr-secondary-500-b) / 0.8);
+    outline-offset: 2px;
+  }
+}
+
+.summaryBadgeSelected {
+  border-color: hsl(var(--clr-secondary-500-b));
+  background: hsl(var(--clr-secondary-500-b) / 0.15);
+  color: hsl(var(--clr-neutral-0-b));
+}
+
+.summaryBadgeSaved {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid hsl(var(--clr-secondary-500-b) / 0.55);
+  border-radius: 999px;
+  background: hsl(var(--clr-secondary-500-b) / 0.12);
+  color: hsl(var(--clr-neutral-0-b));
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
 .summaryExerciseList {
   display: grid;
   gap: 0.75rem;

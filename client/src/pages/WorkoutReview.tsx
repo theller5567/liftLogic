@@ -28,8 +28,6 @@ import { generateWorkoutPreview } from "../utils/generateWorkoutPreview";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import {
   getRankedWorkoutTemplateRecommendations,
-  getWorkoutTemplateMatchReasons,
-  getWorkoutTemplateWarnings,
 } from "../../../shared/utils/workoutTemplateRecommendations";
 import { getAvailableEquipmentFromAnswers } from "../../../shared/utils/equipmentRequirements";
 import { getEditedPreviewMessages } from "../utils/workoutPreviewEdits";
@@ -119,12 +117,7 @@ const WorkoutReview = () => {
         : undefined,
     [activeAnswers, preview?.programId]
   );
-  const whyThisPlan = recommendation
-    ? getWorkoutTemplateMatchReasons(recommendation.template, activeAnswers!)
-    : [];
-  const planWarnings = recommendation
-    ? getWorkoutTemplateWarnings(recommendation.template, activeAnswers!)
-    : [];
+  const planExplanation = recommendation?.explanation;
   const hasPendingRequest =
     previewSyncStatus === "saving" ||
     templateSyncStatus === "saving" ||
@@ -320,22 +313,38 @@ const WorkoutReview = () => {
             {recommendation?.template.description ??
               "Review your recommended plan before you start."}
           </p>
-          {whyThisPlan.length > 0 ? (
+          {planExplanation?.whyThisPlan.length ? (
             <div className={pageStyles.summaryList}>
               <p><strong>Why this plan?</strong></p>
-              {whyThisPlan.map((reason) => (
+              {planExplanation.whyThisPlan.map((reason) => (
                 <p key={reason}><CheckMark className={clsx(pageStyles.checkmarkIcon)} />{reason}</p>
               ))}
             </div>
           ) : null}
-          {planWarnings.length > 0 ? (
+          {planExplanation?.tradeoffs.length ? (
+            <div className={clsx(pageStyles.summaryList, pageStyles.tradeoffList)}>
+              <p><strong>Tradeoffs</strong></p>
+              {planExplanation.tradeoffs.map((tradeoff) => (
+                <p key={tradeoff}>{tradeoff}</p>
+              ))}
+            </div>
+          ) : null}
+          {planExplanation?.thingsToCheck.length ? (
             <div
               className={clsx(pageStyles.summaryList, pageStyles.warningList)}
               role="status"
             >
               <p><strong>Things to check</strong></p>
-              {planWarnings.map((warning) => (
+              {planExplanation.thingsToCheck.map((warning) => (
                 <p key={warning}>{warning}</p>
+              ))}
+            </div>
+          ) : null}
+          {planExplanation?.suggestedSubstitutions.length ? (
+            <div className={clsx(pageStyles.summaryList, pageStyles.substitutionList)}>
+              <p><strong>Suggested substitutions</strong></p>
+              {planExplanation.suggestedSubstitutions.map((suggestion) => (
+                <p key={suggestion}>{suggestion}</p>
               ))}
             </div>
           ) : null}

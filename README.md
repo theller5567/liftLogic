@@ -28,6 +28,7 @@ Local setup:
 3. Run the API with `npm --prefix server run dev`.
 4. Run the client with `npm --prefix client run dev`.
 5. Run a local API smoke test with `npm --prefix server run smoke`.
+http://localhost:5173/welcome?preview=1
 
 Production setup:
 

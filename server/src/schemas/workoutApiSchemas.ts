@@ -18,8 +18,35 @@ import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWork
 
 const goalSchema = z.enum(["hypertrophy", "strength", "hybrid"]);
 const goalPrioritySchema = z.enum(["hypertrophy", "strength"]);
+const bodyCompositionGoalSchema = z.enum([
+  "lose_fat",
+  "maintain_weight",
+  "gain_muscle",
+  "not_sure",
+]);
 const onboardingModeSchema = z.enum(["guided", "browse"]);
 const experienceLevelSchema = z.enum(["beginner", "intermediate", "advanced"]);
+const recentTrainingConsistencySchema = z.enum([
+  "brand_new",
+  "inconsistent",
+  "one_two_days",
+  "three_four_days",
+  "five_plus_days",
+]);
+const movementConfidenceSchema = z.enum([
+  "need_guidance",
+  "comfortable_basics",
+  "very_confident",
+]);
+const jointConcernSchema = z.enum([
+  "shoulders",
+  "elbows",
+  "wrists",
+  "lower_back",
+  "hips",
+  "knees",
+  "ankles",
+]);
 const availableTrainingDaysSchema = z.union([
   z.literal(1),
   z.literal(2),
@@ -28,6 +55,7 @@ const availableTrainingDaysSchema = z.union([
   z.literal(5),
   z.literal(6),
 ]);
+const sessionLengthSchema = z.enum(["20_30", "30_45", "45_60", "60_90"]);
 const genderSchema = z.enum(["male", "female"]);
 const ageRangeSchema = z.enum(["7_15", "16_18", "19_29", "30_39", "40_49", "50_plus"]);
 const equipmentAccessSchema = z.enum([
@@ -78,15 +106,23 @@ export const onboardingAnswersSchema = z
     selectedWorkoutTemplateId: z.string().min(1).max(160).optional(),
     goal: goalSchema.optional(),
     goalPriority: goalPrioritySchema.optional(),
+    bodyCompositionGoal: bodyCompositionGoalSchema.optional(),
     experienceLevel: experienceLevelSchema.optional(),
+    recentTrainingConsistency: recentTrainingConsistencySchema.optional(),
+    wantsRecommendationFineTuning: z.boolean().optional(),
+    movementConfidence: movementConfidenceSchema.optional(),
+    jointConcerns: z.array(jointConcernSchema).max(12).optional(),
+    dislikedExerciseIds: z.array(z.string().min(1).max(120)).max(40).optional(),
     equipmentAccess: equipmentAccessSchema.optional(),
     availableEquipment: z.array(equipmentItemSchema).max(80).optional(),
     availableTrainingDays: availableTrainingDaysSchema.optional(),
+    sessionLength: sessionLengthSchema.optional(),
     gender: genderSchema.optional(),
     ageRange: ageRangeSchema.optional(),
     focusArea: focusAreaSchema.optional(),
     focusDurationWeeks: focusDurationWeeksSchema.optional(),
     weightUnit: weightUnitSchema.optional(),
+    heightInches: z.number().finite().positive().min(36).max(96).optional(),
     bodyWeight: nonNegativeOptionalNumber,
     benchPress: anchorAnswerSchema.optional(),
     dumbbellRow: anchorAnswerSchema.optional(),

@@ -30,6 +30,7 @@ import {
   type EstimateDirectWeightParams,
 } from "./weightEstimation";
 import {
+  getBodyMassIndex,
   getRequestedEquipment,
   getRequestedLevel,
   getSelectedWorkoutTemplate,
@@ -137,6 +138,20 @@ function getProfileWeightMultiplier(answers: OnboardingAnswers): number {
 
   if (answers.gender === "female") {
     multiplier *= 0.85;
+  }
+
+  const bodyMassIndex = getBodyMassIndex(answers);
+  const shouldUseBodySizeConservatism =
+    answers.experienceLevel === "beginner" ||
+    answers.recentTrainingConsistency === "brand_new" ||
+    answers.recentTrainingConsistency === "inconsistent";
+
+  if (bodyMassIndex !== undefined && shouldUseBodySizeConservatism) {
+    if (bodyMassIndex >= 40) {
+      multiplier *= 0.9;
+    } else if (bodyMassIndex >= 35) {
+      multiplier *= 0.95;
+    }
   }
 
   return multiplier;

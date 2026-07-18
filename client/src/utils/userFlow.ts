@@ -11,11 +11,16 @@ import {
   refreshCurrentAppData,
 } from "./appDataCache";
 import {
+  readDraftAnswers,
   readSubmittedAnswers,
   readWorkoutReviewed,
 } from "./workoutStorage";
 
-export type UserFlowDestination = "/onboarding" | "/workout-review" | "/dashboard";
+export type UserFlowDestination =
+  | "/welcome"
+  | "/onboarding"
+  | "/workout-review"
+  | "/dashboard";
 
 type UserFlowState = {
   destination: UserFlowDestination | null;
@@ -30,10 +35,11 @@ type UserFlowState = {
 };
 
 export const getUserFlowDestination = (
-  workoutPlan: WorkoutPlanDto | null
+  workoutPlan: WorkoutPlanDto | null,
+  options: { hasOnboardingDraft?: boolean } = {}
 ): UserFlowDestination => {
   if (!workoutPlan) {
-    return "/onboarding";
+    return options.hasOnboardingDraft ? "/onboarding" : "/welcome";
   }
 
   return workoutPlan.workoutReviewed ? "/dashboard" : "/workout-review";
@@ -43,7 +49,7 @@ export const getLocalUserFlowDestination = (): UserFlowDestination => {
   const submittedAnswers = readSubmittedAnswers();
 
   if (!submittedAnswers) {
-    return "/onboarding";
+    return readDraftAnswers() ? "/onboarding" : "/welcome";
   }
 
   return readWorkoutReviewed() ? "/dashboard" : "/workout-review";
@@ -55,7 +61,9 @@ export const useUserFlow = (enabled = true): UserFlowState => {
   const [refreshIndex, setRefreshIndex] = useState(0);
   const [state, setState] = useState<UserFlowState>({
     destination: cachedAppData
-      ? getUserFlowDestination(cachedAppData.workoutPlan)
+      ? getUserFlowDestination(cachedAppData.workoutPlan, {
+          hasOnboardingDraft: Boolean(readDraftAnswers()),
+        })
       : null,
     error: null,
     hasCachedData: Boolean(cachedAppData),
@@ -81,7 +89,9 @@ export const useUserFlow = (enabled = true): UserFlowState => {
         }
 
         setState({
-          destination: getUserFlowDestination(workoutPlan),
+          destination: getUserFlowDestination(workoutPlan, {
+            hasOnboardingDraft: Boolean(readDraftAnswers()),
+          }),
           error: null,
           hasCachedData: true,
           isLoading: false,
