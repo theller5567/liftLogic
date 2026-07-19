@@ -6,6 +6,7 @@ import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
 import WorkoutExerciseHeader from "../components/workout-session/WorkoutExerciseHeader";
 import WorkoutExercisePerformance from "../components/workout-session/WorkoutExercisePerformance";
+import ProgressionRecommendationCard from "../components/workout-session/ProgressionRecommendationCard";
 import WorkoutRestTimerCard from "../components/workout-session/WorkoutRestTimerCard";
 import WorkoutSetPanel from "../components/workout-session/WorkoutSetPanel";
 // import DevDataInspector from "../components/dev/DevDataInspector";
@@ -21,9 +22,15 @@ import { weightEstimationRules } from "../../../shared/constants/weightEstimatio
 import type { WeightStepKey } from "../../../shared/types/userSettings.types";
 import { normalizeLibraryIdToEstimatorKey } from "../../../shared/utils/exerciseLibraryAdapter";
 import {
+  getProgressiveOverloadRecommendation,
   getMostRecentPriorWeekExerciseLog,
   shouldShowWeightIncreaseAdvisory,
 } from "../utils/workoutAdvisory";
+import {
+  buildUserMessages,
+  getUserMessagesForSurface,
+  type UserMessage,
+} from "../utils/userMessages";
 import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
 import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
 import { createExerciseSlugFromParts } from "../utils/exerciseLibraryDisplay";
@@ -77,6 +84,13 @@ const getSetUiState = (
   return setIndex === activeSetIndex ? "active" : "inactive";
 };
 
+const getExerciseMessageClassName = (message: UserMessage) =>
+  clsx(
+    styles.exerciseMessage,
+    message.severity === "warning" && styles.exerciseMessageWarning,
+    message.severity === "danger" && styles.exerciseMessageDanger
+  );
+
 const getWeightStepKey = (exerciseId: string): WeightStepKey => {
   const canonicalKey = normalizeLibraryIdToEstimatorKey(exerciseId);
 
@@ -102,6 +116,10 @@ const WorkoutExercise = () => {
   const [noteBadgeDraft, setNoteBadgeDraft] = useState<NoteBadgeDraft | null>(
     null
   );
+  const [
+    dismissedProgressionExerciseIndex,
+    setDismissedProgressionExerciseIndex,
+  ] = useState<number | null>(null);
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
   const todaySetRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const showRestTimer = false;
@@ -165,6 +183,41 @@ const WorkoutExercise = () => {
   const activeExerciseStepKey = activeExercise
     ? getWeightStepKey(activeExercise.exerciseId)
     : "default";
+  const activeExerciseWeightStep = getWeightStepForKey(
+    settings,
+    activeExerciseStepKey
+  );
+  const progressionRecommendation = useMemo(
+    () =>
+      activeExercise
+        ? getProgressiveOverloadRecommendation({
+            currentSession: session,
+            exerciseLog: activeExercise,
+            priorSessions,
+            weightStep: activeExerciseWeightStep,
+          })
+        : null,
+    [activeExercise, activeExerciseWeightStep, priorSessions, session]
+  );
+  const exerciseMessages = useMemo(
+    () =>
+      activeExercise
+        ? getUserMessagesForSurface(
+            buildUserMessages({
+              activeExerciseId: activeExercise.exerciseId,
+              messagePreferences: settings.messages,
+              sessions: [...priorSessions, session],
+            }),
+            "workout_exercise"
+          )
+        : [],
+    [activeExercise, priorSessions, session, settings.messages]
+  );
+  const showProgressionRecommendation =
+    Boolean(progressionRecommendation) &&
+    progressionRecommendation?.state !== "no_history" &&
+    !allSetsCompleted &&
+    dismissedProgressionExerciseIndex !== activeExerciseIndex;
   const activeExerciseRestSeconds =
     settings.restTimer.defaultSeconds ??
     activeExercise?.prescriptionSnapshot.restSeconds ??
@@ -178,6 +231,11 @@ const WorkoutExercise = () => {
         ? "Next Exercise"
         : "Finish exercise";
   const showDevDataInspector = import.meta.env.DEV;
+  const advisoryWeightUnit =
+    activeExercise?.prescriptionSnapshot.weightUnit ?? "lb";
+  const advisoryRequestedIncrease = advisoryAttempt
+    ? `${advisoryAttempt.previousWeight} ${advisoryWeightUnit} to ${advisoryAttempt.nextWeight} ${advisoryWeightUnit}`
+    : null;
 
   useEffect(() => {
     if (activeSetIndex < 0) {
@@ -318,6 +376,44 @@ const WorkoutExercise = () => {
       weightUnit: setLog.weightUnit ?? exerciseLog.prescriptionSnapshot.weightUnit,
     }));
     setAdvisoryAttempt(null);
+  };
+
+  const applyProgressionRecommendation = async () => {
+    if (
+      !activeExercise ||
+      !progressionRecommendation?.canApplyWeight ||
+      progressionRecommendation.recommendedWeight === undefined
+    ) {
+      return;
+    }
+
+    const nextExerciseLogs = session.exerciseLogs.map((exerciseLog, index) => {
+      if (index !== activeExerciseIndex) {
+        return exerciseLog;
+      }
+
+      return {
+        ...exerciseLog,
+        sets: exerciseLog.sets.map((setLog) =>
+          setLog.completed
+            ? setLog
+            : {
+                ...setLog,
+                weight: progressionRecommendation.recommendedWeight,
+                weightUnit:
+                  progressionRecommendation.weightUnit ??
+                  setLog.weightUnit ??
+                  exerciseLog.prescriptionSnapshot.weightUnit,
+              }
+        ),
+      };
+    });
+
+    const savedSession = await persistExerciseLogs(nextExerciseLogs);
+
+    if (savedSession) {
+      setDismissedProgressionExerciseIndex(activeExerciseIndex);
+    }
   };
 
   const handleRepsChange = (
@@ -505,6 +601,36 @@ const WorkoutExercise = () => {
           todaySetRefs={todaySetRefs}
         />
 
+        {showProgressionRecommendation && progressionRecommendation ? (
+          <ProgressionRecommendationCard
+            applyLoading={isSaving}
+            recommendation={progressionRecommendation}
+            onApply={
+              progressionRecommendation.canApplyWeight
+                ? applyProgressionRecommendation
+                : undefined
+            }
+            onDismiss={() =>
+              setDismissedProgressionExerciseIndex(activeExerciseIndex)
+            }
+          />
+        ) : null}
+
+        {exerciseMessages.length > 0 ? (
+          <section className={styles.exerciseMessages} aria-label="Exercise cautions">
+            {exerciseMessages.map((message) => (
+              <article
+                key={message.id}
+                className={getExerciseMessageClassName(message)}
+              >
+                <p>{message.category.replace(/_/g, " ")}</p>
+                <h2>{message.title}</h2>
+                <span>{message.body}</span>
+              </article>
+            ))}
+          </section>
+        ) : null}
+
         <div className={styles.setList}>
           {activeExercise.sets.map((setLog, setIndex) => {
             const setState = getSetUiState(setLog, setIndex, activeSetIndex);
@@ -615,11 +741,11 @@ const WorkoutExercise = () => {
       <BottomSheet
         open={Boolean(advisoryAttempt)}
         onClose={() => setAdvisoryAttempt(null)}
-        title="Increase anyway?"
-        description="You have not completed all target sets and reps at this weight yet. Staying here can help you build a cleaner progression."
+        title="Progression check"
+        description="LiftLogic has not seen this target completed at the current weight yet. Staying here keeps the increase earned instead of rushed."
         actions={[
           {
-            label: "Stay at current weight",
+            label: "Stay here",
             tone: "primary",
             onClick: () => setAdvisoryAttempt(null),
           },
@@ -631,8 +757,11 @@ const WorkoutExercise = () => {
         ]}
       >
         <p className={styles.sheetCopy}>
-          The increase is still your call. LiftLogic is only giving you a
-          guardrail based on your logged history.
+          {advisoryRequestedIncrease
+            ? `Requested jump: ${advisoryRequestedIncrease}. `
+            : ""}
+          You can still override this. The guardrail is based on your logged
+          sets, reps, and progression history.
         </p>
       </BottomSheet>
 

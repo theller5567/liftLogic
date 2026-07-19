@@ -329,6 +329,83 @@
   }
 }
 
+.summaryInsights {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.summaryInsight {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.85rem;
+  border: 1px solid hsl(var(--clr-secondary-500-b) / 0.26);
+  border-radius: var(--ll-radius-card);
+  background:
+    linear-gradient(
+      135deg,
+      hsl(var(--clr-secondary-500-b) / 0.1),
+      hsl(var(--clr-neutral-700-b) / 0.62)
+    );
+
+  p,
+  h2,
+  span {
+    margin: 0;
+  }
+
+  p {
+    color: hsl(var(--clr-secondary-500-b));
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 1.05rem;
+    line-height: 1.1;
+  }
+
+  span {
+    color: hsl(var(--clr-neutral-100-b) / 0.78);
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+
+  button {
+    width: fit-content;
+    margin-block-start: 0.35rem;
+  }
+}
+
+.summaryInsightSuccess {
+  border-color: hsl(var(--clr-primary-500-b) / 0.34);
+  background:
+    linear-gradient(
+      135deg,
+      hsl(var(--clr-primary-500-b) / 0.12),
+      hsl(var(--clr-neutral-700-b) / 0.62)
+    );
+
+  p {
+    color: hsl(var(--clr-primary-500-b));
+  }
+}
+
+.summaryInsightWarning {
+  border-color: hsl(var(--clr-secondary-500-b) / 0.38);
+}
+
+.summaryInsightDanger {
+  border-color: var(--ll-border-danger);
+
+  p {
+    color: var(--ll-color-danger);
+  }
+}
+
 .summaryNotes {
   display: grid;
   gap: 0.75rem;
@@ -393,6 +470,32 @@
   }
 }
 
+.summaryPrompt {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border: 1px solid hsl(var(--clr-secondary-500-b) / 0.22);
+  border-radius: var(--ll-radius-control);
+  background: hsl(var(--clr-secondary-500-b) / 0.08);
+
+  strong,
+  p {
+    margin: 0;
+  }
+
+  strong {
+    color: hsl(var(--clr-neutral-0-b));
+    font-size: 0.88rem;
+  }
+
+  p {
+    color: hsl(var(--clr-neutral-100-b) / 0.72);
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+}
+
 .summaryBadgeGrid {
   display: flex;
   flex-wrap: wrap;
@@ -400,13 +503,28 @@
 }
 
 .summaryBadge {
-  padding: 0.45rem 0.7rem;
+  display: grid;
+  flex: 1 1 12rem;
+  gap: 0.2rem;
+  padding: 0.65rem 0.75rem;
   border: 1px solid var(--ll-border-control);
-  border-radius: 999px;
+  border-radius: var(--ll-radius-control);
   background: var(--ll-surface-control);
   color: var(--ll-text-muted);
-  font-size: 0.78rem;
-  font-weight: 900;
+  text-align: left;
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 0.82rem;
+    font-weight: 900;
+  }
+
+  span {
+    color: var(--ll-text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.25;
+  }
 
   &:focus-visible {
     outline: 2px solid hsl(var(--clr-secondary-500-b) / 0.8);
@@ -418,6 +536,10 @@
   border-color: hsl(var(--clr-secondary-500-b));
   background: hsl(var(--clr-secondary-500-b) / 0.15);
   color: hsl(var(--clr-neutral-0-b));
+
+  span {
+    color: hsl(var(--clr-neutral-0-b) / 0.72);
+  }
 }
 
 .summaryBadgeSaved {
@@ -503,6 +625,15 @@
     font-size: 0.82rem;
     font-weight: 700;
   }
+}
+
+.summaryExerciseNote {
+  padding: 0.65rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.16);
+  border-radius: var(--ll-radius-control);
+  background: hsl(var(--clr-neutral-900-b) / 0.32);
+  color: hsl(var(--clr-neutral-100-b) / 0.78) !important;
+  line-height: 1.35;
 }
 
 .summaryActions {

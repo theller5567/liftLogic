@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { DEFAULT_MESSAGE_PREFERENCES } from "../../../shared/types/userSettings.types";
 import type { CurrentAppData } from "./appDataCache";
 import {
   clearCachedCurrentAppData,
@@ -55,6 +56,15 @@ const createAppData = (): CurrentAppData =>
       restTimer: {
         autoStartAfterSet: false,
         defaultSeconds: 90,
+      },
+      messages: {
+        ...DEFAULT_MESSAGE_PREFERENCES,
+        categories: {
+          ...DEFAULT_MESSAGE_PREFERENCES.categories,
+        },
+        surfaces: {
+          ...DEFAULT_MESSAGE_PREFERENCES.surfaces,
+        },
       },
       weightUnit: "lb",
     },

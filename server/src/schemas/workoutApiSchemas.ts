@@ -78,6 +78,25 @@ const workoutBadgeIdSchema = z.enum([
 const confidenceSchema = z.enum(["high", "medium", "low"]);
 const familiaritySchema = z.enum(["never", "some", "often"]);
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+const userMessageCategorySchema = z.enum([
+  "completion",
+  "progressive_overload",
+  "personal_record",
+  "consistency",
+  "recovery",
+  "education",
+]);
+const userMessageSurfaceSchema = z.enum([
+  "dashboard",
+  "workout_summary",
+  "workout_exercise",
+  "trends",
+]);
+const userMessageFrequencySchema = z.enum([
+  "standard",
+  "fewer",
+  "important_only",
+]);
 const focusAreaSchema = z.enum(WORKOUT_FOCUS_AREAS) satisfies z.ZodType<WorkoutFocusArea>;
 const focusDurationWeeksSchema = z.union(
   WORKOUT_FOCUS_DURATION_WEEKS.map((duration) => z.literal(duration)) as [
@@ -236,6 +255,35 @@ const weightStepsSchema = z
   })
   .strict();
 
+const userMessageCategoryPreferencesSchema = z
+  .object({
+    completion: z.boolean(),
+    progressive_overload: z.boolean(),
+    personal_record: z.boolean(),
+    consistency: z.boolean(),
+    recovery: z.boolean(),
+    education: z.boolean(),
+  })
+  .strict();
+
+const userMessageSurfacePreferencesSchema = z
+  .object({
+    dashboard: z.boolean(),
+    workout_summary: z.boolean(),
+    workout_exercise: z.boolean(),
+    trends: z.boolean(),
+  })
+  .strict();
+
+const userMessagePreferencesSchema = z
+  .object({
+    categories: userMessageCategoryPreferencesSchema,
+    frequency: userMessageFrequencySchema,
+    surfaces: userMessageSurfacePreferencesSchema,
+    futureReminders: z.boolean(),
+  })
+  .strict();
+
 export const userSettingsSchema = z
   .object({
     weightUnit: weightUnitSchema,
@@ -253,6 +301,7 @@ export const userSettingsSchema = z
         secondaryColor: colorSchema,
       })
       .strict(),
+    messages: userMessagePreferencesSchema,
   })
   .strict() satisfies z.ZodType<UserSettings>;
 

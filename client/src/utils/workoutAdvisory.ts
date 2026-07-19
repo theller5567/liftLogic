@@ -1,8 +1,10 @@
 import type {
+  WorkoutBadgeId,
   WorkoutExerciseLog,
   WorkoutSessionDto,
   WorkoutSetLog,
 } from "../../../shared/types/workoutSession.types";
+import type { WeightUnit } from "../../../shared/constants/weightEstimationRules";
 import { getStartOfWeek } from "./workoutSessionDates";
 
 type WeightIncreaseAdvisoryInput = {
@@ -12,6 +14,41 @@ type WeightIncreaseAdvisoryInput = {
   currentSession: WorkoutSessionDto;
   priorSessions: WorkoutSessionDto[];
 };
+
+export type ProgressiveOverloadState =
+  | "no_history"
+  | "ready_to_increase"
+  | "repeat_weight"
+  | "hold_steady"
+  | "reduce_or_modify";
+
+export type ActionableProgressiveOverloadState = Exclude<
+  ProgressiveOverloadState,
+  "no_history"
+>;
+
+export type ProgressiveOverloadRecommendation = {
+  canApplyWeight: boolean;
+  previousWeight?: number;
+  reason: string;
+  recommendedWeight?: number;
+  state: ProgressiveOverloadState;
+  weightUnit?: WeightUnit;
+};
+
+type ProgressiveOverloadRecommendationInput = {
+  currentSession: WorkoutSessionDto;
+  exerciseLog: WorkoutExerciseLog;
+  priorSessions: WorkoutSessionDto[];
+  weightStep: number;
+};
+
+const REPEAT_WEIGHT_BADGES = new Set<WorkoutBadgeId>([
+  "felt_hard",
+  "form_issue",
+]);
+
+const HOLD_STEADY_BADGES = new Set<WorkoutBadgeId>(["missed_reps"]);
 
 const normalizeLabel = (label: string) =>
   label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
@@ -41,6 +78,69 @@ const weightsMatch = (left?: number, right?: number) =>
 const getSetsAtWeight = (sets: WorkoutSetLog[], weight?: number) =>
   sets.filter((set) => weightsMatch(set.weight, weight));
 
+const getSetTargetReps = (
+  exerciseLog: WorkoutExerciseLog,
+  setLog: WorkoutSetLog
+) =>
+  getProgressionTargetReps(setLog.targetReps) ??
+  getProgressionTargetReps(exerciseLog.prescriptionSnapshot.reps);
+
+const getMostRecentCompletedWeight = (exerciseLog: WorkoutExerciseLog) =>
+  [...exerciseLog.sets].reverse().find((setLog) => setLog.completed)?.weight ??
+  exerciseLog.prescriptionSnapshot.suggestedWeight;
+
+const getMostRecentCompletedWeightUnit = (exerciseLog: WorkoutExerciseLog) =>
+  [...exerciseLog.sets].reverse().find((setLog) => setLog.completed)?.weightUnit ??
+  exerciseLog.prescriptionSnapshot.weightUnit;
+
+const hasAnyBadge = (
+  exerciseLog: WorkoutExerciseLog,
+  badges: Set<WorkoutBadgeId>
+) => exerciseLog.badgeIds.some((badgeId) => badges.has(badgeId));
+
+const hasUsableWeightProgression = (
+  previousWeight: number | undefined,
+  weightUnit: WeightUnit | undefined
+) => previousWeight !== undefined && previousWeight > 0 && Boolean(weightUnit);
+
+export const completedAllTargetSets = (exerciseLog: WorkoutExerciseLog) => {
+  const requiredSetCount = exerciseLog.prescriptionSnapshot.sets;
+  const completedSets = exerciseLog.sets.filter((setLog) => setLog.completed);
+
+  if (completedSets.length < requiredSetCount) {
+    return false;
+  }
+
+  return completedSets
+    .slice(0, requiredSetCount)
+    .every((setLog) => {
+      const targetReps = getSetTargetReps(exerciseLog, setLog);
+
+      return targetReps !== null && (setLog.actualReps ?? 0) >= targetReps;
+    });
+};
+
+export const getCompletedExerciseProgressionState = (
+  exerciseLog: WorkoutExerciseLog
+): ActionableProgressiveOverloadState => {
+  if (exerciseLog.badgeIds.includes("pain")) {
+    return "reduce_or_modify";
+  }
+
+  if (
+    hasAnyBadge(exerciseLog, HOLD_STEADY_BADGES) ||
+    !completedAllTargetSets(exerciseLog)
+  ) {
+    return "hold_steady";
+  }
+
+  if (hasAnyBadge(exerciseLog, REPEAT_WEIGHT_BADGES)) {
+    return "repeat_weight";
+  }
+
+  return "ready_to_increase";
+};
+
 const completedTargetAtWeight = (
   exerciseLog: WorkoutExerciseLog,
   weight?: number
@@ -56,8 +156,12 @@ const completedTargetAtWeight = (
   const setsAtWeight = getSetsAtWeight(exerciseLog.sets, weight);
   const completedSetsAtWeight = setsAtWeight.filter((set) => set.completed);
 
-  if (completedSetsAtWeight.length === 0) {
+  if (setsAtWeight.length === 0) {
     return null;
+  }
+
+  if (completedSetsAtWeight.length === 0) {
+    return false;
   }
 
   const requiredSetCount = exerciseLog.prescriptionSnapshot.sets;
@@ -113,16 +217,33 @@ export const shouldShowWeightIncreaseAdvisory = ({
     return false;
   }
 
+  const priorExerciseLog = getMostRecentPriorWeekExerciseLog(
+    exerciseLog,
+    currentSession,
+    priorSessions
+  );
   const sameSessionResult = completedTargetAtWeight(exerciseLog, previousWeight);
+  const priorSessionResult = priorExerciseLog
+    ? completedTargetAtWeight(priorExerciseLog, previousWeight)
+    : null;
+
+  if (sameSessionResult === true || priorSessionResult === true) {
+    return false;
+  }
 
   if (sameSessionResult === false) {
     return true;
   }
 
-  if (sameSessionResult === true) {
-    return false;
-  }
+  return priorSessionResult === false;
+};
 
+export const getProgressiveOverloadRecommendation = ({
+  currentSession,
+  exerciseLog,
+  priorSessions,
+  weightStep,
+}: ProgressiveOverloadRecommendationInput): ProgressiveOverloadRecommendation => {
   const priorExerciseLog = getMostRecentPriorWeekExerciseLog(
     exerciseLog,
     currentSession,
@@ -130,8 +251,71 @@ export const shouldShowWeightIncreaseAdvisory = ({
   );
 
   if (!priorExerciseLog) {
-    return false;
+    return {
+      canApplyWeight: false,
+      reason: "No previous completed workout found for this exercise yet.",
+      state: "no_history",
+    };
   }
 
-  return completedTargetAtWeight(priorExerciseLog, previousWeight) === false;
+  const previousWeight = getMostRecentCompletedWeight(priorExerciseLog);
+  const weightUnit = getMostRecentCompletedWeightUnit(priorExerciseLog);
+  const canApplyWeight = hasUsableWeightProgression(previousWeight, weightUnit);
+  const progressionState =
+    getCompletedExerciseProgressionState(priorExerciseLog);
+
+  if (progressionState === "reduce_or_modify") {
+    return {
+      canApplyWeight: false,
+      previousWeight,
+      reason:
+        "This exercise was marked with pain last time. Consider reducing load or swapping the movement.",
+      state: "reduce_or_modify",
+      weightUnit,
+    };
+  }
+
+  if (progressionState === "hold_steady") {
+    return {
+      canApplyWeight: false,
+      previousWeight,
+      reason:
+        "Stay at this weight until you complete every planned set and rep.",
+      state: "hold_steady",
+      weightUnit,
+    };
+  }
+
+  if (progressionState === "repeat_weight") {
+    return {
+      canApplyWeight: false,
+      previousWeight,
+      reason:
+        "You finished the work, but it was marked hard or form-limited. Repeat this weight and make it cleaner.",
+      state: "repeat_weight",
+      weightUnit,
+    };
+  }
+
+  if (!canApplyWeight || previousWeight === undefined) {
+    return {
+      canApplyWeight: false,
+      previousWeight,
+      reason:
+        "You completed the target last time. Progress this exercise with cleaner reps, more control, or a slightly harder variation.",
+      state: "ready_to_increase",
+      weightUnit,
+    };
+  }
+
+  const recommendedWeight = previousWeight + weightStep;
+
+  return {
+    canApplyWeight: true,
+    previousWeight,
+    reason: `You completed every target rep last time. Try ${weightStep} ${weightUnit} more today.`,
+    recommendedWeight,
+    state: "ready_to_increase",
+    weightUnit,
+  };
 };

@@ -8,8 +8,11 @@ import StatCard from "../components/ui/StatCard";
 import StatusPill from "../components/ui/StatusPill";
 import { getWorkoutSessions } from "../services/api";
 import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
+import { buildProgressionSummary } from "../utils/progressionSummary";
+import { useUserSettings } from "../utils/userSettings";
 import { buildTrendsData, formatTrendVolume } from "../utils/trendsData";
 import type { TrendsMetric } from "../utils/trendsTypes";
+import { buildUserMessages, getUserMessagesForSurface } from "../utils/userMessages";
 import styles from "../styles/pages/trends.module.scss";
 
 const metricIcons = [Activity, BarChart3, Dumbbell, Clock3];
@@ -50,6 +53,7 @@ const Trends = () => {
   const [sessions, setSessions] = useState<WorkoutSessionDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const { settings } = useUserSettings();
   const trendWindowEnd = useMemo(() => getTrendWindowEnd(new Date()), []);
   const trendWindowStart = useMemo(
     () => getTrendWindowStart(trendWindowEnd),
@@ -58,6 +62,33 @@ const Trends = () => {
   const trendsData = useMemo(
     () => buildTrendsData(sessions, trendWindowEnd),
     [sessions, trendWindowEnd]
+  );
+  const progressionSummary = useMemo(
+    () => buildProgressionSummary(sessions),
+    [sessions]
+  );
+  const latestCompletedSessionId = useMemo(
+    () =>
+      [...sessions]
+        .filter((session) => session.status === "completed")
+        .sort(
+          (left, right) =>
+            new Date(right.scheduledFor).getTime() -
+            new Date(left.scheduledFor).getTime()
+        )[0]?._id,
+    [sessions]
+  );
+  const trendMessages = useMemo(
+    () =>
+      getUserMessagesForSurface(
+        buildUserMessages({
+          messagePreferences: settings.messages,
+          recentlyCompletedSessionId: latestCompletedSessionId,
+          sessions,
+        }),
+        "trends"
+      ).slice(0, 3),
+    [latestCompletedSessionId, sessions, settings.messages]
   );
   const maxWeeklyVolume = Math.max(
     ...trendsData.weeklyVolume.map((point) => point.volume),
@@ -139,6 +170,18 @@ const Trends = () => {
               training trends.
             </p>
           </article>
+        ) : null}
+
+        {trendMessages.length > 0 ? (
+          <section className={styles.messageGrid} aria-label="Training messages">
+            {trendMessages.map((message) => (
+              <article key={message.id} className={styles.messageCard}>
+                <p>{message.category.replace(/_/g, " ")}</p>
+                <strong>{message.title}</strong>
+                <span>{message.body}</span>
+              </article>
+            ))}
+          </section>
         ) : null}
 
         <div className={styles.metricGrid}>
@@ -227,6 +270,57 @@ const Trends = () => {
                 <small>{formatTrendVolume(exercise.totalVolume)} total volume</small>
               </article>
             ))}
+          </div>
+        </section>
+
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <p>Progression</p>
+              <h2>Next workout signals</h2>
+            </div>
+          </div>
+          <div className={styles.progressionGrid}>
+            <article className={styles.progressionCard}>
+              <p>Ready to progress</p>
+              <strong>{progressionSummary.readyToProgress.length}</strong>
+              <span>
+                {progressionSummary.readyToProgress
+                  .slice(0, 3)
+                  .map((item) => item.label)
+                  .join(", ") || "Earned increases appear here."}
+              </span>
+            </article>
+            <article className={styles.progressionCard}>
+              <p>Repeat weight</p>
+              <strong>{progressionSummary.repeatWeight.length}</strong>
+              <span>
+                {progressionSummary.repeatWeight
+                  .slice(0, 3)
+                  .map((item) => item.label)
+                  .join(", ") || "Hard or form-limited sets appear here."}
+              </span>
+            </article>
+            <article className={styles.progressionCard}>
+              <p>Hold steady</p>
+              <strong>{progressionSummary.holdSteady.length}</strong>
+              <span>
+                {progressionSummary.holdSteady
+                  .slice(0, 3)
+                  .map((item) => item.label)
+                  .join(", ") || "Missed targets appear here."}
+              </span>
+            </article>
+            <article className={styles.progressionCard}>
+              <p>Modify</p>
+              <strong>{progressionSummary.reduceOrModify.length}</strong>
+              <span>
+                {progressionSummary.reduceOrModify
+                  .slice(0, 3)
+                  .map((item) => item.label)
+                  .join(", ") || "Pain flags appear here."}
+              </span>
+            </article>
           </div>
         </section>
 

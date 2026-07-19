@@ -23,6 +23,7 @@ import {
   type GeneratedWorkoutPreview,
 } from "../utils/generateWorkoutPreview";
 import { useUserFlow } from "../utils/userFlow";
+import { useUserSettings } from "../utils/userSettings";
 import {
   resolveBaseWorkoutPreview,
   resolveCurrentWorkoutFocusBlock,
@@ -38,9 +39,34 @@ import {
   getStartOfWeek,
   isSameDate,
 } from "../utils/workoutSessionDates";
+import {
+  buildUserMessages,
+  getUserMessagesForSurface,
+  type UserMessage,
+} from "../utils/userMessages";
+import {
+  canDismissUserMessage,
+  dismissUserMessage,
+  filterVisibleUserMessages,
+  markUserMessagesSeen,
+  readUserMessageVisibilityState,
+} from "../utils/userMessageVisibility";
 import styles from "../styles/components/dashboard.module.scss";
 
 type SelectedWorkoutByDate = Record<string, string>;
+
+const getDashboardMessageClassName = (message: UserMessage) => {
+  switch (message.severity) {
+    case "success":
+      return `${styles.dashboardMessage} ${styles.dashboardMessageSuccess}`;
+    case "warning":
+      return `${styles.dashboardMessage} ${styles.dashboardMessageWarning}`;
+    case "danger":
+      return `${styles.dashboardMessage} ${styles.dashboardMessageDanger}`;
+    default:
+      return styles.dashboardMessage;
+  }
+};
 
 const getScheduledWeekdayIndexes = (daysPerWeek: number) => {
   switch (daysPerWeek) {
@@ -142,6 +168,7 @@ const Dashboard = () => {
     workoutPlan,
     profile,
   } = useUserFlow();
+  const { settings } = useUserSettings();
   const navigate = useNavigate();
   const apiEnabled = isApiEnabled();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -153,6 +180,9 @@ const Dashboard = () => {
   const [isStartingWorkout, setIsStartingWorkout] = useState(false);
   const [isStoppingSpecialization, setIsStoppingSpecialization] = useState(false);
   const [hasStoppedSpecialization, setHasStoppedSpecialization] = useState(false);
+  const [messageVisibilityState, setMessageVisibilityState] = useState(() =>
+    readUserMessageVisibilityState()
+  );
   const [selectedWorkoutByDate, setSelectedWorkoutByDate] =
     useState<SelectedWorkoutByDate>({});
   const focusedPreview = useMemo(
@@ -260,6 +290,49 @@ const Dashboard = () => {
     ? previewWeeklySchedule.filter((day) => day.type === "rest").length ||
       Math.max(0, 7 - preview.daysPerWeek)
     : 0;
+  const dashboardMessages = useMemo(
+    () => {
+      const messages = getUserMessagesForSurface(
+        buildUserMessages({
+          messagePreferences: settings.messages,
+          preview,
+          sessions: weekWorkoutSessions,
+        }),
+        "dashboard"
+      );
+      const visibleMessages = filterVisibleUserMessages({
+        messages,
+        state: messageVisibilityState,
+        surface: "dashboard",
+      });
+
+      return {
+        primary: visibleMessages[0] ?? null,
+        secondary: visibleMessages.slice(1, 3),
+      };
+    },
+    [messageVisibilityState, preview, settings.messages, weekWorkoutSessions]
+  );
+  const visibleDashboardMessages = useMemo(
+    () =>
+      [
+        dashboardMessages.primary,
+        ...dashboardMessages.secondary,
+      ].filter((message): message is UserMessage => Boolean(message)),
+    [dashboardMessages.primary, dashboardMessages.secondary]
+  );
+
+  useEffect(() => {
+    if (visibleDashboardMessages.length === 0) {
+      return;
+    }
+
+    markUserMessagesSeen({
+      messages: visibleDashboardMessages,
+      state: messageVisibilityState,
+      surface: "dashboard",
+    });
+  }, [messageVisibilityState, visibleDashboardMessages]);
 
   useEffect(() => {
     if (isLoading || error || (destination && destination !== "/dashboard")) {
@@ -305,6 +378,16 @@ const Dashboard = () => {
       ...currentSelections,
       [selectedDateKey]: workoutDayId,
     }));
+  };
+
+  const handleDismissDashboardMessage = (message: UserMessage) => {
+    setMessageVisibilityState((currentState) =>
+      dismissUserMessage({
+        message,
+        state: currentState,
+        surface: "dashboard",
+      })
+    );
   };
 
   const handleStartWorkout = async () => {
@@ -425,6 +508,61 @@ const Dashboard = () => {
               onClick={stopSpecialization}
             />
           </div>
+        ) : null}
+        {dashboardMessages.primary ? (
+          <section className={styles.dashboardMessageCenter} aria-label="Training insights">
+            <aside className={getDashboardMessageClassName(dashboardMessages.primary)}>
+              <div className={styles.dashboardMessageContent}>
+                <p>{dashboardMessages.primary.category.replace(/_/g, " ")}</p>
+                <h2>{dashboardMessages.primary.title}</h2>
+                <span>{dashboardMessages.primary.body}</span>
+              </div>
+              <div className={styles.dashboardMessageActions}>
+                {dashboardMessages.primary.action?.to ? (
+                  <Button
+                    label={dashboardMessages.primary.action.label}
+                    size="small"
+                    tone="gray"
+                    variant="outline"
+                    onClick={() => navigate(dashboardMessages.primary?.action?.to ?? "/")}
+                  />
+                ) : null}
+                {canDismissUserMessage(dashboardMessages.primary) ? (
+                  <button
+                    type="button"
+                    className={styles.dashboardMessageDismiss}
+                    aria-label={`Dismiss ${dashboardMessages.primary.title}`}
+                    onClick={() =>
+                      handleDismissDashboardMessage(dashboardMessages.primary)
+                    }
+                  >
+                    &times;
+                  </button>
+                ) : null}
+              </div>
+            </aside>
+            {dashboardMessages.secondary.length > 0 ? (
+              <div className={styles.dashboardInsightList}>
+                {dashboardMessages.secondary.map((message) => (
+                  <article key={message.id} className={styles.dashboardInsight}>
+                    <div>
+                      <p>{message.title}</p>
+                      {canDismissUserMessage(message) ? (
+                        <button
+                          type="button"
+                          aria-label={`Dismiss ${message.title}`}
+                          onClick={() => handleDismissDashboardMessage(message)}
+                        >
+                          &times;
+                        </button>
+                      ) : null}
+                    </div>
+                    <span>{message.body}</span>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </section>
         ) : null}
         <WorkoutCard
           actionLabel={activeWorkoutSession ? "Resume Workout" : "Start Workout"}

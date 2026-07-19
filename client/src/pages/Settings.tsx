@@ -20,6 +20,7 @@ import {
   AccountSettingsSection,
   AppearanceSettingsSection,
   EquipmentSettingsSection,
+  MessageSettingsSection,
   ProgramSettingsSection,
   RestTimerSettingsSection,
   TrainingSettingsSection,
@@ -308,6 +309,10 @@ const SettingsForm = ({
             onUpdateDraft={updateDraft}
           />
           <RestTimerSettingsSection
+            draftSettings={draftSettings}
+            onUpdateDraft={updateDraft}
+          />
+          <MessageSettingsSection
             draftSettings={draftSettings}
             onUpdateDraft={updateDraft}
           />

@@ -1,4 +1,4 @@
-import { Dumbbell, Target } from "lucide-react";
+import { Bell, Dumbbell, Target } from "lucide-react";
 import ProgramIcon from "../../assets/icons/001-notes.svg?react";
 import TrainingIcon from "../../assets/icons/003-weightlifting.svg?react";
 import RestTimerIcon from "../../assets/icons/005-cooldown.svg?react";
@@ -21,6 +21,9 @@ import {
 } from "../../../../shared/utils/workoutFocus";
 import type {
   UserSettings,
+  UserMessageCategory,
+  UserMessageFrequency,
+  UserMessageSurface,
   WeightStepKey,
 } from "../../../../shared/types/userSettings.types";
 import Button from "../Button";
@@ -43,6 +46,75 @@ const weightStepFields: Array<{
   { key: "dumbbell", label: "Dumbbell" },
   { key: "machine", label: "Machine" },
   { key: "cable", label: "Cable" },
+];
+
+const messageCategoryOptions: Array<{
+  description: string;
+  key: UserMessageCategory;
+  label: string;
+}> = [
+  {
+    description: "Weekly targets, finished sessions, and completed plans.",
+    key: "completion",
+    label: "Completion",
+  },
+  {
+    description: "Ready-to-progress, repeat-weight, and hold-steady coaching.",
+    key: "progressive_overload",
+    label: "Progressive overload",
+  },
+  {
+    description: "Compound lift records and strength milestones.",
+    key: "personal_record",
+    label: "Personal records",
+  },
+  {
+    description: "Streaks and long-term training rhythm.",
+    key: "consistency",
+    label: "Consistency",
+  },
+  {
+    description: "Pain, form, missed-target, and recovery cautions.",
+    key: "recovery",
+    label: "Recovery and caution",
+  },
+  {
+    description: "Short coaching tips and app guidance.",
+    key: "education",
+    label: "Education tips",
+  },
+];
+
+const messageSurfaceOptions: Array<{
+  key: UserMessageSurface;
+  label: string;
+}> = [
+  { key: "dashboard", label: "Dashboard messages" },
+  { key: "workout_summary", label: "Workout summary insights" },
+  { key: "workout_exercise", label: "Exercise-page guidance" },
+  { key: "trends", label: "Trends insights" },
+];
+
+const messageFrequencyOptions: Array<{
+  description: string;
+  label: string;
+  value: UserMessageFrequency;
+}> = [
+  {
+    description: "Show the normal mix of useful coaching messages.",
+    label: "Standard",
+    value: "standard",
+  },
+  {
+    description: "Hide lower-priority completion and info messages.",
+    label: "Fewer messages",
+    value: "fewer",
+  },
+  {
+    description: "Only show warning-level messages and protected cautions.",
+    label: "Important only",
+    value: "important_only",
+  },
 ];
 
 const toNumberInputValue = (value: number | undefined) =>
@@ -287,6 +359,141 @@ export const RestTimerSettingsSection = ({
     </FormField>
   </SectionAccordion>
 );
+
+export const MessageSettingsSection = ({
+  draftSettings,
+  onUpdateDraft,
+}: TrainingSettingsSectionProps) => {
+  const updateMessageCategory = (
+    category: UserMessageCategory,
+    enabled: boolean
+  ) => {
+    onUpdateDraft((current) => ({
+      ...current,
+      messages: {
+        ...current.messages,
+        categories: {
+          ...current.messages.categories,
+          [category]: enabled,
+        },
+      },
+    }));
+  };
+
+  const updateMessageSurface = (
+    surface: UserMessageSurface,
+    enabled: boolean
+  ) => {
+    onUpdateDraft((current) => ({
+      ...current,
+      messages: {
+        ...current.messages,
+        surfaces: {
+          ...current.messages.surfaces,
+          [surface]: enabled,
+        },
+      },
+    }));
+  };
+
+  return (
+    <SectionAccordion icon={<Bell size={18} />} title="Messages">
+      <p className={styles.focusDescription}>
+        Choose which coaching messages appear and how often LiftLogic should
+        surface them.
+      </p>
+
+      <FormField label="Frequency">
+        <SelectInput
+          value={draftSettings.messages.frequency}
+          onChange={(event) =>
+            onUpdateDraft((current) => ({
+              ...current,
+              messages: {
+                ...current.messages,
+                frequency: event.target.value as UserMessageFrequency,
+              },
+            }))
+          }
+        >
+          {messageFrequencyOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </SelectInput>
+      </FormField>
+      <p className={styles.messageHelper}>
+        {
+          messageFrequencyOptions.find(
+            (option) => option.value === draftSettings.messages.frequency
+          )?.description
+        }
+      </p>
+
+      <div className={styles.messageOptionGroup}>
+        <strong>Categories</strong>
+        {messageCategoryOptions.map((option) => (
+          <label key={option.key} className={styles.messageToggleRow}>
+            <span>
+              <strong>{option.label}</strong>
+              <small>{option.description}</small>
+            </span>
+            <input
+              checked={draftSettings.messages.categories[option.key]}
+              type="checkbox"
+              onChange={(event) =>
+                updateMessageCategory(option.key, event.target.checked)
+              }
+            />
+          </label>
+        ))}
+      </div>
+
+      <p className={styles.warningMessage}>
+        Recovery cautions may still appear when LiftLogic sees repeated pain,
+        form, or missed-target signals.
+      </p>
+
+      <div className={styles.messageOptionGroup}>
+        <strong>Surfaces</strong>
+        {messageSurfaceOptions.map((option) => (
+          <label key={option.key} className={styles.messageToggleRow}>
+            <span>
+              <strong>{option.label}</strong>
+            </span>
+            <input
+              checked={draftSettings.messages.surfaces[option.key]}
+              type="checkbox"
+              onChange={(event) =>
+                updateMessageSurface(option.key, event.target.checked)
+              }
+            />
+          </label>
+        ))}
+        <label className={styles.messageToggleRow}>
+          <span>
+            <strong>Future reminders</strong>
+            <small>Reserved for reminders or notifications later.</small>
+          </span>
+          <input
+            checked={draftSettings.messages.futureReminders}
+            type="checkbox"
+            onChange={(event) =>
+              onUpdateDraft((current) => ({
+                ...current,
+                messages: {
+                  ...current.messages,
+                  futureReminders: event.target.checked,
+                },
+              }))
+            }
+          />
+        </label>
+      </div>
+    </SectionAccordion>
+  );
+};
 
 type EquipmentSettingsSectionProps = {
   equipmentInventory: EquipmentItemId[];
