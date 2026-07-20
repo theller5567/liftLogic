@@ -154,6 +154,10 @@
   background: hsl(var(--clr-secondary-500-b));
 }
 
+.status-history {
+  background: hsl(var(--clr-neutral-300-b) / 0.55);
+}
+
 .status-empty {
   background: hsl(var(--clr-neutral-500-b) / 0.38);
 }
@@ -217,6 +221,10 @@
 
   p {
     color: hsl(var(--clr-secondary-500-b));
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
     font-size: 0.7rem;
     font-weight: 900;
     text-transform: uppercase;
@@ -235,6 +243,15 @@
       text-transform: uppercase;
     }
   }
+}
+
+.historyMarker {
+  padding: 0.18rem 0.42rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.22);
+  border-radius: var(--br-full);
+  color: hsl(var(--clr-neutral-200-b));
+  font-size: 0.62rem;
+  font-weight: 900;
 }
 
 .sessionMetrics {

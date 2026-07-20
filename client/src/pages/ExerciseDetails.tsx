@@ -7,6 +7,7 @@ import {
   type ExerciseDescription,
 } from "../../../shared/constants/exercise-library";
 import AppShell from "../components/app/AppShell";
+import Button from "../components/Button";
 import ExerciseDetailSection from "../components/exercise-library/ExerciseDetailSection";
 import InlineStatus from "../components/ui/InlineStatus";
 import styles from "../styles/pages/exerciseLibrary.module.scss";
@@ -16,6 +17,7 @@ import {
   getExerciseIdFromSlug,
   muscleLabels,
 } from "../utils/exerciseLibraryDisplay";
+import { useUserSettings } from "../utils/userSettings";
 
 // The description is loaded asynchronously so the large description module
 // can stay out of the main exercise library list page bundle.
@@ -36,6 +38,10 @@ const ExerciseDetails = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const navigationState = location.state as ExerciseDetailNavigationState | null;
+  const { saveSettings, settings } = useUserSettings();
+  const [historyMessage, setHistoryMessage] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [isSavingHistory, setIsSavingHistory] = useState(false);
   const explicitReturnTo =
     navigationState?.returnTo?.startsWith("/") ? navigationState.returnTo : null;
   const canUseBrowserBack = location.key !== "default";
@@ -133,6 +139,9 @@ const ExerciseDetails = () => {
   const secondaryMuscles = exercise.secondaryMuscles.map(
     (muscle) => muscleLabels[muscle]
   );
+  const hasExerciseHistoryReset = Boolean(
+    settings.exerciseHistory.resetCutoffs[exercise.id]
+  );
 
   const handleReturn = () => {
     if (explicitReturnTo) {
@@ -146,6 +155,46 @@ const ExerciseDetails = () => {
     }
 
     navigate("/exercise-library");
+  };
+
+  const updateExerciseHistoryReset = async (enabled: boolean) => {
+    setIsSavingHistory(true);
+    setHistoryMessage(null);
+    setHistoryError(null);
+
+    try {
+      const nextResetCutoffs = {
+        ...settings.exerciseHistory.resetCutoffs,
+      };
+
+      if (enabled) {
+        nextResetCutoffs[exercise.id] = new Date().toISOString();
+      } else {
+        delete nextResetCutoffs[exercise.id];
+      }
+
+      await saveSettings({
+        ...settings,
+        exerciseHistory: {
+          ...settings.exerciseHistory,
+          resetCutoffs: nextResetCutoffs,
+        },
+      });
+
+      setHistoryMessage(
+        enabled
+          ? "Future recommendations will ignore older logs for this exercise."
+          : "Older logs can guide this exercise again."
+      );
+    } catch (error) {
+      setHistoryError(
+        error instanceof Error
+          ? error.message
+          : "We could not update this exercise history setting."
+      );
+    } finally {
+      setIsSavingHistory(false);
+    }
   };
 
   return (
@@ -201,6 +250,39 @@ const ExerciseDetails = () => {
             message={descriptionState.error}
           />
         ) : null}
+
+        <section className={styles.historyControlPanel}>
+          <div>
+            <h2>Exercise history</h2>
+            <p>
+              Resetting history keeps your logged workouts, but future
+              recommendations will ignore older logs for this exercise.
+            </p>
+          </div>
+          <Button
+            disabled={isSavingHistory}
+            label={
+              hasExerciseHistoryReset
+                ? "Use older logs again"
+                : "Reset recommendation history"
+            }
+            loading={isSavingHistory}
+            size="medium"
+            tone={hasExerciseHistoryReset ? "gray" : "secondary"}
+            variant={hasExerciseHistoryReset ? "outline" : undefined}
+            onClick={() => updateExerciseHistoryReset(!hasExerciseHistoryReset)}
+          />
+          {historyMessage ? (
+            <InlineStatus tone="success" title={historyMessage} />
+          ) : null}
+          {historyError ? (
+            <InlineStatus
+              tone="error"
+              title="History setting not saved"
+              message={historyError}
+            />
+          ) : null}
+        </section>
 
         {description ? (
           // Render the structured description fields. Optional fields only

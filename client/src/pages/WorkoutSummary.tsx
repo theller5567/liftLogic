@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
-import { updateWorkoutSession } from "../services/api";
+import { deleteWorkoutSession, updateWorkoutSession } from "../services/api";
 import { formatMonthDay } from "../utils/dateFormatting";
 import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
@@ -25,6 +25,10 @@ import type {
   WorkoutBadgeId,
   WorkoutExerciseLog,
 } from "../../../shared/types/workoutSession.types";
+import type {
+  CurrentProgramScope,
+  ExerciseHistoryScopeOptions,
+} from "../../../shared/utils/workoutSessionScope";
 import styles from "../styles/pages/workout.module.scss";
 
 type ExerciseFeedbackDraft = {
@@ -61,26 +65,62 @@ const WorkoutSummary = () => {
   const [exerciseFeedbackDraft, setExerciseFeedbackDraft] =
     useState<ExerciseFeedbackDraft | null>(null);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [isDeletingWorkout, setIsDeletingWorkout] = useState(false);
+  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const completedExerciseCount = getCompletedExerciseCount(session.exerciseLogs);
   const completedSetCount = getCompletedSetCount(session.exerciseLogs);
   const totalSetCount = getTotalSetCount(session.exerciseLogs);
+  const currentProgramScope = useMemo<CurrentProgramScope>(
+    () => ({
+      activeProgramHistoryId: session.programHistoryId,
+      programId: session.programId,
+      programVersion: session.programVersion,
+      workoutPlanId: session.workoutPlanId,
+    }),
+    [
+      session.programHistoryId,
+      session.programId,
+      session.programVersion,
+      session.workoutPlanId,
+    ]
+  );
+  const exerciseHistoryScope = useMemo<ExerciseHistoryScopeOptions>(
+    () => ({
+      currentProgramScope,
+      includePreviousPrograms:
+        settings.exerciseHistory.includePreviousPrograms,
+      resetCutoffs: settings.exerciseHistory.resetCutoffs,
+    }),
+    [
+      currentProgramScope,
+      settings.exerciseHistory.includePreviousPrograms,
+      settings.exerciseHistory.resetCutoffs,
+    ]
+  );
   const summaryMessages = useMemo(
     () =>
       getUserMessagesForSurface(
         buildUserMessages({
+          exerciseHistoryScope,
           messagePreferences: settings.messages,
           recentlyCompletedSessionId: session._id,
           sessions: [...priorSessions, session],
         }),
         "workout_summary"
       ),
-    [priorSessions, session, settings.messages]
+    [exerciseHistoryScope, priorSessions, session, settings.messages]
   );
 
   const hasNoteChanges =
     workoutNotes.trim() !== (session.notes ?? "") ||
     workoutBadgeIds.join("|") !== session.badgeIds.join("|");
+  const hasWorkoutFeedback =
+    Boolean(session.notes) || session.badgeIds.length > 0;
+  const hasExerciseDraftFeedback =
+    Boolean(exerciseFeedbackDraft?.notes.trim()) ||
+    Boolean(exerciseFeedbackDraft?.badgeIds.length);
 
   const toggleWorkoutBadge = (badgeId: WorkoutBadgeId) => {
     setWorkoutBadgeIds((currentBadgeIds) =>
@@ -142,6 +182,30 @@ const WorkoutSummary = () => {
     }
   };
 
+  const clearWorkoutFeedback = async () => {
+    setIsSavingNotes(true);
+    setSaveError(null);
+
+    try {
+      const { workoutSession } = await updateWorkoutSession(session._id, {
+        badgeIds: [],
+        notes: null,
+      });
+      setSession(workoutSession);
+      setWorkoutNotes("");
+      setWorkoutBadgeIds([]);
+      setIsNotesSheetOpen(false);
+    } catch (error) {
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "We could not clear your workout notes."
+      );
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
+
   const saveExerciseFeedback = async () => {
     if (!exerciseFeedbackDraft) {
       return;
@@ -174,6 +238,64 @@ const WorkoutSummary = () => {
       );
     } finally {
       setIsSavingNotes(false);
+    }
+  };
+
+  const clearExerciseFeedback = async () => {
+    if (!exerciseFeedbackDraft) {
+      return;
+    }
+
+    setIsSavingNotes(true);
+    setSaveError(null);
+
+    const nextExerciseLogs = session.exerciseLogs.map((exerciseLog, index) =>
+      index === exerciseFeedbackDraft.exerciseIndex
+        ? {
+            ...exerciseLog,
+            badgeIds: [],
+            notes: undefined,
+          }
+        : exerciseLog
+    );
+
+    try {
+      const { workoutSession } = await updateWorkoutSession(session._id, {
+        exerciseLogs: nextExerciseLogs,
+      });
+      setSession(workoutSession);
+      setExerciseFeedbackDraft(null);
+    } catch (error) {
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "We could not clear this exercise feedback."
+      );
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
+
+  const handleDeleteWorkout = async () => {
+    setIsDeletingWorkout(true);
+    setDeleteError(null);
+
+    try {
+      await deleteWorkoutSession(session._id);
+      navigate("/dashboard", {
+        replace: true,
+        state: {
+          statusMessage: `${formatWorkoutDisplayLabel(session.programDayLabel)} was deleted.`,
+        },
+      });
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error
+          ? error.message
+          : "We could not delete this workout."
+      );
+    } finally {
+      setIsDeletingWorkout(false);
     }
   };
 
@@ -338,6 +460,13 @@ const WorkoutSummary = () => {
           tone="primary"
           onClick={() => navigate("/dashboard")}
         />
+        <Button
+          label="Delete workout"
+          size="small"
+          tone="danger"
+          variant="ghost"
+          onClick={() => setIsDeleteSheetOpen(true)}
+        />
       </div>
 
       <BottomSheet
@@ -403,6 +532,17 @@ const WorkoutSummary = () => {
               );
             })}
           </div>
+
+          {hasWorkoutFeedback || workoutNotes.trim() || workoutBadgeIds.length ? (
+            <Button
+              label="Clear workout notes and tags"
+              tone="danger"
+              variant="ghost"
+              size="small"
+              disabled={isSavingNotes}
+              onClick={clearWorkoutFeedback}
+            />
+          ) : null}
 
           {saveError ? <p className={styles.error}>{saveError}</p> : null}
         </div>
@@ -486,9 +626,60 @@ const WorkoutSummary = () => {
               })}
             </div>
 
+            {hasExerciseDraftFeedback ? (
+              <Button
+                label="Clear exercise feedback"
+                tone="danger"
+                variant="ghost"
+                size="small"
+                disabled={isSavingNotes}
+                onClick={clearExerciseFeedback}
+              />
+            ) : null}
+
             {saveError ? <p className={styles.error}>{saveError}</p> : null}
           </div>
         ) : null}
+      </BottomSheet>
+
+      <BottomSheet
+        open={isDeleteSheetOpen}
+        onClose={() => {
+          if (!isDeletingWorkout) {
+            setIsDeleteSheetOpen(false);
+          }
+        }}
+        title="Delete this workout?"
+        eyebrow="Workout data"
+        description="This removes the logged sets, notes, badges, and workout summary from your active history."
+        closeOnOverlayClick={!isDeletingWorkout}
+        actions={[
+          {
+            label: "Delete workout",
+            tone: "danger",
+            loading: isDeletingWorkout,
+            closeOnClick: false,
+            onClick: handleDeleteWorkout,
+          },
+          {
+            label: "Keep workout",
+            tone: "gray",
+            disabled: isDeletingWorkout,
+            onClick: () => setIsDeleteSheetOpen(false),
+          },
+        ]}
+      >
+        <div className={styles.deleteWorkoutConfirmation}>
+          <p>
+            LiftLogic will stop using this workout for trends, personal records,
+            progressive overload, and coaching messages.
+          </p>
+          <p>
+            The session is soft-deleted so future recovery/export tooling can
+            handle it safely.
+          </p>
+          {deleteError ? <p className={styles.error}>{deleteError}</p> : null}
+        </div>
       </BottomSheet>
     </section>
   );

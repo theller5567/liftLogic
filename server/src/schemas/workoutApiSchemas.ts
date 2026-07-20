@@ -108,6 +108,21 @@ const focusDurationWeeksSchema = z.union(
 );
 
 const nonNegativeOptionalNumber = z.number().finite().nonnegative().optional();
+const booleanQuerySchema = z.preprocess((value) => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return value;
+}, z.boolean().optional());
 
 const anchorAnswerSchema = z
   .object({
@@ -242,6 +257,13 @@ export const generatedWorkoutPreviewSchema = z
 export const onboardingSubmissionSchema = z
   .object({
     answers: onboardingAnswersSchema,
+    switchOptions: z
+      .object({
+        abandonInProgressSessions: z.boolean().default(true),
+        preserveExerciseHistory: z.boolean().default(true),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -284,6 +306,13 @@ const userMessagePreferencesSchema = z
   })
   .strict();
 
+const exerciseHistoryPreferencesSchema = z
+  .object({
+    includePreviousPrograms: z.boolean(),
+    resetCutoffs: z.record(z.string().min(1), z.string().datetime()),
+  })
+  .strict();
+
 export const userSettingsSchema = z
   .object({
     weightUnit: weightUnitSchema,
@@ -302,6 +331,7 @@ export const userSettingsSchema = z
       })
       .strict(),
     messages: userMessagePreferencesSchema,
+    exerciseHistory: exerciseHistoryPreferencesSchema,
   })
   .strict() satisfies z.ZodType<UserSettings>;
 
@@ -404,6 +434,7 @@ export const workoutSessionQuerySchema = z
   .object({
     dateFrom: z.coerce.date().optional(),
     dateTo: z.coerce.date().optional(),
+    includeDeleted: booleanQuerySchema,
     status: z.enum(["in_progress", "completed", "abandoned"]).optional(),
   })
   .strict();

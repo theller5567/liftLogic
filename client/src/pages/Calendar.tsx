@@ -9,6 +9,13 @@ import PageHeader from "../components/ui/PageHeader";
 import { getWorkoutSessions } from "../services/api";
 import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
 import {
+  filterCurrentProgramWorkoutSessions,
+  isWorkoutSessionInCurrentProgram,
+  type CurrentProgramScope,
+} from "../../../shared/utils/workoutSessionScope";
+import { useUserFlow } from "../utils/userFlow";
+import { resolveCurrentWorkoutPreview } from "../utils/workoutPlanPreview";
+import {
   getDateKey,
   getSessionDate,
   isSameDate,
@@ -65,13 +72,20 @@ const getSessionsForDate = (sessions: WorkoutSessionDto[], date: Date) =>
         new Date(right.startedAt).getTime() - new Date(left.startedAt).getTime()
     );
 
-const getDayStatus = (sessions: WorkoutSessionDto[]) => {
-  if (sessions.some((session) => session.status === "completed")) {
+const getDayStatus = (
+  sessions: WorkoutSessionDto[],
+  currentProgramSessions: WorkoutSessionDto[]
+) => {
+  if (currentProgramSessions.some((session) => session.status === "completed")) {
     return "completed";
   }
 
-  if (sessions.some((session) => session.status === "in_progress")) {
+  if (currentProgramSessions.some((session) => session.status === "in_progress")) {
     return "started";
+  }
+
+  if (sessions.length > 0) {
+    return "history";
   }
 
   return "empty";
@@ -85,6 +99,7 @@ const getNextMonth = (date: Date) =>
 
 const Calendar = () => {
   const navigate = useNavigate();
+  const { workoutPlan } = useUserFlow();
   const [visibleMonth, setVisibleMonth] = useState(() => getStartOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [workoutSessions, setWorkoutSessions] = useState<WorkoutSessionDto[]>([]);
@@ -102,6 +117,24 @@ const Calendar = () => {
   const selectedDateSessions = useMemo(
     () => getSessionsForDate(workoutSessions, selectedDate),
     [selectedDate, workoutSessions]
+  );
+  const preview = useMemo(
+    () => resolveCurrentWorkoutPreview(workoutPlan),
+    [workoutPlan]
+  );
+  const currentProgramScope = useMemo<CurrentProgramScope>(
+    () => ({
+      activeProgramHistoryId: workoutPlan?.activeProgramHistoryId,
+      programId: preview?.programId,
+      programVersion: workoutPlan?.programVersion,
+      workoutPlanId: workoutPlan?._id,
+    }),
+    [
+      preview?.programId,
+      workoutPlan?._id,
+      workoutPlan?.activeProgramHistoryId,
+      workoutPlan?.programVersion,
+    ]
   );
 
   useEffect(() => {
@@ -193,7 +226,17 @@ const Calendar = () => {
         <div className={styles.monthGrid} aria-label="Workout calendar month">
           {calendarDays.map((day) => {
             const sessionsForDay = getSessionsForDate(workoutSessions, day.date);
-            const status = getDayStatus(sessionsForDay);
+            const currentProgramSessionsForDay =
+              workoutPlan
+                ? filterCurrentProgramWorkoutSessions(
+                    sessionsForDay,
+                    currentProgramScope
+                  )
+                : sessionsForDay;
+            const status = getDayStatus(
+              sessionsForDay,
+              currentProgramSessionsForDay
+            );
             const isSelected = isSameDate(day.date, selectedDate);
             const isToday = isSameDate(day.date, today);
 
@@ -233,39 +276,52 @@ const Calendar = () => {
 
           {selectedDateSessions.length > 0 ? (
             <div className={styles.sessionList}>
-              {selectedDateSessions.map((session) => (
-                <article key={session._id} className={styles.sessionCard}>
-                  <div>
-                    <p>{session.status.replace("_", " ")}</p>
-                    <h3>
-                      <span>Workout</span>
-                      {formatWorkoutDisplayLabel(session.programDayLabel)}
-                    </h3>
-                  </div>
-                  <div className={styles.sessionMetrics}>
-                    <span>{session.completionPercentage}%</span>
-                    <span>
-                      {session.completedExerciseCount}/{session.totalExerciseCount} exercises
-                    </span>
-                  </div>
-                  <Button
-                    label={
-                      session.status === "completed"
-                        ? "View summary"
-                        : "Resume workout"
-                    }
-                    size="medium"
-                    tone={session.status === "completed" ? "secondary" : "primary"}
-                    onClick={() =>
-                      navigate(
+              {selectedDateSessions.map((session) => {
+                const isCurrentProgramSession =
+                  !workoutPlan ||
+                  isWorkoutSessionInCurrentProgram(session, currentProgramScope);
+
+                return (
+                  <article key={session._id} className={styles.sessionCard}>
+                    <div>
+                      <p>
+                        {session.status.replace("_", " ")}
+                        {!isCurrentProgramSession ? (
+                          <span className={styles.historyMarker}>
+                            Previous program
+                          </span>
+                        ) : null}
+                      </p>
+                      <h3>
+                        <span>Workout</span>
+                        {formatWorkoutDisplayLabel(session.programDayLabel)}
+                      </h3>
+                    </div>
+                    <div className={styles.sessionMetrics}>
+                      <span>{session.completionPercentage}%</span>
+                      <span>
+                        {session.completedExerciseCount}/{session.totalExerciseCount} exercises
+                      </span>
+                    </div>
+                    <Button
+                      label={
                         session.status === "completed"
-                          ? `/workout/${session._id}/summary`
-                          : `/workout/${session._id}`
-                      )
-                    }
-                  />
-                </article>
-              ))}
+                          ? "View summary"
+                          : "Resume workout"
+                      }
+                      size="medium"
+                      tone={session.status === "completed" ? "secondary" : "primary"}
+                      onClick={() =>
+                        navigate(
+                          session.status === "completed"
+                            ? `/workout/${session._id}/summary`
+                            : `/workout/${session._id}`
+                        )
+                      }
+                    />
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <article className={styles.emptyState}>

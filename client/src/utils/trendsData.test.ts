@@ -4,7 +4,11 @@ import type {
   WorkoutExerciseLog,
   WorkoutSessionDto,
 } from "../../../shared/types/workoutSession.types";
-import { buildTrendsData, formatTrendVolume } from "./trendsData";
+import {
+  buildTrendsData,
+  filterTrendSessionsForScope,
+  formatTrendVolume,
+} from "./trendsData";
 
 const createExerciseLog = (
   overrides: Partial<WorkoutExerciseLog> = {}
@@ -120,6 +124,23 @@ describe("trends data", () => {
     );
   });
 
+  it("does not count soft-deleted sessions in live metrics", () => {
+    const trendsData = buildTrendsData(
+      [
+        createSession(),
+        createSession({
+          _id: "session-deleted",
+          deletedAt: new Date("2026-07-05T12:00:00").toISOString(),
+        }),
+      ],
+      new Date("2026-07-11T12:00:00")
+    );
+
+    expect(trendsData.metrics).toContainEqual(
+      expect.objectContaining({ label: "Workouts", value: "1" })
+    );
+  });
+
   it("ignores incomplete sets and sets missing weight or reps for volume", () => {
     const trendsData = buildTrendsData(
       [
@@ -232,5 +253,55 @@ describe("trends data", () => {
 
   it("formats trend volume compactly", () => {
     expect(formatTrendVolume(12500)).toBe("12.5k lb");
+  });
+
+  it("filters trend sessions to current program scope", () => {
+    const currentSession = createSession({
+      _id: "current-session",
+      programHistoryId: "history-2",
+      programId: "full_body_3_day",
+      programVersion: 2,
+    });
+    const previousSession = createSession({
+      _id: "previous-session",
+      programHistoryId: "history-1",
+      programId: "bro_split",
+      programVersion: 1,
+    });
+
+    expect(
+      filterTrendSessionsForScope(
+        [previousSession, currentSession],
+        "current_program",
+        {
+          activeProgramHistoryId: "history-2",
+          programId: "full_body_3_day",
+          programVersion: 2,
+          workoutPlanId: "plan-1",
+        }
+      ).map((session) => session._id)
+    ).toEqual(["current-session"]);
+  });
+
+  it("keeps archived but non-deleted sessions in all-time trend scope", () => {
+    const currentSession = createSession({
+      _id: "current-session",
+      programHistoryId: "history-2",
+      programId: "full_body_3_day",
+      programVersion: 2,
+    });
+    const previousSession = createSession({
+      _id: "previous-session",
+      programHistoryId: "history-1",
+      programId: "bro_split",
+      programVersion: 1,
+    });
+
+    expect(
+      filterTrendSessionsForScope(
+        [previousSession, currentSession],
+        "all_time"
+      ).map((session) => session._id)
+    ).toEqual(["previous-session", "current-session"]);
   });
 });

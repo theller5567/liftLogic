@@ -7,6 +7,7 @@ import type {
   WorkoutFocusArea,
   WorkoutFocusBlock,
 } from "../../../shared/types/workoutFocus.types";
+import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
 import {
   WORKOUT_FOCUS_AREA_LABELS,
   WORKOUT_FOCUS_DURATION_WEEKS,
@@ -21,6 +22,7 @@ import WorkoutPreview from "../components/WorkoutPreview";
 import {
   isApiEnabled,
   markWorkoutPlanReviewed,
+  type ProgramSwitchOptions,
   saveEditedWorkoutPreview,
   submitOnboardingAnswers,
 } from "../services/api";
@@ -51,6 +53,10 @@ const focusAreaOptions = Object.entries(WORKOUT_FOCUS_AREA_LABELS).map(
 );
 
 type SyncStatus = "idle" | "saving" | "saved_local" | "synced" | "failed";
+type PendingTemplateSwitch = {
+  nextAnswers: OnboardingAnswers;
+  templateId: string;
+};
 
 const WorkoutReview = () => {
   const navigate = useNavigate();
@@ -81,6 +87,11 @@ const WorkoutReview = () => {
   const [showEditWarning, setShowEditWarning] = useState(false);
   const [showFocusOffer, setShowFocusOffer] = useState(false);
   const [showPlanBrowser, setShowPlanBrowser] = useState(false);
+  const [pendingTemplateSwitch, setPendingTemplateSwitch] =
+    useState<PendingTemplateSwitch | null>(null);
+  const [abandonInProgressSessions, setAbandonInProgressSessions] =
+    useState(true);
+  const [preserveExerciseHistory, setPreserveExerciseHistory] = useState(true);
   const [selectedFocusArea, setSelectedFocusArea] =
     useState<WorkoutFocusArea>("glutes");
   const [selectedFocusDuration, setSelectedFocusDuration] =
@@ -173,16 +184,13 @@ const WorkoutReview = () => {
     setPreviewSyncStatus("saved_local");
   };
 
-  const handleTemplateSelect = async (templateId: string) => {
+  const submitTemplateSelect = async (
+    { nextAnswers, templateId }: PendingTemplateSwitch,
+    switchOptions?: ProgramSwitchOptions
+  ) => {
     if (!activeAnswers || templateSyncStatus === "saving") {
       return;
     }
-
-    const nextAnswers = {
-      ...activeAnswers,
-      onboardingMode: activeAnswers.onboardingMode ?? "browse",
-      selectedWorkoutTemplateId: templateId,
-    };
 
     setReviewError(null);
     setTemplateSyncStatus("saving");
@@ -197,7 +205,7 @@ const WorkoutReview = () => {
     if (isApiEnabled()) {
       try {
         const { profile, workoutPlan } =
-          await submitOnboardingAnswers(nextAnswers);
+          await submitOnboardingAnswers(nextAnswers, switchOptions);
         updateCachedCurrentAppData({ profile, workoutPlan });
         setTemplateSyncStatus("synced");
       } catch (error) {
@@ -210,6 +218,7 @@ const WorkoutReview = () => {
       } finally {
         setPendingTemplateId(null);
         setShowPlanBrowser(false);
+        setPendingTemplateSwitch(null);
       }
       return;
     }
@@ -217,6 +226,33 @@ const WorkoutReview = () => {
     setTemplateSyncStatus("saved_local");
     setPendingTemplateId(null);
     setShowPlanBrowser(false);
+    setPendingTemplateSwitch(null);
+  };
+
+  const handleTemplateSelect = (templateId: string) => {
+    if (!activeAnswers || templateSyncStatus === "saving") {
+      return;
+    }
+
+    if (templateId === preview.programId) {
+      setShowPlanBrowser(false);
+      return;
+    }
+
+    const nextAnswers = {
+      ...activeAnswers,
+      onboardingMode: activeAnswers.onboardingMode ?? "browse",
+      selectedWorkoutTemplateId: templateId,
+    };
+    const nextSwitch = { nextAnswers, templateId };
+
+    if (remoteWorkoutPlan?.workoutReviewed) {
+      setPendingTemplateSwitch(nextSwitch);
+      setShowPlanBrowser(false);
+      return;
+    }
+
+    void submitTemplateSelect(nextSwitch);
   };
 
   const markReviewComplete = async () => {
@@ -292,6 +328,10 @@ const WorkoutReview = () => {
       void handleTemplateSelect(lastFailedTemplateId);
     }
   };
+
+  const selectedSwitchPreview = pendingTemplateSwitch
+    ? generateWorkoutPreview(pendingTemplateSwitch.nextAnswers)
+    : null;
 
   return (
     <AppShell>
@@ -460,6 +500,79 @@ const WorkoutReview = () => {
           selectedTemplateId={preview.programId}
           onSelectTemplate={handleTemplateSelect}
         />
+      </BottomSheet>
+
+      <BottomSheet
+        open={Boolean(pendingTemplateSwitch)}
+        onClose={() => {
+          if (templateSyncStatus !== "saving") {
+            setPendingTemplateSwitch(null);
+          }
+        }}
+        eyebrow="Program switch"
+        title="Switch workout program?"
+        description="Your completed workouts will stay saved. Weekly progress will restart for the new program."
+        closeOnOverlayClick={templateSyncStatus !== "saving"}
+        actions={[
+          {
+            disabled: templateSyncStatus === "saving" || !pendingTemplateSwitch,
+            loading: templateSyncStatus === "saving",
+            label:
+              templateSyncStatus === "saving"
+                ? "Switching..."
+                : "Switch program",
+            tone: "primary",
+            closeOnClick: false,
+            onClick: () => {
+              if (!pendingTemplateSwitch) {
+                return;
+              }
+
+              void submitTemplateSelect(pendingTemplateSwitch, {
+                abandonInProgressSessions,
+                preserveExerciseHistory,
+              });
+            },
+          },
+          {
+            disabled: templateSyncStatus === "saving",
+            label: "Keep current plan",
+            tone: "gray",
+            variant: "outline",
+            onClick: () => setPendingTemplateSwitch(null),
+          },
+        ]}
+      >
+        <div className={pageStyles.switchConfirmation}>
+          <p>
+            Current plan: <strong>{preview.label}</strong>
+          </p>
+          {selectedSwitchPreview ? (
+            <p>
+              New plan: <strong>{selectedSwitchPreview.label}</strong>
+            </p>
+          ) : null}
+          <label>
+            <input
+              checked={preserveExerciseHistory}
+              type="checkbox"
+              onChange={(event) =>
+                setPreserveExerciseHistory(event.currentTarget.checked)
+              }
+            />
+            <span>Keep exercise history for starting weights and progression</span>
+          </label>
+          <label>
+            <input
+              checked={abandonInProgressSessions}
+              type="checkbox"
+              onChange={(event) =>
+                setAbandonInProgressSessions(event.currentTarget.checked)
+              }
+            />
+            <span>Abandon in-progress workouts from the old program</span>
+          </label>
+        </div>
       </BottomSheet>
 
       <BottomSheet

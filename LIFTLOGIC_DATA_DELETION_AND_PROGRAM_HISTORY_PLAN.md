@@ -288,11 +288,70 @@ Phase 1 deliverable:
 - list of endpoints/utilities/components that need scoping changes
 - no user-facing behavior change yet
 
+Phase 1 notes:
+- Audited the current workout-session data flow without changing user-facing behavior.
+- Current backend state:
+  - `WorkoutSession` already stores `workoutPlanId`, `programId`, and `programDayId`, which gives us a useful baseline for program scoping.
+  - There is no `deletedAt`, `archivedAt`, `programHistoryId`, or `programVersion` yet.
+  - `GET /api/workout-sessions` currently filters by `clientId`, optional date range, and optional status only.
+  - `GET /api/workout-sessions/:sessionId` can load any owned session, including sessions that may later become archived or deleted unless future filters are added.
+  - Session creation is current-plan scoped because it loads the reviewed current `WorkoutPlan` and creates from the active preview.
+- Current client readers and intended scopes:
+  - `Dashboard.tsx`: current program scope. Weekly completion, today's workout, completed planned workout count, active/resume state, and dashboard weekly messages should only use active program sessions.
+  - `Calendar.tsx`: mixed scope. Month indicators can show all non-deleted sessions, but selected-day detail should eventually distinguish current-plan sessions from archived-program history.
+  - `WorkoutSessionLayout.tsx`: single-session plus exercise history scope. The loaded workout is the selected session; `priorSessions` are used for progression, PR, and recovery context.
+  - `WorkoutExercise.tsx`: exercise history scope for progression and recovery guidance, with the current active session as the editing target.
+  - `WorkoutSummary.tsx`: single-session plus exercise history scope. Summary messages and PR detection compare the completed session against prior history.
+  - `Trends.tsx` / `trendsData.ts`: all-time analytics scope today. This should become filterable between current program and all time.
+  - `userMessages.ts`: mixed scope. Weekly completion is current-program scope, while recovery, progression, and PR messages can use exercise history scope.
+  - `workoutAdvisory.ts`: exercise history scope. Uses prior completed sessions before the current week to decide increase/repeat/hold/reduce.
+  - `personalRecords.ts`: all-time exercise history scope today. PR messaging is compound-only, but future copy should label whether the PR is all-time or current-program.
+- Ambiguous or risky behavior found:
+  - Dashboard loads sessions by week but does not explicitly pass `workoutPlanId` or active `programId` to the API.
+  - `completedWorkoutIds` can treat old sessions with the same `programDayId` as current-plan completions if old sessions are returned in the same date range.
+  - Weekly completion messages only compare `programDayId` against the active preview, so old sessions can count if IDs overlap.
+  - Trends currently treats every returned completed session as the same analytics population.
+  - Progression and PR logic intentionally use prior history, but they do not know whether that history came from the current program, an archived program, or a future reset boundary.
+  - There is no shared helper that makes session scope explicit, so each page currently decides scope through ad hoc query shape and local filtering.
+- Recommended helper boundaries before deeper behavior work:
+  - `isSessionInCurrentProgram(session, activePlanOrPreview)` for Dashboard and current-plan messages.
+  - `filterCurrentProgramSessions(sessions, activePlanOrPreview)` for weekly completion and active/resume decisions.
+  - `filterExerciseHistorySessions(sessions, options)` for progression, PRs, and exercise-specific history, eventually respecting reset cutoffs.
+  - `filterAnalyticsSessions(sessions, scope)` for Trends views such as `current_program` and `all_time`.
+  - `isDeletedSession(session)` / `filterActiveSessions(sessions)` once soft-delete fields exist.
+- Recommended API query additions:
+  - `workoutPlanId`
+  - `programId`
+  - `includeArchived`
+  - `includeDeleted`
+  - `scope=current_program|exercise_history|all_time`
+- Suggested next move:
+  - Phase 2 should add soft-delete fields and default backend exclusion first.
+  - Phase 7 should later add explicit current-program filtering for Dashboard and weekly messages after program history/versioning exists.
+
 ### Phase 2: Soft Delete Foundation
 - Add soft-delete fields to workout sessions.
 - Update backend queries to exclude deleted sessions by default.
 - Add tests proving deleted sessions do not appear in session lists.
 - Keep hard delete out of v1 unless needed for account deletion.
+
+Phase 2 notes:
+- Added soft-delete metadata to workout sessions:
+  - `deletedAt`
+  - `deletedReason`
+- Added matching shared DTO fields so deleted sessions can be represented safely when intentionally included.
+- Updated the Mongo workout-session model with soft-delete fields and indexes.
+- Updated the unique scheduled-session index so soft-deleted sessions do not block future sessions for the same day/program workout.
+- Updated workout session routes so normal list/detail/existing-session reads exclude deleted sessions by default.
+- Added optional `includeDeleted` query support for future administrative/export/recovery flows.
+- Added `filterActiveWorkoutSessions` and `isDeletedWorkoutSession` shared helpers.
+- Updated Trends, personal record detection, progressive overload recommendations, and user messages to ignore soft-deleted sessions defensively.
+- Added focused tests proving soft-deleted sessions do not influence trends, PRs, progression, or messages.
+- Verification passed:
+  - `npm test -- workoutSessionScope trendsData personalRecords workoutAdvisory userMessages`
+  - `npm --prefix client run lint`
+  - `npm test`
+  - `npm run build`
 
 ### Phase 3: Delete Workout Session
 - Add backend endpoint to delete/soft-delete a workout session owned by the user.
@@ -302,12 +361,43 @@ Phase 1 deliverable:
 - Refresh Dashboard, Calendar, Trends, and local cache after deletion.
 - Add tests for deleted sessions no longer affecting derived data.
 
+Phase 3 notes:
+- Added `DELETE /api/workout-sessions/:sessionId` as the user-owned workout session soft-delete endpoint.
+- Deleted sessions are stamped with `deletedAt` and `deletedReason: "user_deleted"`.
+- In-progress sessions are marked `abandoned` when deleted so they no longer behave like resumable workouts.
+- Added the client `deleteWorkoutSession` API helper.
+- Added a Workout Summary delete action with a confirmation bottom sheet.
+- After deletion, users are returned to Dashboard so the deleted session cannot keep being edited.
+- Tightened `includeDeleted` query parsing so `"false"` is parsed as false instead of truthy.
+- Existing soft-delete filters keep deleted sessions out of Dashboard, Calendar, Trends, PRs, progression, and coaching messages.
+- Verification passed:
+  - `npm test -- workoutSessionScope trendsData personalRecords workoutAdvisory userMessages`
+  - `npm --prefix client run lint`
+  - `npm test`
+  - `npm run build`
+
 ### Phase 4: Delete Notes And Badges
 - Add UI for clearing exercise notes/badges.
 - Add UI for clearing workout summary notes/badges.
 - Reuse existing update workout session endpoint if possible.
 - Recalculate messages after updates.
 - Add tests around recovery messages disappearing after badges are cleared.
+
+Phase 4 notes:
+- Added explicit clear actions inside the Workout Summary feedback sheets:
+  - `Clear workout notes and tags`
+  - `Clear exercise feedback`
+- Reused the existing workout session update endpoint instead of adding a new delete endpoint for notes/badges.
+- Clearing workout feedback sends `notes: null` and `badgeIds: []`.
+- Clearing exercise feedback updates the selected exercise log with `notes: undefined` and `badgeIds: []`.
+- Tightened backend badge update checks to use `updates.badgeIds !== undefined`, making empty badge arrays an explicit supported update.
+- User messages recalculate naturally after `setSession(workoutSession)` because the summary uses the updated session state.
+- Added tests proving recovery messages disappear after pain/form badges are cleared.
+- Verification passed:
+  - `npm test -- userMessages`
+  - `npm --prefix client run lint`
+  - `npm test`
+  - `npm run build`
 
 ### Phase 5: Program History Model
 - Add a stable program history/version concept.
@@ -316,11 +406,61 @@ Phase 1 deliverable:
 - Ensure existing sessions remain tied to the program they came from.
 - Add migration/default behavior for existing users.
 
+Phase 5 notes:
+- Added shared workout-plan history types:
+  - `WorkoutProgramHistoryEntry`
+  - `ProgramHistoryStatus`
+  - `ProgramSwitchReason`
+  - `WorkoutPlanDto`
+- Added shared program-history utilities for:
+  - creating active history entries
+  - finding the active program entry
+  - preserving the current history entry when the program has not changed
+  - archiving the current entry and starting the next version when the program changes
+- Added program-history fields to workout plans:
+  - `activeProgramHistoryId`
+  - `programHistory`
+  - `programVersion`
+- Added program-history fields to workout sessions:
+  - `programHistoryId`
+  - `programVersion`
+- New workout sessions are now stamped with the active program history/version.
+- Onboarding/template selection now seeds history for existing users if needed, archives the previous active program when the selected program changes, and starts a new active version.
+- Saving an edited workout preview now preserves the active version for same-program edits, while still supporting a new program-history boundary if a future flow submits a different program preview.
+- Existing users without history are treated as version 1 from their current plan before any new switch is recorded.
+- This phase does not add the program-switch confirmation UI yet; that remains Phase 6.
+- Verification passed:
+  - `npm test -- workoutProgramHistory`
+  - `npm --prefix client run lint`
+  - `npm test`
+  - `npm run build`
+
 ### Phase 6: Program Switch Confirmation Flow
 - Add a confirmation screen/sheet before replacing the active plan.
 - Explain what happens to completed history, current weekly progress, and in-progress sessions.
 - Let users choose whether to keep exercise history for recommendations.
 - Archive or abandon old in-progress sessions based on user choice.
+
+Phase 6 notes:
+- Added a program-switch confirmation bottom sheet for redo-onboarding submissions when the selected program changes.
+- Added a matching confirmation guard to Workout Review template selection for direct/retry cases where a reviewed plan is being replaced.
+- Confirmation copy explains that completed workouts stay saved and weekly progress restarts for the new program.
+- Added user options for:
+  - keeping exercise history for starting weights and progression
+  - abandoning in-progress workouts from the old program
+- `submitOnboardingAnswers` now accepts optional `switchOptions`.
+- Backend onboarding submission now abandons old in-progress sessions only when:
+  - there is an existing workout plan
+  - the selected program actually changes
+  - `abandonInProgressSessions` is enabled
+- Completed workout sessions remain untouched.
+- Existing pre-history sessions are handled by matching the previous `programId` when `programHistoryId` is missing.
+- Added shared switch confirmation styling in `page.module.scss`.
+- Verification passed:
+  - `npm test -- workoutProgramHistory userFlow`
+  - `npm --prefix client run lint`
+  - `npm test`
+  - `npm run build`
 
 ### Phase 7: Current Program Filtering
 - Update Dashboard weekly completion to use current program scope only.
@@ -328,17 +468,94 @@ Phase 1 deliverable:
 - Update user messages so weekly completion and current-plan messages do not count archived programs.
 - Add tests for switching from a 5-day plan to a 3-day plan.
 
+Phase 7 notes:
+- Added shared current-program session scope helpers:
+  - `isWorkoutSessionInCurrentProgram`
+  - `filterCurrentProgramWorkoutSessions`
+  - `CurrentProgramScope`
+- Dashboard now filters week sessions to the active program before calculating:
+  - weekday completion status
+  - completed planned workout ids
+  - available workout options
+  - active/resumable selected-day sessions
+  - current weekly target messaging
+- Weekly completion messages now accept current-program scope, so archived program sessions cannot complete the active program's weekly target.
+- Calendar now distinguishes current-plan sessions from previous-program history:
+  - current completed sessions keep the lime status dot
+  - current in-progress sessions keep the blue status dot
+  - archived/previous-program-only days use a muted history dot
+  - selected-day details label older sessions as `Previous program`
+- Added regression tests for switching from a completed 5-day plan to a 3-day plan.
+- Existing pre-history sessions can still match the active program by `programId`, which keeps older same-program data usable for existing users.
+- Verification passed:
+  - `npm test -- workoutSessionScope userMessages`
+  - `npm --prefix client run lint`
+  - `npm test`
+  - `npm run build`
+
 ### Phase 8: Exercise History Controls
 - Add setting for whether old program exercise history can inform recommendations.
 - Add per-exercise history reset.
 - Make progression cards explain when they are using prior-program data.
 - Add tests for recommendation behavior after exercise history reset.
 
+Phase 8 notes:
+- Added exercise-history preferences to shared user settings:
+  - `includePreviousPrograms`
+  - `resetCutoffs`
+- Defaults keep prior-program exercise history enabled, because it is useful for starting weights and progressive overload context unless the user opts out.
+- Added backend validation/model support so exercise-history settings persist through the API.
+- Added shared exercise-history filtering that can:
+  - exclude deleted sessions
+  - exclude previous-program sessions when the user disables prior-program history
+  - ignore logs before a per-exercise reset cutoff
+- Added an `Exercise History` Settings accordion where users can:
+  - toggle whether previous-program exercise logs can guide recommendations
+  - see how many exercise-specific reset cutoffs are active
+- Added a per-exercise reset control to Exercise Details.
+  - This does not delete workout logs.
+  - It only prevents older logs for that exercise from guiding future recommendations.
+  - Users can re-enable older logs for that exercise from the same screen.
+- Progressive overload recommendation cards now label when a recommendation is based on exercise history from a previous program.
+- Workout Exercise, Workout Summary, Trends, and progression messages now receive exercise-history scope.
+- Added tests proving:
+  - previous-program history is ignored when disabled
+  - previous-program history is labeled when used
+  - exercise reset cutoffs remove older logs from recommendations
+  - summary progression ignores logs before reset cutoffs
+- Verification passed:
+  - `npm test -- workoutAdvisory progressionSummary userSettings workoutSessionScope userMessages`
+  - `npm --prefix client run lint`
+  - `npm test`
+  - `npm run build`
+
 ### Phase 9: Trends And PR Filters
 - Add current-program vs all-time filtering to Trends.
 - Keep compound PR messaging global by default, but label all-time PRs clearly.
 - Let users inspect historical programs.
 - Add tests for PRs and volume charts with archived programs.
+
+Phase 9 notes:
+- Added a reusable Trends session scope filter:
+  - `current_program`
+  - `all_time`
+- Trends now defaults to `Current program`, so the page no longer silently mixes archived programs into active-program charts.
+- Added a Trends scope control that lets users switch between:
+  - active program sessions only
+  - all non-deleted workout history
+- All-time trends still include archived program sessions, which preserves long-term training value.
+- Added a lightweight `Programs logged` panel on Trends so users can inspect historical program buckets from logged sessions.
+- Personal record messages now clearly label records as all-time compound-lift PRs.
+- Compound PR detection remains global by default, matching the idea that a true PR is useful across programs.
+- Added tests proving:
+  - current-program trend scope excludes previous-program sessions
+  - all-time trend scope keeps archived but non-deleted sessions
+  - PR messages use all-time compound-lift copy
+- Verification passed:
+  - `npm test -- trendsData userMessages personalRecords`
+  - `npm test`
+  - `npm run build`
+  - `npm --prefix client run lint`
 
 ### Phase 10: Reset Current Program Progress
 - Add Settings data action to reset the active program.
@@ -347,11 +564,49 @@ Phase 1 deliverable:
 - Keep completed history unless the user chooses a stronger deletion option.
 - Restart dashboard weekly progress.
 
+Phase 10 notes:
+- Added a shared `resetProgramHistoryForPreview` helper that:
+  - archives the current active program history entry
+  - creates a fresh active entry for the same program
+  - increments the program version so future sessions attach to a clean progress boundary
+- Added `POST /api/workout-plan/reset-progress`.
+  - Completed sessions are preserved.
+  - In-progress sessions tied to the previous active program history are marked `abandoned`.
+  - Legacy in-progress sessions without a `programHistoryId` are also handled when they belong to the current program.
+- Added a Settings `Data` accordion with a guarded `Reset current program progress` action.
+- Added a confirmation bottom sheet explaining that completed workout history, notes, badges, PR history, and previous programs stay saved.
+- Updated the client API and app-data cache flow so the active session sees the fresh program version immediately after reset.
+- Added tests proving reset archives the active program and starts a new version while preserving older history.
+- Verification passed:
+  - `npm test -- workoutProgramHistory`
+  - `npm --prefix client run lint`
+  - `npm test`
+  - `npm run build`
+
 ### Phase 11: Delete Current Plan
 - Add Settings data action to delete the active workout plan.
 - Return user to welcome/onboarding or plan selection.
 - Keep completed sessions archived.
 - Prevent stale Dashboard and Plan views from rendering old plan data.
+
+Phase 11 notes:
+- Added `DELETE /api/workout-plan/current`.
+  - Deletes the active workout plan document owned by the user.
+  - Preserves completed workout sessions as historical training data.
+  - Marks in-progress sessions for the deleted plan as `abandoned`.
+- Added the `deleteCurrentWorkoutPlan` client API helper.
+- Added a second Settings `Data` action for deleting the current workout plan.
+- Added a dedicated confirmation bottom sheet explaining:
+  - active plan is removed
+  - in-progress workouts are abandoned
+  - completed sessions, logs, notes, badges, and PR history remain saved
+- After deletion, Settings clears the cached active workout plan and navigates to `/welcome`.
+- Updated Plan routing so users with no active plan are sent to `/welcome` instead of falling through to onboarding.
+- Dashboard already respects the shared user-flow destination and redirects away from stale dashboard state when the active plan is gone.
+- Verification passed:
+  - `npm --prefix client run lint`
+  - `npm test`
+  - `npm run build`
 
 ### Phase 12: Delete All App Data
 - Add the strongest confirmation flow.
@@ -359,6 +614,31 @@ Phase 1 deliverable:
 - Clear local caches and message visibility state.
 - Return user to the public/first-run flow.
 - Document any Firebase/auth account deletion limitations separately.
+
+Phase 12 notes:
+- Added `DELETE /api/profile/app-data`.
+  - Deletes the authenticated user's LiftLogic profile record.
+  - Deletes user settings.
+  - Deletes workout plans.
+  - Deletes workout sessions, including completed sessions, notes, badges, and exercise logs.
+  - Returns deleted record counts for transparency.
+  - Explicitly returns `firebaseAccountDeleted: false` because this endpoint deletes app-owned data, not the Firebase/Google auth account.
+- Added the `deleteAllAppData` client API helper.
+- Added a critical Settings `Data` action for deleting all LiftLogic app data.
+- Added the strongest confirmation sheet in this plan:
+  - explains what records are deleted
+  - explains Google/Firebase account is not deleted
+  - requires typing `DELETE` before the destructive action enables
+- Added `clearUserMessageVisibilityState` so dismissed/seen coaching message state is removed during the data wipe.
+- After successful deletion, Settings:
+  - clears message visibility state
+  - signs the user out
+  - relies on sign-out cleanup to clear app-data caches and local workout state
+  - returns the user to the public start screen
+- Verification passed:
+  - `npm --prefix client run lint`
+  - `npm test`
+  - `npm run build`
 
 ## Test Plan
 

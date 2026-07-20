@@ -259,6 +259,104 @@
   line-height: 1.35;
 }
 
+.historySummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ll-space-3);
+  padding: 0.75rem;
+  border: 1px solid var(--ll-border-subtle);
+  border-radius: var(--ll-radius-control);
+  background: var(--ll-surface-subtle);
+
+  span {
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-helper);
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 0.9rem;
+  }
+}
+
+.dataActionPanel {
+  display: grid;
+  gap: var(--ll-space-3);
+  padding: var(--ll-space-4);
+  border: 1px solid hsl(var(--clr-red-500-b) / 0.3);
+  border-radius: var(--ll-radius-card);
+  background: hsl(var(--clr-red-500-b) / 0.07);
+
+  > div {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+
+  p {
+    margin: 0;
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-helper);
+    font-weight: 700;
+    line-height: 1.4;
+  }
+}
+
+.dataActionPanelCritical {
+  border-color: hsl(var(--clr-red-500-b) / 0.52);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--clr-red-500-b) / 0.14),
+    hsl(var(--clr-neutral-900-b) / 0.48)
+  );
+}
+
+.resetSummary {
+  display: grid;
+  gap: var(--ll-space-3);
+
+  p {
+    margin: 0;
+    color: var(--ll-text-body);
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+}
+
+.confirmationField {
+  display: grid;
+  gap: 0.45rem;
+
+  span {
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-eyebrow);
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  input {
+    width: 100%;
+    min-height: 2.75rem;
+    border: 1px solid hsl(var(--clr-red-500-b) / 0.52);
+    border-radius: var(--ll-radius-control);
+    background: hsl(var(--clr-neutral-900-b) / 0.68);
+    color: var(--ll-text-strong);
+    font: inherit;
+    font-weight: 900;
+    letter-spacing: var(--ls-0);
+    padding: 0.7rem 0.85rem;
+  }
+}
+
 .messageOptionGroup {
   display: grid;
   gap: 0.6rem;

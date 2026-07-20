@@ -126,4 +126,22 @@ describe("progression summary", () => {
     expect(summary.readyToProgress).toHaveLength(1);
     expect(summary.reduceOrModify).toHaveLength(0);
   });
+
+  it("ignores exercise logs before an exercise reset cutoff", () => {
+    const summary = buildProgressionSummary(
+      [
+        createSession({
+          scheduledFor: "2026-07-01T12:00:00.000Z",
+          exerciseLogs: [createExerciseLog()],
+        }),
+      ],
+      {
+        resetCutoffs: {
+          barbell_bench_press: "2026-07-10T12:00:00.000Z",
+        },
+      }
+    );
+
+    expect(summary.readyToProgress).toHaveLength(0);
+  });
 });

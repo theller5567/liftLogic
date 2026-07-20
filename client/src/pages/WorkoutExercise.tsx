@@ -20,6 +20,10 @@ import type {
 import { workoutBadgeOptions } from "../../../shared/constants/workout-badges";
 import { weightEstimationRules } from "../../../shared/constants/weightEstimationRules";
 import type { WeightStepKey } from "../../../shared/types/userSettings.types";
+import type {
+  CurrentProgramScope,
+  ExerciseHistoryScopeOptions,
+} from "../../../shared/utils/workoutSessionScope";
 import { normalizeLibraryIdToEstimatorKey } from "../../../shared/utils/exerciseLibraryAdapter";
 import {
   getProgressiveOverloadRecommendation,
@@ -123,6 +127,33 @@ const WorkoutExercise = () => {
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
   const todaySetRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const showRestTimer = false;
+  const currentProgramScope = useMemo<CurrentProgramScope>(
+    () => ({
+      activeProgramHistoryId: session.programHistoryId,
+      programId: session.programId,
+      programVersion: session.programVersion,
+      workoutPlanId: session.workoutPlanId,
+    }),
+    [
+      session.programHistoryId,
+      session.programId,
+      session.programVersion,
+      session.workoutPlanId,
+    ]
+  );
+  const exerciseHistoryScope = useMemo<ExerciseHistoryScopeOptions>(
+    () => ({
+      currentProgramScope,
+      includePreviousPrograms:
+        settings.exerciseHistory.includePreviousPrograms,
+      resetCutoffs: settings.exerciseHistory.resetCutoffs,
+    }),
+    [
+      currentProgramScope,
+      settings.exerciseHistory.includePreviousPrograms,
+      settings.exerciseHistory.resetCutoffs,
+    ]
+  );
 
   useEffect(() => {
     if (restSeconds === null || restSeconds <= 0) {
@@ -146,7 +177,8 @@ const WorkoutExercise = () => {
     ? getMostRecentPriorWeekExerciseLog(
         activeExercise,
         session,
-        priorSessions
+        priorSessions,
+        exerciseHistoryScope
       )
     : undefined;
   const previousCompletedSets =
@@ -193,11 +225,18 @@ const WorkoutExercise = () => {
         ? getProgressiveOverloadRecommendation({
             currentSession: session,
             exerciseLog: activeExercise,
+            exerciseHistoryScope,
             priorSessions,
             weightStep: activeExerciseWeightStep,
           })
         : null,
-    [activeExercise, activeExerciseWeightStep, priorSessions, session]
+    [
+      activeExercise,
+      activeExerciseWeightStep,
+      exerciseHistoryScope,
+      priorSessions,
+      session,
+    ]
   );
   const exerciseMessages = useMemo(
     () =>
@@ -205,13 +244,14 @@ const WorkoutExercise = () => {
         ? getUserMessagesForSurface(
             buildUserMessages({
               activeExerciseId: activeExercise.exerciseId,
+              exerciseHistoryScope,
               messagePreferences: settings.messages,
               sessions: [...priorSessions, session],
             }),
             "workout_exercise"
           )
         : [],
-    [activeExercise, priorSessions, session, settings.messages]
+    [activeExercise, exerciseHistoryScope, priorSessions, session, settings.messages]
   );
   const showProgressionRecommendation =
     Boolean(progressionRecommendation) &&
@@ -345,6 +385,7 @@ const WorkoutExercise = () => {
       shouldShowWeightIncreaseAdvisory({
         currentSession: session,
         exerciseLog: activeExercise,
+        exerciseHistoryScope,
         nextWeight,
         previousWeight,
         priorSessions,

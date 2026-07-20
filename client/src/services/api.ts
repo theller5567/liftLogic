@@ -4,6 +4,7 @@ import type {
   WorkoutExerciseLog,
   WorkoutSessionDto,
 } from "../../../shared/types/workoutSession.types";
+import type { WorkoutPlanDto } from "../../../shared/types/workoutPlan.types";
 import type { UserSettings } from "../../../shared/types/userSettings.types";
 import type {
   WorkoutFocusArea,
@@ -117,17 +118,7 @@ export const createTimedRequestSignal = (
   };
 };
 
-export type WorkoutPlanDto = {
-  _id: string;
-  clientId: string;
-  onboardingAnswers: OnboardingAnswers;
-  suggestedPreview: GeneratedWorkoutPreview;
-  editedPreview?: GeneratedWorkoutPreview | null;
-  focusBlock?: WorkoutFocusBlock | null;
-  workoutReviewed: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
+export type { WorkoutPlanDto };
 
 export type UserProfileDto = {
   _id: string;
@@ -270,13 +261,21 @@ export const getCurrentProfile = () =>
     userSettings: UserSettingsDto;
   }>("/api/profile/current");
 
-export const submitOnboardingAnswers = (answers: OnboardingAnswers) =>
+export type ProgramSwitchOptions = {
+  abandonInProgressSessions?: boolean;
+  preserveExerciseHistory?: boolean;
+};
+
+export const submitOnboardingAnswers = (
+  answers: OnboardingAnswers,
+  switchOptions?: ProgramSwitchOptions
+) =>
   apiRequest<{
     profile: UserProfileDto;
     workoutPlan: WorkoutPlanDto;
   }>("/api/profile/onboarding", {
     method: "PUT",
-    body: JSON.stringify({ answers }),
+    body: JSON.stringify({ answers, switchOptions }),
   });
 
 export const saveUserSettings = (settings: UserSettings) =>
@@ -320,6 +319,35 @@ export const clearWorkoutFocusBlock = () =>
     method: "DELETE",
   });
 
+export const resetCurrentProgramProgress = () =>
+  apiRequest<{
+    abandonedWorkoutSessionCount: number;
+    workoutPlan: WorkoutPlanDto;
+  }>("/api/workout-plan/reset-progress", {
+    method: "POST",
+  });
+
+export const deleteCurrentWorkoutPlan = () =>
+  apiRequest<{
+    abandonedWorkoutSessionCount: number;
+    workoutPlan: null;
+  }>("/api/workout-plan/current", {
+    method: "DELETE",
+  });
+
+export const deleteAllAppData = () =>
+  apiRequest<{
+    deletedCounts: {
+      userProfiles: number;
+      userSettings: number;
+      workoutPlans: number;
+      workoutSessions: number;
+    };
+    firebaseAccountDeleted: false;
+  }>("/api/profile/app-data", {
+    method: "DELETE",
+  });
+
 export type CreateWorkoutSessionInput = {
   programDayId: string;
   scheduledFor: string;
@@ -347,6 +375,7 @@ export type CompleteWorkoutSessionInput = {
 export type WorkoutSessionQuery = {
   dateFrom?: string;
   dateTo?: string;
+  includeDeleted?: boolean;
   status?: "in_progress" | "completed" | "abandoned";
 };
 
@@ -359,6 +388,10 @@ const buildWorkoutSessionQuery = (query: WorkoutSessionQuery = {}) => {
 
   if (query.dateTo) {
     params.set("dateTo", query.dateTo);
+  }
+
+  if (query.includeDeleted !== undefined) {
+    params.set("includeDeleted", String(query.includeDeleted));
   }
 
   if (query.status) {
@@ -406,5 +439,13 @@ export const completeWorkoutSession = (
     {
       method: "POST",
       body: JSON.stringify(input),
+    }
+  );
+
+export const deleteWorkoutSession = (sessionId: string) =>
+  apiRequest<{ workoutSession: WorkoutSessionDto }>(
+    `/api/workout-sessions/${sessionId}`,
+    {
+      method: "DELETE",
     }
   );

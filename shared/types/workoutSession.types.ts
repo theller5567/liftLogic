@@ -5,6 +5,10 @@ import type {
 } from "../utils/generateWorkoutPreview";
 
 export type WorkoutSessionStatus = "in_progress" | "completed" | "abandoned";
+export type WorkoutSessionDeletionReason =
+  | "user_deleted"
+  | "account_deleted"
+  | "program_reset";
 
 export type WorkoutBadgeId =
   | "pr"
@@ -56,8 +60,10 @@ export type WorkoutSessionDto = {
   clientId: string;
   workoutPlanId: string;
   programId: string;
+  programHistoryId?: string;
   programDayId: string;
   programDayLabel: string;
+  programVersion?: number;
   scheduledFor: string;
   scheduledDateKey: string;
   startedAt: string;
@@ -71,6 +77,8 @@ export type WorkoutSessionDto = {
   badgeIds: WorkoutBadgeId[];
   durationSeconds?: number;
   exerciseLogs: WorkoutExerciseLog[];
+  deletedAt?: string | null;
+  deletedReason?: WorkoutSessionDeletionReason;
   createdAt: string;
   updatedAt: string;
 };

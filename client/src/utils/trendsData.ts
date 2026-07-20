@@ -3,6 +3,11 @@ import type {
   WorkoutSessionDto,
   WorkoutSetLog,
 } from "../../../shared/types/workoutSession.types";
+import {
+  filterActiveWorkoutSessions,
+  filterCurrentProgramWorkoutSessions,
+  type CurrentProgramScope,
+} from "../../../shared/utils/workoutSessionScope";
 import { getStartOfWeek } from "./workoutSessionDates";
 import { mockTrendsData } from "./trendsMockData";
 import type {
@@ -14,6 +19,28 @@ import type {
 } from "./trendsTypes";
 
 const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
+
+export type TrendsSessionScope = "current_program" | "all_time";
+
+const hasCurrentProgramScope = (scope: CurrentProgramScope | undefined) =>
+  Boolean(
+    scope?.activeProgramHistoryId ||
+      scope?.programId ||
+      scope?.programVersion ||
+      scope?.workoutPlanId
+  );
+
+export const filterTrendSessionsForScope = (
+  sessions: WorkoutSessionDto[],
+  scope: TrendsSessionScope,
+  currentProgramScope?: CurrentProgramScope
+) => {
+  if (scope === "current_program" && hasCurrentProgramScope(currentProgramScope)) {
+    return filterCurrentProgramWorkoutSessions(sessions, currentProgramScope!);
+  }
+
+  return filterActiveWorkoutSessions(sessions);
+};
 
 const formatCompactNumber = (value: number, suffix = "") => {
   if (value >= 1000) {
@@ -306,7 +333,8 @@ export const buildTrendsData = (
   sessions: WorkoutSessionDto[],
   endDate = new Date()
 ): TrendsData => {
-  const completedSessions = sessions.filter(
+  const activeSessions = filterActiveWorkoutSessions(sessions);
+  const completedSessions = activeSessions.filter(
     (session) => session.status === "completed"
   );
 
@@ -319,7 +347,7 @@ export const buildTrendsData = (
 
   return {
     isMock: false,
-    metrics: buildMetrics(completedSessions, sessions),
+    metrics: buildMetrics(completedSessions, activeSessions),
     weeklyVolume,
     exerciseTrends,
     insights: buildInsights(weeklyVolume, exerciseTrends, completedSessions),

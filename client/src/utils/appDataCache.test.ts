@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_MESSAGE_PREFERENCES } from "../../../shared/types/userSettings.types";
+import {
+  DEFAULT_EXERCISE_HISTORY_PREFERENCES,
+  DEFAULT_MESSAGE_PREFERENCES,
+} from "../../../shared/types/userSettings.types";
 import type { CurrentAppData } from "./appDataCache";
 import {
   clearCachedCurrentAppData,
@@ -65,6 +68,9 @@ const createAppData = (): CurrentAppData =>
         surfaces: {
           ...DEFAULT_MESSAGE_PREFERENCES.surfaces,
         },
+      },
+      exerciseHistory: {
+        ...DEFAULT_EXERCISE_HISTORY_PREFERENCES,
       },
       weightUnit: "lb",
     },

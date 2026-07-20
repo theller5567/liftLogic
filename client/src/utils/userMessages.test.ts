@@ -62,16 +62,24 @@ const createSession = ({
   exerciseLogs = [createExerciseLog()],
   id = "session-1",
   label = "Chest",
+  programHistoryId,
   programDayId,
+  programId = "program-1",
+  programVersion,
   scheduledFor = "2026-07-07T12:00:00.000Z",
   status = "completed",
+  workoutPlanId = "plan-1",
 }: {
   exerciseLogs?: WorkoutExerciseLog[];
   id?: string;
   label?: string;
+  programHistoryId?: string;
   programDayId?: string;
+  programId?: string;
+  programVersion?: number;
   scheduledFor?: string;
   status?: WorkoutSessionDto["status"];
+  workoutPlanId?: string;
 } = {}): WorkoutSessionDto =>
   ({
     _id: id,
@@ -82,16 +90,18 @@ const createSession = ({
     completionPercentage: status === "completed" ? 100 : 0,
     createdAt: scheduledFor,
     exerciseLogs,
+    programHistoryId,
     programDayId: programDayId ?? `${label.toLowerCase()}-day`,
     programDayLabel: label,
-    programId: "program-1",
+    programId,
+    programVersion,
     scheduledDateKey: scheduledFor.slice(0, 10),
     scheduledFor,
     startedAt: scheduledFor,
     status,
     totalExerciseCount: exerciseLogs.length,
     updatedAt: scheduledFor,
-    workoutPlanId: "plan-1",
+    workoutPlanId,
     workoutSnapshot: {
       exercises: [],
       focus: label,
@@ -202,6 +212,25 @@ describe("user messages", () => {
     ]);
     expect(messages[0].category).toBe("recovery");
     expect(messages[0].body).toContain("Overhead Press");
+  });
+
+  it("does not build messages from soft-deleted sessions", () => {
+    const messages = buildUserMessages({
+      preview: createPreview(["day-1"]),
+      sessions: [
+        {
+          ...createSession({
+            exerciseLogs: [
+              createExerciseLog({ badgeIds: ["pain"], label: "Overhead Press" }),
+            ],
+            programDayId: "day-1",
+          }),
+          deletedAt: "2026-07-20T12:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(messages).toEqual([]);
   });
 
   it("adds a workout summary completion message for a just-completed session", () => {
@@ -341,6 +370,59 @@ describe("user messages", () => {
     );
   });
 
+  it("removes pain recovery messages after exercise badges are cleared", () => {
+    const messages = buildUserMessages({
+      sessions: [
+        createSession({
+          exerciseLogs: [
+            createExerciseLog({
+              badgeIds: [],
+              exerciseId: "standing_overhead_press",
+              label: "Overhead Press",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    expect(
+      messages.some((message) => message.id.startsWith("recovery-pain"))
+    ).toBe(false);
+  });
+
+  it("removes repeated form recovery messages after form badges are cleared", () => {
+    const messages = buildUserMessages({
+      sessions: [
+        createSession({
+          id: "prior-cleared-form",
+          scheduledFor: "2026-07-01T12:00:00.000Z",
+          exerciseLogs: [
+            createExerciseLog({
+              badgeIds: [],
+              exerciseId: "barbell_row",
+              label: "Barbell Row",
+            }),
+          ],
+        }),
+        createSession({
+          id: "current-cleared-form",
+          scheduledFor: "2026-07-08T12:00:00.000Z",
+          exerciseLogs: [
+            createExerciseLog({
+              badgeIds: [],
+              exerciseId: "barbell_row",
+              label: "Barbell Row",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    expect(
+      messages.some((message) => message.id === "recovery-form-pattern")
+    ).toBe(false);
+  });
+
   it("adds repeated missed target recovery messages", () => {
     const messages = buildUserMessages({
       sessions: [
@@ -446,6 +528,16 @@ describe("user messages", () => {
         (message) => message.id === "personal-record-current-session"
       )
     ).toBe(true);
+    expect(
+      getUserMessagesForSurface(messages, "trends").find(
+        (message) => message.id === "personal-record-current-session"
+      )
+    ).toEqual(
+      expect.objectContaining({
+        body: expect.stringContaining("all-time compound-lift record"),
+        title: "New all-time personal record",
+      })
+    );
   });
 
   it("filters and returns the primary message for a surface", () => {
@@ -532,6 +624,76 @@ describe("user messages", () => {
 
     expect(getPrimaryUserMessage(messages, "dashboard")?.body).toContain(
       "all 5 planned workouts"
+    );
+  });
+
+  it("does not count archived 5-day program sessions toward a new 3-day weekly target", () => {
+    const archivedFiveDaySessions = createCompletedPlannedSessions([
+      "day-1",
+      "day-2",
+      "day-3",
+      "day-4",
+      "day-5",
+    ]).map((session) => ({
+      ...session,
+      programHistoryId: "history-1",
+      programId: "bro_split",
+      programVersion: 1,
+    }));
+
+    const messages = buildUserMessages({
+      currentProgramScope: {
+        activeProgramHistoryId: "history-2",
+        programId: "full_body_3_day",
+        programVersion: 2,
+        workoutPlanId: "plan-1",
+      },
+      preview: createPreview(["day-1", "day-2", "day-3"]),
+      sessions: archivedFiveDaySessions,
+    });
+
+    expect(
+      messages.some((message) => message.id === "weekly-target-complete")
+    ).toBe(false);
+  });
+
+  it("counts only current 3-day program sessions after switching from a 5-day plan", () => {
+    const archivedFiveDaySessions = createCompletedPlannedSessions([
+      "old-day-1",
+      "old-day-2",
+      "old-day-3",
+      "old-day-4",
+      "old-day-5",
+    ]).map((session) => ({
+      ...session,
+      programHistoryId: "history-1",
+      programId: "bro_split",
+      programVersion: 1,
+    }));
+    const currentThreeDaySessions = createCompletedPlannedSessions([
+      "day-1",
+      "day-2",
+      "day-3",
+    ]).map((session) => ({
+      ...session,
+      programHistoryId: "history-2",
+      programId: "full_body_3_day",
+      programVersion: 2,
+    }));
+
+    const messages = buildUserMessages({
+      currentProgramScope: {
+        activeProgramHistoryId: "history-2",
+        programId: "full_body_3_day",
+        programVersion: 2,
+        workoutPlanId: "plan-1",
+      },
+      preview: createPreview(["day-1", "day-2", "day-3"]),
+      sessions: [...archivedFiveDaySessions, ...currentThreeDaySessions],
+    });
+
+    expect(getPrimaryUserMessage(messages, "dashboard")?.body).toContain(
+      "all 3 planned workouts"
     );
   });
 

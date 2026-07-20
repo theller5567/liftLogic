@@ -79,6 +79,12 @@ const ProgressionRecommendationCard = ({
 
       <p className={styles.progressionReason}>{recommendation.reason}</p>
 
+      {recommendation.historySource === "previous_program" ? (
+        <p className={styles.progressionContext}>
+          Based on exercise history from a previous program.
+        </p>
+      ) : null}
+
       {previousWeight || recommendedWeight ? (
         <dl className={styles.progressionMeta}>
           {previousWeight ? (

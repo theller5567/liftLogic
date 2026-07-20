@@ -63,6 +63,14 @@ const writeUserMessageVisibilityState = (
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 };
 
+export const clearUserMessageVisibilityState = () => {
+  if (!canUseStorage()) {
+    return;
+  }
+
+  window.localStorage.removeItem(STORAGE_KEY);
+};
+
 const isWithinCooldown = (
   isoDate: string | undefined,
   now: Date,

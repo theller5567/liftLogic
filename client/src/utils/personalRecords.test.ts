@@ -101,6 +101,29 @@ describe("personal records", () => {
     );
   });
 
+  it("ignores soft-deleted prior sessions when detecting records", () => {
+    const records = getPersonalRecordsForSession(
+      [
+        {
+          ...createSession({
+            exerciseLog: createExerciseLog({ weights: [225, 225, 225] }),
+            id: "deleted-prior",
+            scheduledFor: "2026-07-01T12:00:00.000Z",
+          }),
+          deletedAt: "2026-07-02T12:00:00.000Z",
+        },
+        createSession({
+          exerciseLog: createExerciseLog({ weights: [140, 140, 140] }),
+          id: "current",
+          scheduledFor: "2026-07-08T12:00:00.000Z",
+        }),
+      ],
+      "current"
+    );
+
+    expect(records).toEqual([]);
+  });
+
   it("detects most reps at the same weight", () => {
     const records = getPersonalRecordsForSession(
       [

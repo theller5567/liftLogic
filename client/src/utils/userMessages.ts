@@ -8,6 +8,12 @@ import type {
   WorkoutExerciseLog,
   WorkoutSessionDto,
 } from "../../../shared/types/workoutSession.types";
+import {
+  filterActiveWorkoutSessions,
+  filterCurrentProgramWorkoutSessions,
+  type CurrentProgramScope,
+  type ExerciseHistoryScopeOptions,
+} from "../../../shared/utils/workoutSessionScope";
 import type { GeneratedWorkoutPreview } from "./generateWorkoutPreview";
 import { getPersonalRecordsForSession, type PersonalRecord } from "./personalRecords";
 import { buildProgressionSummary } from "./progressionSummary";
@@ -34,6 +40,8 @@ export type UserMessage = {
 export type BuildUserMessagesInput = {
   preview?: Pick<GeneratedWorkoutPreview, "days"> | null;
   sessions: WorkoutSessionDto[];
+  currentProgramScope?: CurrentProgramScope;
+  exerciseHistoryScope?: ExerciseHistoryScopeOptions;
   recentlyCompletedSessionId?: string;
   activeExerciseId?: string;
   messagePreferences?: UserMessagePreferences;
@@ -370,8 +378,11 @@ const buildRecoveryMessages = (
   return messages;
 };
 
-const buildProgressionMessages = (sessions: WorkoutSessionDto[]): UserMessage[] => {
-  const summary = buildProgressionSummary(sessions);
+const buildProgressionMessages = (
+  sessions: WorkoutSessionDto[],
+  exerciseHistoryScope?: ExerciseHistoryScopeOptions
+): UserMessage[] => {
+  const summary = buildProgressionSummary(sessions, exerciseHistoryScope);
   const readyCount = summary.readyToProgress.length;
   const repeatWeightCount = summary.repeatWeight.length;
   const holdSteadyCount = summary.holdSteady.length;
@@ -471,33 +482,45 @@ const buildPersonalRecordMessages = (
 
   return [
     {
-      body: `${getPersonalRecordLabel(highlightedRecord)}${remainingCopy}. Nice progress.`,
+      body: `${getPersonalRecordLabel(highlightedRecord)}${remainingCopy}. This is an all-time compound-lift record.`,
       category: "personal_record",
       id: `personal-record-${recentlyCompletedSessionId}`,
       priority: 40,
       severity: "success",
       surfaces: ["workout_summary", "trends"],
-      title: "New personal record",
+      title: "New all-time personal record",
     },
   ];
 };
 
 export const buildUserMessages = ({
   activeExerciseId,
+  currentProgramScope,
+  exerciseHistoryScope,
   messagePreferences,
   preview,
   recentlyCompletedSessionId,
   sessions,
 }: BuildUserMessagesInput): UserMessage[] =>
-  sortUserMessages(
-    filterUserMessagesByPreferences(
-      [
-        buildCompletionMessage(sessions, recentlyCompletedSessionId),
-        buildWeeklyCompletionMessage(sessions, preview),
-        ...buildRecoveryMessages(sessions, activeExerciseId),
-        ...buildPersonalRecordMessages(sessions, recentlyCompletedSessionId),
-        ...buildProgressionMessages(sessions),
-      ].filter((message): message is UserMessage => Boolean(message)),
-      messagePreferences
-    )
-  );
+  {
+    const activeSessions = filterActiveWorkoutSessions(sessions);
+    const currentProgramSessions = currentProgramScope
+      ? filterCurrentProgramWorkoutSessions(activeSessions, currentProgramScope)
+      : activeSessions;
+
+    return sortUserMessages(
+      filterUserMessagesByPreferences(
+        [
+          buildCompletionMessage(activeSessions, recentlyCompletedSessionId),
+          buildWeeklyCompletionMessage(currentProgramSessions, preview),
+          ...buildRecoveryMessages(activeSessions, activeExerciseId),
+          ...buildPersonalRecordMessages(
+            activeSessions,
+            recentlyCompletedSessionId
+          ),
+          ...buildProgressionMessages(activeSessions, exerciseHistoryScope),
+        ].filter((message): message is UserMessage => Boolean(message)),
+        messagePreferences
+      )
+    );
+  };

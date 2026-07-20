@@ -5,10 +5,16 @@ import type {
   WorkoutSetLog,
 } from "../../../shared/types/workoutSession.types";
 import type { WeightUnit } from "../../../shared/constants/weightEstimationRules";
+import {
+  filterExerciseHistoryWorkoutSessions,
+  isWorkoutSessionInCurrentProgram,
+  type ExerciseHistoryScopeOptions,
+} from "../../../shared/utils/workoutSessionScope";
 import { getStartOfWeek } from "./workoutSessionDates";
 
 type WeightIncreaseAdvisoryInput = {
   exerciseLog: WorkoutExerciseLog;
+  exerciseHistoryScope?: ExerciseHistoryScopeOptions;
   previousWeight?: number;
   nextWeight?: number;
   currentSession: WorkoutSessionDto;
@@ -29,6 +35,7 @@ export type ActionableProgressiveOverloadState = Exclude<
 
 export type ProgressiveOverloadRecommendation = {
   canApplyWeight: boolean;
+  historySource?: "current_program" | "previous_program";
   previousWeight?: number;
   reason: string;
   recommendedWeight?: number;
@@ -38,6 +45,7 @@ export type ProgressiveOverloadRecommendation = {
 
 type ProgressiveOverloadRecommendationInput = {
   currentSession: WorkoutSessionDto;
+  exerciseHistoryScope?: ExerciseHistoryScopeOptions;
   exerciseLog: WorkoutExerciseLog;
   priorSessions: WorkoutSessionDto[];
   weightStep: number;
@@ -183,11 +191,15 @@ const sameExercise = (
 export const getMostRecentPriorWeekExerciseLog = (
   exerciseLog: WorkoutExerciseLog,
   currentSession: WorkoutSessionDto,
-  priorSessions: WorkoutSessionDto[]
+  priorSessions: WorkoutSessionDto[],
+  exerciseHistoryScope: ExerciseHistoryScopeOptions = {}
 ) => {
   const currentWeekStart = getStartOfWeek(new Date(currentSession.scheduledFor));
 
-  return [...priorSessions]
+  return filterExerciseHistoryWorkoutSessions([...priorSessions], {
+    ...exerciseHistoryScope,
+    exerciseId: exerciseLog.exerciseId,
+  })
     .filter(
       (session) =>
         session.status === "completed" &&
@@ -202,8 +214,34 @@ export const getMostRecentPriorWeekExerciseLog = (
     .find((candidateLog) => sameExercise(exerciseLog, candidateLog));
 };
 
+const getHistorySourceForExerciseLog = (
+  priorExerciseLog: WorkoutExerciseLog,
+  priorSessions: WorkoutSessionDto[],
+  exerciseHistoryScope: ExerciseHistoryScopeOptions
+): ProgressiveOverloadRecommendation["historySource"] => {
+  if (!exerciseHistoryScope.currentProgramScope) {
+    return undefined;
+  }
+
+  const sourceSession = priorSessions.find((session) =>
+    session.exerciseLogs.includes(priorExerciseLog)
+  );
+
+  if (!sourceSession) {
+    return undefined;
+  }
+
+  return isWorkoutSessionInCurrentProgram(
+    sourceSession,
+    exerciseHistoryScope.currentProgramScope
+  )
+    ? "current_program"
+    : "previous_program";
+};
+
 export const shouldShowWeightIncreaseAdvisory = ({
   currentSession,
+  exerciseHistoryScope,
   exerciseLog,
   nextWeight,
   previousWeight,
@@ -220,7 +258,8 @@ export const shouldShowWeightIncreaseAdvisory = ({
   const priorExerciseLog = getMostRecentPriorWeekExerciseLog(
     exerciseLog,
     currentSession,
-    priorSessions
+    priorSessions,
+    exerciseHistoryScope
   );
   const sameSessionResult = completedTargetAtWeight(exerciseLog, previousWeight);
   const priorSessionResult = priorExerciseLog
@@ -240,6 +279,7 @@ export const shouldShowWeightIncreaseAdvisory = ({
 
 export const getProgressiveOverloadRecommendation = ({
   currentSession,
+  exerciseHistoryScope = {},
   exerciseLog,
   priorSessions,
   weightStep,
@@ -247,7 +287,8 @@ export const getProgressiveOverloadRecommendation = ({
   const priorExerciseLog = getMostRecentPriorWeekExerciseLog(
     exerciseLog,
     currentSession,
-    priorSessions
+    priorSessions,
+    exerciseHistoryScope
   );
 
   if (!priorExerciseLog) {
@@ -260,6 +301,11 @@ export const getProgressiveOverloadRecommendation = ({
 
   const previousWeight = getMostRecentCompletedWeight(priorExerciseLog);
   const weightUnit = getMostRecentCompletedWeightUnit(priorExerciseLog);
+  const historySource = getHistorySourceForExerciseLog(
+    priorExerciseLog,
+    priorSessions,
+    exerciseHistoryScope
+  );
   const canApplyWeight = hasUsableWeightProgression(previousWeight, weightUnit);
   const progressionState =
     getCompletedExerciseProgressionState(priorExerciseLog);
@@ -267,6 +313,7 @@ export const getProgressiveOverloadRecommendation = ({
   if (progressionState === "reduce_or_modify") {
     return {
       canApplyWeight: false,
+      historySource,
       previousWeight,
       reason:
         "This exercise was marked with pain last time. Consider reducing load or swapping the movement.",
@@ -278,6 +325,7 @@ export const getProgressiveOverloadRecommendation = ({
   if (progressionState === "hold_steady") {
     return {
       canApplyWeight: false,
+      historySource,
       previousWeight,
       reason:
         "Stay at this weight until you complete every planned set and rep.",
@@ -289,6 +337,7 @@ export const getProgressiveOverloadRecommendation = ({
   if (progressionState === "repeat_weight") {
     return {
       canApplyWeight: false,
+      historySource,
       previousWeight,
       reason:
         "You finished the work, but it was marked hard or form-limited. Repeat this weight and make it cleaner.",
@@ -300,6 +349,7 @@ export const getProgressiveOverloadRecommendation = ({
   if (!canApplyWeight || previousWeight === undefined) {
     return {
       canApplyWeight: false,
+      historySource,
       previousWeight,
       reason:
         "You completed the target last time. Progress this exercise with cleaner reps, more control, or a slightly harder variation.",
@@ -312,6 +362,7 @@ export const getProgressiveOverloadRecommendation = ({
 
   return {
     canApplyWeight: true,
+    historySource,
     previousWeight,
     reason: `You completed every target rep last time. Try ${weightStep} ${weightUnit} more today.`,
     recommendedWeight,

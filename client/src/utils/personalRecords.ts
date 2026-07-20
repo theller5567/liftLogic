@@ -5,6 +5,7 @@ import type {
 } from "../../../shared/types/workoutSession.types";
 import { getExerciseById } from "../../../shared/utils/exerciseLibraryAdapter";
 import { isCompoundExercise } from "../../../shared/utils/exerciseIntelligence";
+import { filterActiveWorkoutSessions } from "../../../shared/utils/workoutSessionScope";
 
 export type PersonalRecordType =
   | "heaviest_weight"
@@ -214,7 +215,8 @@ export const getPersonalRecordsForSession = (
   sessions: WorkoutSessionDto[],
   sessionId: string
 ): PersonalRecord[] => {
-  const currentSession = sessions.find(
+  const activeSessions = filterActiveWorkoutSessions(sessions);
+  const currentSession = activeSessions.find(
     (session) => session._id === sessionId && session.status === "completed"
   );
 
@@ -226,7 +228,7 @@ export const getPersonalRecordsForSession = (
     isCompoundExercise(getExerciseById(exerciseLog.exerciseId))
       ? findExercisePersonalRecords(
           exerciseLog,
-          getPriorExerciseLogs(sessions, currentSession, exerciseLog.exerciseId)
+          getPriorExerciseLogs(activeSessions, currentSession, exerciseLog.exerciseId)
         )
       : []
   );

@@ -2,6 +2,7 @@ import { Schema, model, Types } from "mongoose";
 
 import type {
   WorkoutBadgeId,
+  WorkoutSessionDeletionReason,
   WorkoutDaySnapshot,
   WorkoutExerciseLog,
   WorkoutSessionStatus,
@@ -11,8 +12,10 @@ export type WorkoutSessionDocument = {
   clientId: string;
   workoutPlanId: Types.ObjectId;
   programId: string;
+  programHistoryId?: string;
   programDayId: string;
   programDayLabel: string;
+  programVersion?: number;
   scheduledFor: Date;
   scheduledDateKey: string;
   startedAt: Date;
@@ -26,6 +29,8 @@ export type WorkoutSessionDocument = {
   badgeIds: WorkoutBadgeId[];
   durationSeconds?: number;
   exerciseLogs: WorkoutExerciseLog[];
+  deletedAt?: Date | null;
+  deletedReason?: WorkoutSessionDeletionReason;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -48,6 +53,16 @@ const workoutSessionSchema = new Schema<WorkoutSessionDocument>(
       type: String,
       required: true,
       trim: true,
+    },
+    programHistoryId: {
+      type: String,
+      index: true,
+      trim: true,
+    },
+    programVersion: {
+      type: Number,
+      min: 1,
+      index: true,
     },
     programDayId: {
       type: String,
@@ -126,22 +141,34 @@ const workoutSessionSchema = new Schema<WorkoutSessionDocument>(
       required: true,
       default: [],
     },
+    deletedAt: {
+      type: Date,
+      index: true,
+    },
+    deletedReason: {
+      type: String,
+      enum: ["user_deleted", "account_deleted", "program_reset"],
+    },
   },
   { timestamps: true }
 );
 
 workoutSessionSchema.index({ clientId: 1, scheduledFor: 1 });
 workoutSessionSchema.index({ clientId: 1, status: 1 });
+workoutSessionSchema.index({ clientId: 1, deletedAt: 1 });
+workoutSessionSchema.index({ clientId: 1, programHistoryId: 1 });
 workoutSessionSchema.index(
   {
     clientId: 1,
     workoutPlanId: 1,
+    programHistoryId: 1,
     programDayId: 1,
     scheduledDateKey: 1,
   },
   {
     unique: true,
     partialFilterExpression: {
+      deletedAt: { $exists: false },
       scheduledDateKey: { $type: "string" },
       status: { $in: ["in_progress", "completed"] },
     },

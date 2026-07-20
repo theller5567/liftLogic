@@ -57,12 +57,20 @@ const createExerciseLog = ({
 
 const createSession = ({
   exerciseLog = createExerciseLog(),
+  programHistoryId,
+  programId = "program-1",
+  programVersion,
   scheduledFor,
   status = "completed",
+  workoutPlanId = "plan-1",
 }: {
   exerciseLog?: WorkoutExerciseLog;
+  programHistoryId?: string;
+  programId?: string;
+  programVersion?: number;
   scheduledFor: string;
   status?: WorkoutSessionDto["status"];
+  workoutPlanId?: string;
 }): WorkoutSessionDto =>
   ({
     _id: `session-${scheduledFor}`,
@@ -73,16 +81,18 @@ const createSession = ({
     completionPercentage: exerciseLog.completed ? 100 : 0,
     createdAt: scheduledFor,
     exerciseLogs: [exerciseLog],
+    programHistoryId,
     programDayId: "day-1",
     programDayLabel: "Chest",
-    programId: "program-1",
+    programId,
+    programVersion,
     scheduledDateKey: scheduledFor.slice(0, 10),
     scheduledFor,
     startedAt: scheduledFor,
     status,
     totalExerciseCount: 1,
     updatedAt: scheduledFor,
-    workoutPlanId: "plan-1",
+    workoutPlanId,
     workoutSnapshot: {
       exercises: [],
       focus: "Chest",
@@ -124,6 +134,26 @@ describe("progressive overload recommendations", () => {
     expect(recommendation.canApplyWeight).toBe(true);
     expect(recommendation.previousWeight).toBe(135);
     expect(recommendation.recommendedWeight).toBe(140);
+  });
+
+  it("ignores soft-deleted prior sessions when building recommendations", () => {
+    const activeExerciseLog = currentSession.exerciseLogs[0];
+    const recommendation = getProgressiveOverloadRecommendation({
+      currentSession,
+      exerciseLog: activeExerciseLog,
+      priorSessions: [
+        {
+          ...createSession({
+            exerciseLog: createExerciseLog(),
+            scheduledFor: "2026-07-07T12:00:00.000Z",
+          }),
+          deletedAt: "2026-07-08T12:00:00.000Z",
+        },
+      ],
+      weightStep: 5,
+    });
+
+    expect(recommendation.state).toBe("no_history");
   });
 
   it("holds steady when reps were missed", () => {
@@ -176,6 +206,97 @@ describe("progressive overload recommendations", () => {
     expect(recommendation.state).toBe("ready_to_increase");
     expect(recommendation.canApplyWeight).toBe(false);
     expect(recommendation.recommendedWeight).toBeUndefined();
+  });
+
+  it("ignores previous-program history when the user opts out", () => {
+    const activeExerciseLog = currentSession.exerciseLogs[0];
+    const recommendation = getProgressiveOverloadRecommendation({
+      currentSession: {
+        ...currentSession,
+        programHistoryId: "history-2",
+        programId: "full_body_3_day",
+        programVersion: 2,
+      },
+      exerciseHistoryScope: {
+        currentProgramScope: {
+          activeProgramHistoryId: "history-2",
+          programId: "full_body_3_day",
+          programVersion: 2,
+          workoutPlanId: "plan-1",
+        },
+        includePreviousPrograms: false,
+      },
+      exerciseLog: activeExerciseLog,
+      priorSessions: [
+        createSession({
+          exerciseLog: createExerciseLog(),
+          programHistoryId: "history-1",
+          programId: "bro_split",
+          programVersion: 1,
+          scheduledFor: "2026-07-07T12:00:00.000Z",
+        }),
+      ],
+      weightStep: 5,
+    });
+
+    expect(recommendation.state).toBe("no_history");
+  });
+
+  it("labels recommendations that use prior-program exercise history", () => {
+    const activeExerciseLog = currentSession.exerciseLogs[0];
+    const recommendation = getProgressiveOverloadRecommendation({
+      currentSession: {
+        ...currentSession,
+        programHistoryId: "history-2",
+        programId: "full_body_3_day",
+        programVersion: 2,
+      },
+      exerciseHistoryScope: {
+        currentProgramScope: {
+          activeProgramHistoryId: "history-2",
+          programId: "full_body_3_day",
+          programVersion: 2,
+          workoutPlanId: "plan-1",
+        },
+        includePreviousPrograms: true,
+      },
+      exerciseLog: activeExerciseLog,
+      priorSessions: [
+        createSession({
+          exerciseLog: createExerciseLog(),
+          programHistoryId: "history-1",
+          programId: "bro_split",
+          programVersion: 1,
+          scheduledFor: "2026-07-07T12:00:00.000Z",
+        }),
+      ],
+      weightStep: 5,
+    });
+
+    expect(recommendation.state).toBe("ready_to_increase");
+    expect(recommendation.historySource).toBe("previous_program");
+  });
+
+  it("ignores exercise logs before a reset cutoff", () => {
+    const activeExerciseLog = currentSession.exerciseLogs[0];
+    const recommendation = getProgressiveOverloadRecommendation({
+      currentSession,
+      exerciseHistoryScope: {
+        resetCutoffs: {
+          barbell_bench_press: "2026-07-10T12:00:00.000Z",
+        },
+      },
+      exerciseLog: activeExerciseLog,
+      priorSessions: [
+        createSession({
+          exerciseLog: createExerciseLog(),
+          scheduledFor: "2026-07-07T12:00:00.000Z",
+        }),
+      ],
+      weightStep: 5,
+    });
+
+    expect(recommendation.state).toBe("no_history");
   });
 });
 

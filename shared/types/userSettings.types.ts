@@ -27,6 +27,11 @@ export type UserMessagePreferences = {
   futureReminders: boolean;
 };
 
+export type ExerciseHistoryPreferences = {
+  includePreviousPrograms: boolean;
+  resetCutoffs: Record<string, string>;
+};
+
 export type UserSettings = {
   weightUnit: WeightUnit;
   weightSteps: Record<WeightStepKey, number>;
@@ -40,6 +45,7 @@ export type UserSettings = {
     secondaryColor: string;
   };
   messages: UserMessagePreferences;
+  exerciseHistory: ExerciseHistoryPreferences;
 };
 
 export const DEFAULT_THEME_SETTINGS = {
@@ -64,6 +70,11 @@ export const DEFAULT_MESSAGE_PREFERENCES: UserMessagePreferences = {
     trends: true,
   },
   futureReminders: false,
+};
+
+export const DEFAULT_EXERCISE_HISTORY_PREFERENCES: ExerciseHistoryPreferences = {
+  includePreviousPrograms: true,
+  resetCutoffs: {},
 };
 
 const getDefaultStep = (weightUnit: WeightUnit) => (weightUnit === "kg" ? 2.5 : 5);
@@ -103,6 +114,9 @@ export const createDefaultUserSettings = (
         ...DEFAULT_MESSAGE_PREFERENCES.surfaces,
       },
     },
+    exerciseHistory: {
+      ...DEFAULT_EXERCISE_HISTORY_PREFERENCES,
+    },
   };
 };
 
@@ -139,6 +153,14 @@ export const mergeUserSettings = (
       surfaces: {
         ...defaults.messages.surfaces,
         ...settings?.messages?.surfaces,
+      },
+    },
+    exerciseHistory: {
+      ...defaults.exerciseHistory,
+      ...settings?.exerciseHistory,
+      resetCutoffs: {
+        ...defaults.exerciseHistory.resetCutoffs,
+        ...settings?.exerciseHistory?.resetCutoffs,
       },
     },
   };

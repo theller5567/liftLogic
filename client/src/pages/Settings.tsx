@@ -19,7 +19,9 @@ import PageHeader from "../components/ui/PageHeader";
 import {
   AccountSettingsSection,
   AppearanceSettingsSection,
+  DataSettingsSection,
   EquipmentSettingsSection,
+  ExerciseHistorySettingsSection,
   MessageSettingsSection,
   ProgramSettingsSection,
   RestTimerSettingsSection,
@@ -28,7 +30,10 @@ import {
 import { useAuth } from "../context/useAuth";
 import {
   clearWorkoutFocusBlock,
+  deleteAllAppData,
+  deleteCurrentWorkoutPlan,
   isApiEnabled,
+  resetCurrentProgramProgress,
   type WorkoutPlanDto,
 } from "../services/api";
 import { useUserFlow } from "../utils/userFlow";
@@ -38,6 +43,7 @@ import {
   resetUserTheme,
   useUserSettings,
 } from "../utils/userSettings";
+import { clearUserMessageVisibilityState } from "../utils/userMessageVisibility";
 import BottomSheet from "../components/BottomSheet";
 import {
   readWorkoutFocusBlock,
@@ -102,6 +108,27 @@ const SettingsForm = ({
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
+  const [resetProgramConfirmOpen, setResetProgramConfirmOpen] = useState(false);
+  const [deleteWorkoutPlanConfirmOpen, setDeleteWorkoutPlanConfirmOpen] =
+    useState(false);
+  const [deleteAllAppDataConfirmOpen, setDeleteAllAppDataConfirmOpen] =
+    useState(false);
+  const [isResettingProgramProgress, setIsResettingProgramProgress] =
+    useState(false);
+  const [isDeletingWorkoutPlan, setIsDeletingWorkoutPlan] = useState(false);
+  const [isDeletingAllAppData, setIsDeletingAllAppData] = useState(false);
+  const [resetProgramProgressError, setResetProgramProgressError] =
+    useState<string | null>(null);
+  const [resetProgramProgressMessage, setResetProgramProgressMessage] =
+    useState<string | null>(null);
+  const [deleteWorkoutPlanError, setDeleteWorkoutPlanError] =
+    useState<string | null>(null);
+  const [deleteWorkoutPlanMessage, setDeleteWorkoutPlanMessage] =
+    useState<string | null>(null);
+  const [deleteAllAppDataError, setDeleteAllAppDataError] =
+    useState<string | null>(null);
+  const [deleteAllAppDataConfirmationText, setDeleteAllAppDataConfirmationText] =
+    useState("");
 
   const currentWorkoutPlan = workoutPlanOverride ?? workoutPlan;
   const localFocusBlock = apiEnabled ? null : readWorkoutFocusBlock();
@@ -224,6 +251,107 @@ const SettingsForm = ({
     }
   };
 
+  const handleResetProgramProgress = async () => {
+    if (!apiEnabled || !currentWorkoutPlan) {
+      setResetProgramProgressError(
+        "Program progress reset is only available after your program is saved."
+      );
+      return;
+    }
+
+    setIsResettingProgramProgress(true);
+    setResetProgramProgressError(null);
+    setResetProgramProgressMessage(null);
+
+    try {
+      const {
+        abandonedWorkoutSessionCount,
+        workoutPlan: nextWorkoutPlan,
+      } = await resetCurrentProgramProgress();
+
+      setWorkoutPlanOverride(nextWorkoutPlan);
+      updateCachedCurrentAppData({ workoutPlan: nextWorkoutPlan });
+      setResetProgramConfirmOpen(false);
+      setResetProgramProgressMessage(
+        abandonedWorkoutSessionCount > 0
+          ? `Current program progress reset. ${abandonedWorkoutSessionCount} in-progress session${
+              abandonedWorkoutSessionCount === 1 ? "" : "s"
+            } moved out of your active progress.`
+          : "Current program progress reset. Completed history is still saved."
+      );
+    } catch (error) {
+      setResetProgramProgressError(
+        error instanceof Error
+          ? error.message
+          : "We could not reset your program progress."
+      );
+    } finally {
+      setIsResettingProgramProgress(false);
+    }
+  };
+
+  const handleDeleteWorkoutPlan = async () => {
+    if (!apiEnabled || !currentWorkoutPlan) {
+      setDeleteWorkoutPlanError("There is no active workout plan to delete.");
+      return;
+    }
+
+    setIsDeletingWorkoutPlan(true);
+    setDeleteWorkoutPlanError(null);
+    setDeleteWorkoutPlanMessage(null);
+
+    try {
+      await deleteCurrentWorkoutPlan();
+
+      setWorkoutPlanOverride(null);
+      updateCachedCurrentAppData({ workoutPlan: null });
+      setDeleteWorkoutPlanConfirmOpen(false);
+      setDeleteWorkoutPlanMessage("Current workout plan deleted.");
+      navigate("/welcome", { replace: true });
+    } catch (error) {
+      setDeleteWorkoutPlanError(
+        error instanceof Error
+          ? error.message
+          : "We could not delete your workout plan."
+      );
+    } finally {
+      setIsDeletingWorkoutPlan(false);
+    }
+  };
+
+  const handleDeleteAllAppData = async () => {
+    if (!apiEnabled) {
+      setDeleteAllAppDataError(
+        "Delete all app data is only available when your account is synced."
+      );
+      return;
+    }
+
+    if (deleteAllAppDataConfirmationText !== "DELETE") {
+      setDeleteAllAppDataError("Type DELETE to confirm this action.");
+      return;
+    }
+
+    setIsDeletingAllAppData(true);
+    setDeleteAllAppDataError(null);
+
+    try {
+      await deleteAllAppData();
+      clearUserMessageVisibilityState();
+      setDeleteAllAppDataConfirmOpen(false);
+      await signOut();
+      navigate("/", { replace: true });
+    } catch (error) {
+      setDeleteAllAppDataError(
+        error instanceof Error
+          ? error.message
+          : "We could not delete your LiftLogic app data."
+      );
+    } finally {
+      setIsDeletingAllAppData(false);
+    }
+  };
+
   const handleSignOut = async () => {
     setSignOutConfirmOpen(false);
     await signOut();
@@ -239,6 +367,11 @@ const SettingsForm = ({
     draftSettings,
     draftSettingsState.source
   );
+  const canResetProgramProgress = Boolean(
+    apiEnabled && currentWorkoutPlan?.workoutReviewed
+  );
+  const canDeleteWorkoutPlan = Boolean(apiEnabled && currentWorkoutPlan);
+  const canDeleteAllAppData = apiEnabled;
 
   return (
     <AppShell>
@@ -311,6 +444,38 @@ const SettingsForm = ({
           <RestTimerSettingsSection
             draftSettings={draftSettings}
             onUpdateDraft={updateDraft}
+          />
+          <ExerciseHistorySettingsSection
+            draftSettings={draftSettings}
+            onUpdateDraft={updateDraft}
+          />
+          <DataSettingsSection
+            canDeleteAllAppData={canDeleteAllAppData}
+            canDeleteWorkoutPlan={canDeleteWorkoutPlan}
+            canResetProgramProgress={canResetProgramProgress}
+            deleteAllAppDataError={deleteAllAppDataError}
+            deleteWorkoutPlanError={deleteWorkoutPlanError}
+            deleteWorkoutPlanMessage={deleteWorkoutPlanMessage}
+            isDeletingAllAppData={isDeletingAllAppData}
+            isDeletingWorkoutPlan={isDeletingWorkoutPlan}
+            isResettingProgramProgress={isResettingProgramProgress}
+            resetProgramProgressError={resetProgramProgressError}
+            resetProgramProgressMessage={resetProgramProgressMessage}
+            onDeleteAllAppData={() => {
+              setDeleteAllAppDataError(null);
+              setDeleteAllAppDataConfirmationText("");
+              setDeleteAllAppDataConfirmOpen(true);
+            }}
+            onDeleteWorkoutPlan={() => {
+              setDeleteWorkoutPlanError(null);
+              setDeleteWorkoutPlanMessage(null);
+              setDeleteWorkoutPlanConfirmOpen(true);
+            }}
+            onResetProgramProgress={() => {
+              setResetProgramProgressError(null);
+              setResetProgramProgressMessage(null);
+              setResetProgramConfirmOpen(true);
+            }}
           />
           <MessageSettingsSection
             draftSettings={draftSettings}
@@ -398,6 +563,142 @@ const SettingsForm = ({
           <p className={styles.warningMessage}>
             Any unsaved settings changes may be lost before you leave this session.
           </p>
+        </BottomSheet>
+        <BottomSheet
+          open={resetProgramConfirmOpen}
+          onClose={() => {
+            if (!isResettingProgramProgress) {
+              setResetProgramConfirmOpen(false);
+            }
+          }}
+          eyebrow="Program Data"
+          title="Reset current program progress?"
+          description="Your completed workouts stay saved. LiftLogic will start this program from a fresh progress version and abandon any in-progress sessions."
+          closeOnOverlayClick={!isResettingProgramProgress}
+          actions={[
+            {
+              disabled: isResettingProgramProgress,
+              label: "Cancel",
+              tone: "white",
+              variant: "outline",
+            },
+            {
+              closeOnClick: false,
+              icon: "refresh",
+              label: isResettingProgramProgress ? "Resetting..." : "Reset progress",
+              loading: isResettingProgramProgress,
+              tone: "danger",
+              variant: "outline",
+              onClick: handleResetProgramProgress,
+            },
+          ]}
+        >
+          <div className={styles.resetSummary}>
+            <p>
+              Dashboard weekly progress will restart for the active program.
+              Completed workout history, previous programs, exercise logs,
+              notes, badges, and PR history are kept.
+            </p>
+            <p>
+              Use this when you want to restart the same program without losing
+              the training record you already built.
+            </p>
+          </div>
+        </BottomSheet>
+        <BottomSheet
+          open={deleteWorkoutPlanConfirmOpen}
+          onClose={() => {
+            if (!isDeletingWorkoutPlan) {
+              setDeleteWorkoutPlanConfirmOpen(false);
+            }
+          }}
+          eyebrow="Program Data"
+          title="Delete current workout plan?"
+          description="This removes the active program from your account and returns you to the welcome flow. Your completed workout history stays saved."
+          closeOnOverlayClick={!isDeletingWorkoutPlan}
+          actions={[
+            {
+              disabled: isDeletingWorkoutPlan,
+              label: "Cancel",
+              tone: "white",
+              variant: "outline",
+            },
+            {
+              closeOnClick: false,
+              label: isDeletingWorkoutPlan ? "Deleting..." : "Delete plan",
+              loading: isDeletingWorkoutPlan,
+              tone: "danger",
+              variant: "outline",
+              onClick: handleDeleteWorkoutPlan,
+            },
+          ]}
+        >
+          <div className={styles.resetSummary}>
+            <p>
+              In-progress workouts from this plan will be abandoned so they no
+              longer appear as active sessions.
+            </p>
+            <p>
+              Completed sessions, exercise logs, notes, badges, and PR history
+              are not deleted in this step.
+            </p>
+          </div>
+        </BottomSheet>
+        <BottomSheet
+          open={deleteAllAppDataConfirmOpen}
+          onClose={() => {
+            if (!isDeletingAllAppData) {
+              setDeleteAllAppDataConfirmOpen(false);
+            }
+          }}
+          eyebrow="Delete Data"
+          title="Delete all LiftLogic app data?"
+          description="This permanently removes your LiftLogic app records. Your Google account is not deleted."
+          closeOnOverlayClick={!isDeletingAllAppData}
+          actions={[
+            {
+              disabled: isDeletingAllAppData,
+              label: "Cancel",
+              tone: "white",
+              variant: "outline",
+            },
+            {
+              closeOnClick: false,
+              disabled:
+                isDeletingAllAppData ||
+                deleteAllAppDataConfirmationText !== "DELETE",
+              label: isDeletingAllAppData ? "Deleting..." : "Delete all data",
+              loading: isDeletingAllAppData,
+              tone: "danger",
+              onClick: handleDeleteAllAppData,
+            },
+          ]}
+        >
+          <div className={styles.resetSummary}>
+            <p>
+              This deletes your LiftLogic profile, settings, current plan,
+              workout sessions, exercise logs, workout notes, exercise notes,
+              badges, and app-specific history.
+            </p>
+            <p>
+              This does not delete your Firebase or Google sign-in account. If
+              you sign in again later, LiftLogic will create a fresh profile.
+            </p>
+            <label className={styles.confirmationField}>
+              <span>Type DELETE to confirm</span>
+              <input
+                autoComplete="off"
+                disabled={isDeletingAllAppData}
+                value={deleteAllAppDataConfirmationText}
+                onChange={(event) =>
+                  setDeleteAllAppDataConfirmationText(event.target.value)
+                }
+              />
+            </label>
+            {deleteAllAppDataError ? (
+              <p className={styles.error}>{deleteAllAppDataError}</p>
+            ) : null}
+          </div>
         </BottomSheet>
       </section>
     </AppShell>

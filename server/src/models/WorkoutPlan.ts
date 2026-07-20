@@ -2,6 +2,7 @@ import { Schema, model } from "mongoose";
 
 import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
 import type { WorkoutFocusBlock } from "../../../shared/types/workoutFocus.types";
+import type { WorkoutProgramHistoryEntry } from "../../../shared/types/workoutPlan.types";
 import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWorkoutPreview";
 
 export type WorkoutPlanDocument = {
@@ -11,6 +12,9 @@ export type WorkoutPlanDocument = {
   editedPreview?: GeneratedWorkoutPreview | null;
   focusBlock?: WorkoutFocusBlock | null;
   workoutReviewed: boolean;
+  activeProgramHistoryId?: string;
+  programHistory?: WorkoutProgramHistoryEntry[];
+  programVersion?: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -43,6 +47,20 @@ const workoutPlanSchema = new Schema<WorkoutPlanDocument>(
     workoutReviewed: {
       type: Boolean,
       default: false,
+    },
+    activeProgramHistoryId: {
+      type: String,
+      trim: true,
+    },
+    programHistory: {
+      type: [Schema.Types.Mixed],
+      default: [],
+    },
+    programVersion: {
+      type: Number,
+      default: 1,
+      min: 1,
+      index: true,
     },
   },
   { timestamps: true }

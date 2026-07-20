@@ -33,9 +33,40 @@ const userSettingsSchema = new Schema<UserSettingsDocument>(
       autoStartAfterSet: { type: Boolean, required: true },
       defaultSeconds: { type: Number },
     },
+    equipmentInventory: [{ type: String }],
     theme: {
       primaryColor: { type: String, required: true },
       secondaryColor: { type: String, required: true },
+    },
+    messages: {
+      categories: {
+        completion: { type: Boolean, required: true },
+        progressive_overload: { type: Boolean, required: true },
+        personal_record: { type: Boolean, required: true },
+        consistency: { type: Boolean, required: true },
+        recovery: { type: Boolean, required: true },
+        education: { type: Boolean, required: true },
+      },
+      frequency: {
+        type: String,
+        enum: ["standard", "fewer", "important_only"],
+        required: true,
+      },
+      surfaces: {
+        dashboard: { type: Boolean, required: true },
+        workout_summary: { type: Boolean, required: true },
+        workout_exercise: { type: Boolean, required: true },
+        trends: { type: Boolean, required: true },
+      },
+      futureReminders: { type: Boolean, required: true },
+    },
+    exerciseHistory: {
+      includePreviousPrograms: { type: Boolean, required: true },
+      resetCutoffs: {
+        type: Map,
+        of: String,
+        default: {},
+      },
     },
   },
   { timestamps: true }

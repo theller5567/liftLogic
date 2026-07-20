@@ -5,6 +5,7 @@ import type {
   WorkoutExerciseLog,
   WorkoutSessionDto,
 } from "../../../shared/types/workoutSession.types";
+import { isDeletedWorkoutSession } from "../../../shared/utils/workoutSessionScope";
 import type {
   GeneratedWorkoutDayPreview,
   GeneratedWorkoutExercisePreview,
@@ -104,8 +105,10 @@ const serializeWorkoutSession = (
   clientId: session.clientId,
   workoutPlanId: session.workoutPlanId.toString(),
   programId: session.programId,
+  programHistoryId: session.programHistoryId,
   programDayId: session.programDayId,
   programDayLabel: session.programDayLabel,
+  programVersion: session.programVersion,
   scheduledFor: session.scheduledFor.toISOString(),
   scheduledDateKey: session.scheduledDateKey,
   startedAt: session.startedAt.toISOString(),
@@ -119,6 +122,8 @@ const serializeWorkoutSession = (
   badgeIds: session.badgeIds,
   durationSeconds: session.durationSeconds,
   exerciseLogs: session.exerciseLogs,
+  deletedAt: session.deletedAt?.toISOString() ?? null,
+  deletedReason: session.deletedReason,
   createdAt: session.createdAt.toISOString(),
   updatedAt: session.updatedAt.toISOString(),
 });
@@ -131,22 +136,27 @@ const findOwnedSession = async (clientId: string, sessionId: string) => {
   return WorkoutSession.findOne({
     _id: sessionId,
     clientId,
+    deletedAt: { $exists: false },
   });
 };
 
 const findExistingScheduledSession = async ({
   clientId,
+  programHistoryId,
   programDayId,
   scheduledDateKey,
   workoutPlanId,
 }: {
   clientId: string;
+  programHistoryId?: string;
   programDayId: string;
   scheduledDateKey: string;
   workoutPlanId: Types.ObjectId;
 }) =>
   WorkoutSession.findOne({
     clientId,
+    deletedAt: { $exists: false },
+    ...(programHistoryId ? { programHistoryId } : {}),
     workoutPlanId,
     programDayId,
     scheduledDateKey,
@@ -177,9 +187,14 @@ router.get("/", async (req, res, next) => {
     const query = workoutSessionQuerySchema.parse(req.query);
     const filters: {
       clientId: string;
+      deletedAt?: { $exists: false };
       scheduledFor?: { $gte?: Date; $lte?: Date };
       status?: string;
     } = { clientId };
+
+    if (!query.includeDeleted) {
+      filters.deletedAt = { $exists: false };
+    }
 
     if (query.dateFrom || query.dateTo) {
       filters.scheduledFor = {
@@ -197,9 +212,13 @@ router.get("/", async (req, res, next) => {
       .lean<WorkoutSessionDocument[]>();
 
     res.json({
-      workoutSessions: workoutSessions.map((session) =>
-        serializeWorkoutSession(session as WorkoutSessionDocument & { _id: Types.ObjectId })
-      ),
+      workoutSessions: workoutSessions
+        .filter(
+          (session) => query.includeDeleted || !isDeletedWorkoutSession(session)
+        )
+        .map((session) =>
+          serializeWorkoutSession(session as WorkoutSessionDocument & { _id: Types.ObjectId })
+        ),
     });
   } catch (error) {
     next(error);
@@ -255,8 +274,13 @@ router.post("/", async (req, res, next) => {
     }
 
     const scheduledDateKey = getScheduledDateKey(scheduledFor);
+    const programHistoryId =
+      workoutPlan.activeProgramHistoryId ??
+      `program-history-${workoutPlan.programVersion ?? 1}`;
+    const programVersion = workoutPlan.programVersion ?? 1;
     const existingWorkoutSession = await findExistingScheduledSession({
       clientId,
+      programHistoryId,
       workoutPlanId: workoutPlan._id,
       programDayId: workoutDay.id,
       scheduledDateKey,
@@ -276,8 +300,10 @@ router.post("/", async (req, res, next) => {
         clientId,
         workoutPlanId: workoutPlan._id,
         programId: preview.programId,
+        programHistoryId,
         programDayId: workoutDay.id,
         programDayLabel: workoutDay.label,
+        programVersion,
         scheduledFor,
         scheduledDateKey,
         startedAt: startedAt ?? new Date(),
@@ -296,6 +322,7 @@ router.post("/", async (req, res, next) => {
       ) {
         const duplicateWorkoutSession = await findExistingScheduledSession({
           clientId,
+          programHistoryId,
           workoutPlanId: workoutPlan._id,
           programDayId: workoutDay.id,
           scheduledDateKey,
@@ -358,7 +385,7 @@ router.put("/:sessionId", async (req, res, next) => {
       workoutSession.notes = updates.notes ?? undefined;
     }
 
-    if (updates.badgeIds) {
+    if (updates.badgeIds !== undefined) {
       workoutSession.badgeIds = updates.badgeIds;
     }
 
@@ -404,12 +431,40 @@ router.post("/:sessionId/complete", async (req, res, next) => {
       workoutSession.notes = updates.notes ?? undefined;
     }
 
-    if (updates.badgeIds) {
+    if (updates.badgeIds !== undefined) {
       workoutSession.badgeIds = updates.badgeIds;
     }
 
     if (updates.durationSeconds !== undefined) {
       workoutSession.durationSeconds = updates.durationSeconds;
+    }
+
+    await workoutSession.save();
+
+    res.json({ workoutSession: serializeWorkoutSession(workoutSession) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/:sessionId", async (req, res, next) => {
+  try {
+    const { clientId } = req as unknown as ClientIdentityRequest;
+    const workoutSession = await findOwnedSession(clientId, req.params.sessionId);
+
+    if (!workoutSession) {
+      res.status(404).json({
+        code: "WORKOUT_SESSION_NOT_FOUND",
+        error: "Workout session not found.",
+      });
+      return;
+    }
+
+    workoutSession.deletedAt = new Date();
+    workoutSession.deletedReason = "user_deleted";
+
+    if (workoutSession.status === "in_progress") {
+      workoutSession.status = "abandoned";
     }
 
     await workoutSession.save();

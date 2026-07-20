@@ -19,6 +19,10 @@ import {
   isWorkoutFocusBlockActive,
 } from "../../../shared/utils/workoutFocus";
 import {
+  filterCurrentProgramWorkoutSessions,
+  type CurrentProgramScope,
+} from "../../../shared/utils/workoutSessionScope";
+import {
   resolvePreviewWeeklySchedule,
   type GeneratedWorkoutPreview,
 } from "../utils/generateWorkoutPreview";
@@ -194,6 +198,28 @@ const Dashboard = () => {
     [workoutPlan]
   );
   const preview = hasStoppedSpecialization ? basePreview : focusedPreview;
+  const currentProgramScope = useMemo<CurrentProgramScope>(
+    () => ({
+      activeProgramHistoryId: workoutPlan?.activeProgramHistoryId,
+      programId: preview?.programId,
+      programVersion: workoutPlan?.programVersion,
+      workoutPlanId: workoutPlan?._id,
+    }),
+    [
+      preview?.programId,
+      workoutPlan?._id,
+      workoutPlan?.activeProgramHistoryId,
+      workoutPlan?.programVersion,
+    ]
+  );
+  const currentProgramWeekWorkoutSessions = useMemo(
+    () =>
+      filterCurrentProgramWorkoutSessions(
+        weekWorkoutSessions,
+        currentProgramScope
+      ),
+    [currentProgramScope, weekWorkoutSessions]
+  );
   const activeFocusBlock = useMemo(
     () => resolveCurrentWorkoutFocusBlock(workoutPlan),
     [workoutPlan]
@@ -201,17 +227,17 @@ const Dashboard = () => {
   const isSpecializationActive =
     !hasStoppedSpecialization && isWorkoutFocusBlockActive(activeFocusBlock);
   const weekDays = useMemo(
-    () => getWeekDays(selectedDate, weekWorkoutSessions, preview),
-    [preview, selectedDate, weekWorkoutSessions]
+    () => getWeekDays(selectedDate, currentProgramWeekWorkoutSessions, preview),
+    [currentProgramWeekWorkoutSessions, preview, selectedDate]
   );
   const completedWorkoutIds = useMemo(
     () =>
       new Set(
-        weekWorkoutSessions
+        currentProgramWeekWorkoutSessions
           .filter((session) => session.status === "completed")
           .map((session) => session.programDayId)
       ),
-    [weekWorkoutSessions]
+    [currentProgramWeekWorkoutSessions]
   );
   const availableWorkoutDays = useMemo(
     () =>
@@ -227,13 +253,13 @@ const Dashboard = () => {
   const today = new Date();
   const isSelectedDateToday = isSameDate(selectedDate, today);
   const activeSessionForSelectedDate = findWorkoutSessionForDate(
-    weekWorkoutSessions,
+    currentProgramWeekWorkoutSessions,
     selectedDate,
     undefined,
     "in_progress"
   );
   const completedSessionForSelectedDate = findWorkoutSessionForDate(
-    weekWorkoutSessions,
+    currentProgramWeekWorkoutSessions,
     selectedDate,
     undefined,
     "completed"
@@ -257,7 +283,7 @@ const Dashboard = () => {
     null;
   const activeWorkoutSession = workoutDay
     ? findWorkoutSessionForDate(
-        weekWorkoutSessions,
+        currentProgramWeekWorkoutSessions,
         selectedDate,
         workoutDay.id,
         "in_progress"
@@ -265,7 +291,7 @@ const Dashboard = () => {
     : null;
   const completedWorkoutSession = workoutDay
     ? findWorkoutSessionForDate(
-        weekWorkoutSessions,
+        currentProgramWeekWorkoutSessions,
         selectedDate,
         workoutDay.id,
         "completed"
@@ -294,6 +320,7 @@ const Dashboard = () => {
     () => {
       const messages = getUserMessagesForSurface(
         buildUserMessages({
+          currentProgramScope,
           messagePreferences: settings.messages,
           preview,
           sessions: weekWorkoutSessions,
@@ -311,7 +338,13 @@ const Dashboard = () => {
         secondary: visibleMessages.slice(1, 3),
       };
     },
-    [messageVisibilityState, preview, settings.messages, weekWorkoutSessions]
+    [
+      currentProgramScope,
+      messageVisibilityState,
+      preview,
+      settings.messages,
+      weekWorkoutSessions,
+    ]
   );
   const visibleDashboardMessages = useMemo(
     () =>

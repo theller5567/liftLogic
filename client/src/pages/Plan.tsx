@@ -84,12 +84,16 @@ const Plan = () => {
     );
   }
 
-  if (destination === "/onboarding" || destination === "/workout-review") {
+  if (
+    destination === "/welcome" ||
+    destination === "/onboarding" ||
+    destination === "/workout-review"
+  ) {
     return <Navigate to={destination} replace />;
   }
 
   if (!preview) {
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/welcome" replace />;
   }
 
   const handlePreviewChange = async (nextPreview: GeneratedWorkoutPreview) => {
