@@ -8,6 +8,7 @@ import { deleteWorkoutSession, updateWorkoutSession } from "../services/api";
 import { formatMonthDay } from "../utils/dateFormatting";
 import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
+import { useUserMessageVisibility } from "../utils/useUserMessageVisibility";
 import { useUserSettings } from "../utils/userSettings";
 import {
   getCompletedExerciseCount,
@@ -99,7 +100,7 @@ const WorkoutSummary = () => {
       settings.exerciseHistory.resetCutoffs,
     ]
   );
-  const summaryMessages = useMemo(
+  const generatedSummaryMessages = useMemo(
     () =>
       getUserMessagesForSurface(
         buildUserMessages({
@@ -109,9 +110,16 @@ const WorkoutSummary = () => {
           sessions: [...priorSessions, session],
         }),
         "workout_summary"
-      ),
+    ),
     [exerciseHistoryScope, priorSessions, session, settings.messages]
   );
+  const {
+    dismissMessage: dismissSummaryMessage,
+    visibleMessages: summaryMessages,
+  } = useUserMessageVisibility({
+    messages: generatedSummaryMessages,
+    surface: "workout_summary",
+  });
 
   const hasNoteChanges =
     workoutNotes.trim() !== (session.notes ?? "") ||
@@ -335,7 +343,17 @@ const WorkoutSummary = () => {
               key={message.id}
               className={getSummaryInsightClassName(message)}
             >
-              <p>{message.category.replace(/_/g, " ")}</p>
+              <div className={styles.summaryInsightHeader}>
+                <p>{message.category.replace(/_/g, " ")}</p>
+                <button
+                  type="button"
+                  aria-label={`Dismiss ${message.title}`}
+                  className={styles.summaryInsightDismiss}
+                  onClick={() => dismissSummaryMessage(message)}
+                >
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
               <h2>{message.title}</h2>
               <span>{message.body}</span>
               {message.action?.to ? (

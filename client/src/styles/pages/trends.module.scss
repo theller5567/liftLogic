@@ -95,6 +95,24 @@
   gap: 0.65rem;
 }
 
+.messageSection {
+  display: grid;
+  gap: var(--ll-space-5);
+}
+
+.messageGroup {
+  display: grid;
+  gap: var(--ll-space-3);
+
+  h2 {
+    margin: 0;
+    color: var(--ll-text-strong);
+    font-size: 0.86rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+}
+
 .scopePanel {
   display: grid;
   gap: var(--ll-space-3);
@@ -190,6 +208,83 @@
     font-size: 0.82rem;
     font-weight: 700;
     line-height: 1.4;
+  }
+}
+
+.messageCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.messageDismissButton {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.2);
+  border-radius: var(--br-full);
+  background: hsl(var(--clr-neutral-900-b) / 0.4);
+  color: var(--ll-text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+
+  &:hover,
+  &:focus-visible {
+    border-color: hsl(var(--clr-neutral-0-b) / 0.35);
+    color: var(--ll-text-strong);
+  }
+}
+
+.messageActionList {
+  display: grid;
+  gap: var(--ll-space-3);
+
+  button {
+    display: grid;
+    gap: 0.25rem;
+    width: 100%;
+    padding: var(--ll-space-4);
+    border: 1px solid var(--ll-border-subtle);
+    border-radius: var(--ll-radius-card);
+    background: hsl(var(--clr-neutral-900-b) / 0.42);
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+
+    &:hover,
+    &:focus-visible {
+      border-color: hsl(var(--clr-secondary-500-b) / 0.55);
+    }
+  }
+
+  span,
+  strong,
+  p {
+    margin: 0;
+  }
+
+  span {
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-eyebrow);
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 1rem;
+  }
+
+  p {
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-helper);
+    font-weight: 750;
   }
 }
 

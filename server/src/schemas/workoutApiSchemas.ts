@@ -303,6 +303,7 @@ const userMessagePreferencesSchema = z
     frequency: userMessageFrequencySchema,
     surfaces: userMessageSurfacePreferencesSchema,
     futureReminders: z.boolean(),
+    nonCriticalSnoozedUntil: z.string().datetime().optional(),
   })
   .strict();
 

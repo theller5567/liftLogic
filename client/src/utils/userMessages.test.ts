@@ -15,6 +15,7 @@ import {
   getPrimaryUserMessage,
   getSecondaryUserMessages,
   getUserMessagesForSurface,
+  groupTrendUserMessages,
   sortUserMessages,
   type UserMessage,
 } from "./userMessages";
@@ -191,6 +192,72 @@ describe("user messages", () => {
     ]);
   });
 
+  it("groups Trends messages by latest workout insights and training patterns", () => {
+    const messages: UserMessage[] = [
+      {
+        body: "Keep this signal in mind.",
+        category: "recovery",
+        id: "pattern",
+        lifecycle: {
+          dismissalPolicy: {
+            cooldownHours: 24,
+            returnWhenChanged: true,
+          },
+          scope: "training_pattern",
+        },
+        priority: 10,
+        severity: "warning",
+        surfaces: ["trends"],
+        title: "Pattern",
+      },
+      {
+        body: "Nice work.",
+        category: "personal_record",
+        id: "latest",
+        lifecycle: {
+          dismissalPolicy: {
+            cooldownHours: 168,
+            returnWhenChanged: true,
+          },
+          scope: "latest_workout",
+        },
+        priority: 20,
+        severity: "success",
+        surfaces: ["trends"],
+        title: "Latest",
+      },
+      {
+        body: "Go up next time.",
+        category: "progressive_overload",
+        id: "exercise-action",
+        lifecycle: {
+          dismissalPolicy: {
+            cooldownHours: 168,
+            returnWhenChanged: true,
+          },
+          scope: "exercise_action",
+        },
+        priority: 30,
+        severity: "info",
+        surfaces: ["trends"],
+        title: "Exercise action",
+      },
+    ];
+
+    expect(groupTrendUserMessages(messages)).toEqual([
+      {
+        id: "latest_workout_insights",
+        label: "Latest workout insights",
+        messages: [messages[1], messages[2]],
+      },
+      {
+        id: "training_patterns",
+        label: "Training patterns",
+        messages: [messages[0]],
+      },
+    ]);
+  });
+
   it("builds derived recovery and progression messages from completed workout data", () => {
     const messages = buildUserMessages({
       sessions: [
@@ -212,6 +279,46 @@ describe("user messages", () => {
     ]);
     expect(messages[0].category).toBe("recovery");
     expect(messages[0].body).toContain("Overhead Press");
+  });
+
+  it("adds lifecycle metadata to generated messages", () => {
+    const session = createSession({
+      exerciseLogs: [
+        createExerciseLog({ badgeIds: ["pain"], label: "Overhead Press" }),
+        createExerciseLog({ exerciseId: "seated_row", label: "Seated Row" }),
+      ],
+    });
+    const messages = buildUserMessages({
+      recentlyCompletedSessionId: session._id,
+      sessions: [session],
+    });
+
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages.every((message) => message.lifecycle)).toBe(true);
+    expect(
+      messages.find((message) => message.id === "recovery-pain-signal")
+        ?.lifecycle
+    ).toEqual(
+      expect.objectContaining({
+        dismissalPolicy: {
+          cooldownHours: 24,
+          returnWhenChanged: true,
+        },
+        scope: "training_pattern",
+        sourceExerciseIds: ["barbell_bench_press"],
+        stateKey: "pain_signal",
+      })
+    );
+    expect(
+      messages.find((message) => message.id === "workout-complete-session-1")
+        ?.lifecycle
+    ).toEqual(
+      expect.objectContaining({
+        scope: "latest_workout",
+        sourceSessionId: "session-1",
+        stateKey: "workout_complete",
+      })
+    );
   });
 
   it("does not build messages from soft-deleted sessions", () => {
@@ -400,6 +507,39 @@ describe("user messages", () => {
     ).toBe(false);
   });
 
+  it("resolves pain recovery messages when the latest exercise log is clean", () => {
+    const messages = buildUserMessages({
+      sessions: [
+        createSession({
+          id: "prior-pain",
+          scheduledFor: "2026-07-01T12:00:00.000Z",
+          exerciseLogs: [
+            createExerciseLog({
+              badgeIds: ["pain"],
+              exerciseId: "standing_overhead_press",
+              label: "Overhead Press",
+            }),
+          ],
+        }),
+        createSession({
+          id: "current-clean",
+          scheduledFor: "2026-07-08T12:00:00.000Z",
+          exerciseLogs: [
+            createExerciseLog({
+              badgeIds: [],
+              exerciseId: "standing_overhead_press",
+              label: "Overhead Press",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    expect(
+      messages.some((message) => message.id.startsWith("recovery-pain"))
+    ).toBe(false);
+  });
+
   it("removes repeated form recovery messages after form badges are cleared", () => {
     const messages = buildUserMessages({
       sessions: [
@@ -464,6 +604,118 @@ describe("user messages", () => {
     expect(
       messages.some((message) => message.id === "recovery-missed-targets")
     ).toBe(true);
+  });
+
+  it("resolves missed-target messages when the latest exercise log hits targets", () => {
+    const messages = buildUserMessages({
+      sessions: [
+        createSession({
+          id: "prior-missed-1",
+          scheduledFor: "2026-07-01T12:00:00.000Z",
+          exerciseLogs: [
+            createExerciseLog({
+              actualReps: [10, 8, 10],
+              exerciseId: "lat_pulldown",
+              label: "Lat Pulldown",
+            }),
+          ],
+        }),
+        createSession({
+          id: "prior-missed-2",
+          scheduledFor: "2026-07-03T12:00:00.000Z",
+          exerciseLogs: [
+            createExerciseLog({
+              actualReps: [9, 8, 10],
+              exerciseId: "lat_pulldown",
+              label: "Lat Pulldown",
+            }),
+          ],
+        }),
+        createSession({
+          id: "current-clean",
+          scheduledFor: "2026-07-08T12:00:00.000Z",
+          exerciseLogs: [
+            createExerciseLog({
+              actualReps: [10, 10, 10],
+              exerciseId: "lat_pulldown",
+              label: "Lat Pulldown",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    expect(
+      messages.some((message) => message.id === "recovery-missed-targets")
+    ).toBe(false);
+  });
+
+  it("ignores stale missed-target patterns outside the rolling window", () => {
+    const messages = buildUserMessages({
+      sessions: [
+        createSession({
+          id: "old-missed-1",
+          scheduledFor: "2026-06-01T12:00:00.000Z",
+          exerciseLogs: [
+            createExerciseLog({
+              actualReps: [10, 8, 10],
+              exerciseId: "lat_pulldown",
+              label: "Lat Pulldown",
+            }),
+          ],
+        }),
+        createSession({
+          id: "old-missed-2",
+          scheduledFor: "2026-06-08T12:00:00.000Z",
+          exerciseLogs: [
+            createExerciseLog({
+              actualReps: [9, 8, 10],
+              exerciseId: "lat_pulldown",
+              label: "Lat Pulldown",
+            }),
+          ],
+        }),
+        createSession({
+          id: "current-clean",
+          scheduledFor: "2026-07-08T12:00:00.000Z",
+          exerciseLogs: [
+            createExerciseLog({
+              actualReps: [10, 10, 10],
+              exerciseId: "barbell_bench_press",
+              label: "Bench Press",
+            }),
+          ],
+        }),
+      ],
+    });
+
+    expect(
+      messages.some((message) => message.id === "recovery-missed-targets")
+    ).toBe(false);
+  });
+
+  it("limits weekly completion messages to the latest workout week", () => {
+    const messages = buildUserMessages({
+      preview: createPreview(["day-1", "day-2"]),
+      sessions: [
+        createSession({
+          id: "old-day-1",
+          label: "day-1",
+          programDayId: "day-1",
+          scheduledFor: "2026-07-01T12:00:00.000Z",
+        }),
+        createSession({
+          id: "current-day-2",
+          label: "day-2",
+          programDayId: "day-2",
+          scheduledFor: "2026-07-08T12:00:00.000Z",
+        }),
+      ],
+    });
+
+    expect(
+      messages.some((message) => message.id === "weekly-target-complete")
+    ).toBe(false);
   });
 
   it("surfaces active exercise recovery cautions on the workout exercise page", () => {
@@ -548,6 +800,50 @@ describe("user messages", () => {
         title: "New all-time personal record",
       })
     );
+  });
+
+  it("does not keep showing an old PR after a newer completed workout has no PR", () => {
+    const priorSession = createSession({
+      id: "prior-session",
+      scheduledFor: "2026-07-01T12:00:00.000Z",
+      exerciseLogs: [
+        createExerciseLog({
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 135,
+        }),
+      ],
+    });
+    const prSession = createSession({
+      id: "pr-session",
+      scheduledFor: "2026-07-08T12:00:00.000Z",
+      exerciseLogs: [
+        createExerciseLog({
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 145,
+        }),
+      ],
+    });
+    const newerSession = createSession({
+      id: "newer-session",
+      scheduledFor: "2026-07-15T12:00:00.000Z",
+      exerciseLogs: [
+        createExerciseLog({
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 140,
+        }),
+      ],
+    });
+    const messages = buildUserMessages({
+      recentlyCompletedSessionId: prSession._id,
+      sessions: [priorSession, prSession, newerSession],
+    });
+
+    expect(
+      messages.some((message) => message.id === "personal-record-pr-session")
+    ).toBe(false);
   });
 
   it("filters and returns the primary message for a surface", () => {
@@ -798,6 +1094,43 @@ describe("user messages", () => {
     expect(messages.map((message) => message.id)).toEqual([
       "recovery-pain-signal",
     ]);
+  });
+
+  it("snoozes non-critical messages while keeping protected recovery cautions", () => {
+    const messages = buildUserMessages({
+      messagePreferences: createMessagePreferences({
+        nonCriticalSnoozedUntil: "2026-07-28T12:00:00.000Z",
+      }),
+      now: new Date("2026-07-21T12:00:00.000Z"),
+      preview: createPreview(["day-1"]),
+      sessions: [
+        createSession({
+          exerciseLogs: [
+            createExerciseLog({ badgeIds: ["pain"], label: "Overhead Press" }),
+          ],
+          programDayId: "day-1",
+        }),
+      ],
+    });
+
+    expect(messages.map((message) => message.id)).toEqual([
+      "recovery-pain-signal",
+    ]);
+  });
+
+  it("shows non-critical messages again after the snooze expires", () => {
+    const messages = buildUserMessages({
+      messagePreferences: createMessagePreferences({
+        nonCriticalSnoozedUntil: "2026-07-20T12:00:00.000Z",
+      }),
+      now: new Date("2026-07-21T12:00:00.000Z"),
+      preview: createPreview(["day-1"]),
+      sessions: createCompletedPlannedSessions(["day-1"]),
+    });
+
+    expect(
+      messages.some((message) => message.id === "weekly-target-complete")
+    ).toBe(true);
   });
 
   it("hides messages from disabled surfaces", () => {

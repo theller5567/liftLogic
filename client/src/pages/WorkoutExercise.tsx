@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import BottomSheet from "../components/BottomSheet";
 import Button from "../components/Button";
@@ -36,6 +36,7 @@ import {
   type UserMessage,
 } from "../utils/userMessages";
 import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteContext";
+import { useUserMessageVisibility } from "../utils/useUserMessageVisibility";
 import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
 import { createExerciseSlugFromParts } from "../utils/exerciseLibraryDisplay";
 import {
@@ -59,6 +60,12 @@ type NoteBadgeDraft = {
   badgeIds: WorkoutBadgeId[];
   exerciseNotes: string;
 };
+
+const shouldOpenAdjustmentSheetFromRouteState = (state: unknown) =>
+  typeof state === "object" &&
+  state !== null &&
+  "openAdjustmentSheet" in state &&
+  state.openAdjustmentSheet === true;
 
 const updateSetLog = (
   exerciseLog: WorkoutExerciseLog,
@@ -118,6 +125,7 @@ const formatTimerExerciseTarget = (exerciseLog: WorkoutExerciseLog) => {
 
 const WorkoutExercise = () => {
   const { exerciseIndex } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const activeExerciseIndex = Number(exerciseIndex);
   const { priorSessions, session, setSession } = useWorkoutSessionRouteContext();
@@ -128,6 +136,9 @@ const WorkoutExercise = () => {
     useState<AdvisoryAttempt | null>(null);
   const [noteBadgeDraft, setNoteBadgeDraft] = useState<NoteBadgeDraft | null>(
     null
+  );
+  const [isAdjustmentSheetOpen, setIsAdjustmentSheetOpen] = useState(() =>
+    shouldOpenAdjustmentSheetFromRouteState(location.state)
   );
   const [
     dismissedProgressionExerciseIndex,
@@ -247,7 +258,7 @@ const WorkoutExercise = () => {
       session,
     ]
   );
-  const exerciseMessages = useMemo(
+  const generatedExerciseMessages = useMemo(
     () =>
       activeExercise
         ? getUserMessagesForSurface(
@@ -262,6 +273,13 @@ const WorkoutExercise = () => {
         : [],
     [activeExercise, exerciseHistoryScope, priorSessions, session, settings.messages]
   );
+  const {
+    dismissMessage: dismissExerciseMessage,
+    visibleMessages: exerciseMessages,
+  } = useUserMessageVisibility({
+    messages: generatedExerciseMessages,
+    surface: "workout_exercise",
+  });
   const showProgressionRecommendation =
     Boolean(progressionRecommendation) &&
     progressionRecommendation?.state !== "no_history" &&
@@ -285,6 +303,21 @@ const WorkoutExercise = () => {
   const advisoryRequestedIncrease = advisoryAttempt
     ? `${advisoryAttempt.previousWeight} ${advisoryWeightUnit} to ${advisoryAttempt.nextWeight} ${advisoryWeightUnit}`
     : null;
+  const currentExerciseTargetWeight =
+    activeExercise?.sets.find((setLog) => !setLog.completed)?.weight ??
+    activeExercise?.sets[0]?.weight ??
+    activeExercise?.prescriptionSnapshot.suggestedWeight;
+  const adjustedWeightUnit =
+    activeExercise?.prescriptionSnapshot.weightUnit ?? "lb";
+  const suggestedAdjustmentWeight =
+    progressionRecommendation?.recommendedWeight ??
+    (currentExerciseTargetWeight !== undefined
+      ? Math.max(0, currentExerciseTargetWeight - activeExerciseWeightStep)
+      : undefined);
+  const extraReducedAdjustmentWeight =
+    suggestedAdjustmentWeight !== undefined
+      ? Math.max(0, suggestedAdjustmentWeight - activeExerciseWeightStep)
+      : undefined;
   const timerNextExerciseIndex = useMemo(() => {
     const nextIncompleteIndex = session.exerciseLogs.findIndex(
       (exerciseLog, index) => index > activeExerciseIndex && !exerciseLog.completed
@@ -305,6 +338,9 @@ const WorkoutExercise = () => {
       ? session.exerciseLogs[timerNextExerciseIndex]
       : null;
   const isRestTimerComplete = restSeconds !== null && restSeconds <= 0;
+  const shouldOpenAdjustmentSheet = shouldOpenAdjustmentSheetFromRouteState(
+    location.state
+  );
 
   useEffect(() => {
     if (activeSetIndex < 0) {
@@ -317,6 +353,17 @@ const WorkoutExercise = () => {
       inline: "center",
     });
   }, [activeSetIndex]);
+
+  useEffect(() => {
+    if (!shouldOpenAdjustmentSheet) {
+      return;
+    }
+
+    navigate(location.pathname, {
+      replace: true,
+      state: null,
+    });
+  }, [activeExercise, location.pathname, navigate, shouldOpenAdjustmentSheet]);
 
   if (session.status === "completed") {
     return <Navigate to={`/workout/${session._id}/summary`} replace />;
@@ -482,6 +529,47 @@ const WorkoutExercise = () => {
     const savedSession = await persistExerciseLogs(nextExerciseLogs);
 
     if (savedSession) {
+      setDismissedProgressionExerciseIndex(activeExerciseIndex);
+    }
+  };
+
+  const applyExerciseWeightAdjustment = async (nextWeight: number) => {
+    if (!activeExercise) {
+      return;
+    }
+
+    const nextExerciseLogs = session.exerciseLogs.map((exerciseLog, index) => {
+      if (index !== activeExerciseIndex) {
+        return exerciseLog;
+      }
+
+      return {
+        ...exerciseLog,
+        prescriptionSnapshot: {
+          ...exerciseLog.prescriptionSnapshot,
+          suggestedWeight: nextWeight,
+          weightUnit:
+            exerciseLog.prescriptionSnapshot.weightUnit ?? adjustedWeightUnit,
+        },
+        sets: exerciseLog.sets.map((setLog) =>
+          setLog.completed
+            ? setLog
+            : {
+                ...setLog,
+                weight: nextWeight,
+                weightUnit:
+                  setLog.weightUnit ??
+                  exerciseLog.prescriptionSnapshot.weightUnit ??
+                  adjustedWeightUnit,
+              }
+        ),
+      };
+    });
+
+    const savedSession = await persistExerciseLogs(nextExerciseLogs);
+
+    if (savedSession) {
+      setIsAdjustmentSheetOpen(false);
       setDismissedProgressionExerciseIndex(activeExerciseIndex);
     }
   };
@@ -689,7 +777,9 @@ const WorkoutExercise = () => {
             recommendation={progressionRecommendation}
             onApply={
               progressionRecommendation.canApplyWeight
-                ? applyProgressionRecommendation
+                ? progressionRecommendation.state === "reduce_or_modify"
+                  ? () => setIsAdjustmentSheetOpen(true)
+                  : applyProgressionRecommendation
                 : undefined
             }
             onDismiss={() =>
@@ -705,9 +795,28 @@ const WorkoutExercise = () => {
                 key={message.id}
                 className={getExerciseMessageClassName(message)}
               >
-                <p>{message.category.replace(/_/g, " ")}</p>
+                <div className={styles.exerciseMessageHeader}>
+                  <p>{message.category.replace(/_/g, " ")}</p>
+                  <button
+                    type="button"
+                    aria-label={`Dismiss ${message.title}`}
+                    className={styles.exerciseMessageDismiss}
+                    onClick={() => dismissExerciseMessage(message)}
+                  >
+                    <span aria-hidden="true">&times;</span>
+                  </button>
+                </div>
                 <h2>{message.title}</h2>
                 <span>{message.body}</span>
+                {currentExerciseTargetWeight !== undefined ? (
+                  <Button
+                    label="Adjust load"
+                    size="small"
+                    tone="gray"
+                    variant="outline"
+                    onClick={() => setIsAdjustmentSheetOpen(true)}
+                  />
+                ) : null}
               </article>
             ))}
           </section>
@@ -755,6 +864,74 @@ const WorkoutExercise = () => {
           onClick={handleFinishExercise}
         />
       </article>
+
+      <BottomSheet
+        open={isAdjustmentSheetOpen}
+        onClose={() => setIsAdjustmentSheetOpen(false)}
+        title="Adjust exercise load"
+        eyebrow={activeExercise.label}
+        description="Update the remaining sets for this workout so the target matches what you can complete with clean reps."
+        actions={[
+          ...(suggestedAdjustmentWeight !== undefined
+            ? [
+                {
+                  label: `Use ${suggestedAdjustmentWeight} ${adjustedWeightUnit}`,
+                  tone: "primary" as const,
+                  loading: isSaving,
+                  closeOnClick: false,
+                  onClick: () =>
+                    applyExerciseWeightAdjustment(suggestedAdjustmentWeight),
+                },
+              ]
+            : []),
+          ...(extraReducedAdjustmentWeight !== undefined &&
+          extraReducedAdjustmentWeight !== suggestedAdjustmentWeight
+            ? [
+                {
+                  label: `Drop to ${extraReducedAdjustmentWeight} ${adjustedWeightUnit}`,
+                  tone: "gray" as const,
+                  variant: "outline" as const,
+                  loading: isSaving,
+                  closeOnClick: false,
+                  onClick: () =>
+                    applyExerciseWeightAdjustment(extraReducedAdjustmentWeight),
+                },
+              ]
+            : []),
+          {
+            label: "Keep current load",
+            tone: "gray",
+            variant: "outline",
+            onClick: () => setIsAdjustmentSheetOpen(false),
+          },
+        ]}
+      >
+        <div className={styles.adjustmentSheet}>
+          <dl>
+            {currentExerciseTargetWeight !== undefined ? (
+              <div>
+                <dt>Current target</dt>
+                <dd>
+                  {currentExerciseTargetWeight} {adjustedWeightUnit}
+                </dd>
+              </div>
+            ) : null}
+            {progressionRecommendation?.previousWeight !== undefined ? (
+              <div>
+                <dt>Last logged</dt>
+                <dd>
+                  {progressionRecommendation.previousWeight}{" "}
+                  {progressionRecommendation.weightUnit ?? adjustedWeightUnit}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+          <p>
+            Completed sets stay as logged. This only changes the remaining sets
+            and the saved target for this exercise in the current workout.
+          </p>
+        </div>
+      </BottomSheet>
 
       <BottomSheet
         open={Boolean(noteBadgeDraft)}

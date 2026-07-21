@@ -106,7 +106,11 @@ const ProgressionRecommendationCard = ({
       <div className={styles.progressionActions}>
         {recommendation.canApplyWeight && onApply ? (
           <Button
-            label="Use recommendation"
+            label={
+              recommendation.state === "reduce_or_modify"
+                ? "Adjust load"
+                : "Use recommendation"
+            }
             loading={applyLoading}
             tone="secondary"
             size="small"

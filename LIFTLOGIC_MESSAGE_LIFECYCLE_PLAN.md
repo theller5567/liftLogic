@@ -90,7 +90,18 @@ Give each category a clear freshness window and dismissal behavior.
 - Each generated message has enough metadata to determine whether it is fresh, resolved, or dismissible.
 
 ### Phase Notes
-- Pending.
+- Completed on 2026-07-21.
+- Added lifecycle metadata support to `UserMessage`:
+  - `scope`
+  - `sourceSessionId`
+  - `sourceExerciseIds`
+  - `expiresAt`
+  - `dismissalPolicy`
+- Added lifecycle metadata to generated completion, weekly completion, recovery, progressive overload, and personal record messages.
+- Updated visibility fingerprints to include lifecycle source context, so a dismissed message can return when the source session or relevant exercise set changes.
+- Changed protected-message dismissal behavior from “cannot dismiss” to “dismiss for now.” Recovery, warning, and danger messages now use a shorter default cooldown of 24 hours unless the message provides its own policy.
+- Added tests for generated lifecycle metadata, temporary recovery-message dismissal, source-context changes, and expiration.
+- Backend persistence is still intentionally deferred; visibility remains local-only in this phase.
 
 ## Phase 3: Add Close Buttons To Message Cards
 
@@ -115,7 +126,15 @@ Make every visible message dismissible from the UI.
 - Dismissal updates local visibility state immediately without requiring a page reload.
 
 ### Phase Notes
-- Pending.
+- Completed on 2026-07-21.
+- Added a shared `useUserMessageVisibility` hook so message surfaces can reuse local visibility state, seen tracking, filtering, and dismissal.
+- Dashboard already had close buttons; because Phase 2 changed protected messages to “dismiss for now,” Dashboard close controls now apply to warning/recovery/danger cards too.
+- Added close buttons and visibility handling to:
+  - Trends message cards
+  - Workout Summary insight cards
+  - Workout Exercise guidance cards
+- Close buttons use accessible labels such as `Dismiss {message title}` and update local visibility immediately.
+- This phase intentionally kept the current message grouping mostly intact. The deeper Trends split between latest workout insights and training patterns remains in Phase 5.
 
 ## Phase 4: Apply Visibility Logic To Trends
 
@@ -134,7 +153,11 @@ Stop Trends from always showing the same top 3 generated messages.
 - Important warnings can still return according to their policy.
 
 ### Phase Notes
-- Pending.
+- Completed on 2026-07-21.
+- Trends now uses the shared visibility hook added in Phase 3, which applies local visibility state, marks visible messages as seen, and dismisses messages through `dismissUserMessage`.
+- Corrected Trends ordering so the app now generates all Trends-surface messages, applies visibility/dismissal filtering, and only then limits the visible list to 3 cards.
+- This means dismissing the top Trends message can allow the next eligible message to appear instead of leaving the list artificially short.
+- Important warnings still return according to their lifecycle dismissal policy when their cooldown expires or their fingerprint/source context changes.
 
 ## Phase 5: Split Latest Workout Insights From Training Patterns
 
@@ -174,7 +197,12 @@ Examples:
 - The user can tell whether a message is about the latest workout or a broader pattern.
 
 ### Phase Notes
-- Pending.
+- Completed on 2026-07-21.
+- Added `groupTrendUserMessages` so Trends can separate latest workout insights from broader training patterns without duplicating classification logic in the page component.
+- Latest workout insights now include latest-workout messages and exercise-action messages, covering workout completion, PRs, ready-to-progress notes, repeat-weight notes, and reduce-weight notes.
+- Training patterns now catch the remaining Trends messages, including recovery warnings and weekly completion messages.
+- Updated Trends to render each populated group under its own heading while preserving the existing dismiss button behavior.
+- Added a focused utility test to make sure latest workout, exercise action, and training pattern messages land in the expected sections.
 
 ## Phase 6: Add Rolling Time Windows
 
@@ -199,7 +227,13 @@ Prevent old history from making stale messages stick around forever.
 - Trends still has access to historical charts separately from messages.
 
 ### Phase Notes
-- Pending.
+- Completed on 2026-07-21.
+- Added session-window helpers that anchor message freshness to the latest completed workout in the available session set.
+- Weekly completion messages now evaluate only the latest completed workout's week, so older completed workouts do not accidentally complete the current week.
+- Recovery pattern messages now look at the last 28 days of completed workouts.
+- Missed-target pattern messages now use a tighter 21-day window so old failed workouts stop driving current warnings.
+- Personal record messages still compare against all-time prior history, but only announce when the requested session is the latest completed workout.
+- Added tests proving stale missed-target history is ignored and weekly completion does not pull workouts from a prior week.
 
 ## Phase 7: Add Resolved-State Logic
 
@@ -222,7 +256,68 @@ Messages should disappear when the user fixes the thing.
 - A user who improves performance does not keep seeing the old warning indefinitely.
 
 ### Phase Notes
-- Pending.
+- Completed on 2026-07-21.
+- Added resolved-state filtering for recovery and missed-target messages. Older pain, form, or missed-target logs stop producing a message once the latest log for that same exercise is clean.
+- Kept the first actionable adjustment workflow focused on the active workout exercise screen, where the app already has enough session and exercise context to save a real change.
+- Added an `Adjust exercise load` bottom sheet on the workout exercise page. It can apply the recommended drop when available, drop one additional configured weight increment, or keep the current load.
+- The adjustment updates the current exercise prescription snapshot and all remaining uncompleted sets while preserving completed set history.
+- Changed the reduce/modify progression card action label to `Adjust load`, while normal progression recommendations still use the existing apply-recommendation behavior.
+- Added `Adjust load` actions to active exercise caution messages when the current exercise has a weight target.
+- Added tests proving pain and missed-target messages resolve when the latest exercise log is clean.
+- Broader accepted-program prescription editing and cross-page message deep links remain a future workflow, rather than forcing a generic link that cannot yet make the requested change.
+
+## Phase 7.5: Add Cross-Page Message Actions
+
+### Goal
+Make Dashboard, Trends, and Workout Summary messages actionable when the app can route the user to a real adjustment point.
+
+### Core Behavior
+- Add action rendering to Trends message cards.
+- Expand Dashboard and Workout Summary actions beyond generic `to` links when message source context includes exercise ids.
+- For a single actionable exercise:
+  - Show an `Adjust load` or `Review exercise` action.
+  - Route to the next/current workout exercise screen when that exercise exists in an active session.
+  - Open or expose the existing `Adjust exercise load` bottom sheet from Phase 7.
+- For multiple actionable exercises:
+  - Show one message-level action such as `Review exercises`.
+  - Open a bottom sheet listing the affected exercises.
+  - Each exercise row should show the exercise name, short reason, and a button to review/adjust that exercise.
+  - Route only after the user chooses the specific exercise.
+- If no active/upcoming workout contains the exercise:
+  - Do not show a fake adjustment button.
+  - Show a safer action such as `View trends` or `Open plan` until a broader accepted-program prescription editor exists.
+
+### Multi-Exercise Guidance
+- Do not send users directly to the first exercise when a message mentions several movements.
+- Keep the message itself compact, then let the chooser sheet handle the detail.
+- Prioritize exercises by severity:
+  - load too high or pain first
+  - repeated missed targets next
+  - hold/repeat guidance last
+- If there are more than 3 affected exercises, show the first 3 and summarize the remaining count.
+
+### Tasks
+- Add a message action resolver that can map `sourceExerciseIds` to current/upcoming workout exercise routes.
+- Add a reusable `MessageActionChooser` bottom sheet for multi-exercise messages.
+- Render message actions on Trends, Dashboard secondary cards, and Workout Summary cards.
+- Support a route state flag such as `{ openAdjustmentSheet: true }` so the workout exercise page can automatically open the adjustment sheet after navigation.
+- Add tests for single-exercise routing, multi-exercise chooser data, and no-route fallback behavior.
+
+### Done When
+- Existing Dashboard/Trends/Summary `Drop the load or modify` messages are no longer dead ends when the related exercise is in an active workout.
+- Multi-exercise messages let the user choose which exercise to adjust instead of guessing.
+- Messages without a real adjustment destination avoid misleading action buttons.
+
+### Phase Notes
+- Completed on 2026-07-21.
+- Added a shared `resolveMessageExerciseAction` helper that maps message `sourceExerciseIds` to real in-progress workout exercise routes.
+- Dashboard and Trends now show message actions only when the related exercise exists in an editable active workout session.
+- Single-exercise reduce/modify messages show `Adjust load` and route directly to the workout exercise screen.
+- Single-exercise non-reduce progression messages use `Review exercise` so the action label does not overpromise a load change.
+- Multi-exercise messages show `Review exercises` and open a chooser bottom sheet listing the affected exercises before routing.
+- The workout exercise route now accepts `{ openAdjustmentSheet: true }` state and opens the adjustment sheet automatically after navigation.
+- Completed workout summary messages still avoid fake adjustment actions when there is no active editable session target.
+- Added resolver tests for single target routing, multi-exercise chooser data, non-reduce labeling, and no-route fallback behavior.
 
 ## Phase 8: Upgrade Message Fingerprints
 
@@ -243,7 +338,18 @@ Make dismissed messages return only when they are meaningfully new.
 - Copy edits do not accidentally reset every user's dismissed messages.
 
 ### Phase Notes
-- Pending.
+- Completed on 2026-07-21.
+- Added stable `stateKey` lifecycle context to generated completion, weekly completion, recovery, progressive overload, and personal record messages.
+- Updated message fingerprints to prefer stable lifecycle context:
+  - message id
+  - lifecycle scope
+  - lifecycle state key
+  - source session id
+  - sorted relevant exercise ids
+- Copy-only edits to a message title/body no longer resurface previously dismissed messages.
+- Meaningful training changes still resurface messages, including changed source exercises or changed states such as `hold_steady` becoming `load_too_high`.
+- Source exercise ids are deduped and sorted before fingerprinting, so ordering changes do not create fake new messages.
+- Added focused tests for copy-stable dismissals, state-change resurfacing, source-context resurfacing, and reordered exercise id stability.
 
 ## Phase 9: Settings Controls For Message Volume
 
@@ -274,7 +380,17 @@ Let users control how often coaching messages appear without losing important sa
 - Users can reduce message noise without disabling useful safety coaching.
 
 ### Phase Notes
-- Pending.
+- Completed on 2026-07-21.
+- Confirmed the app already had message volume preferences for:
+  - frequency: `standard`, `fewer`, and `important_only`
+  - category toggles for completion, progressive overload, personal records, consistency, recovery, and education
+  - surface toggles for Dashboard, Workout Summary, Workout Exercise, and Trends
+  - protected recovery/caution messages that can still appear when recovery is disabled
+- Added a real non-critical message snooze preference with `nonCriticalSnoozedUntil`.
+- Added a Settings control that lets users snooze non-critical coaching messages for 7 days or clear the active snooze.
+- Wired snooze filtering into message generation so completion, PR, progression, consistency, and education messages pause while recovery warnings still appear.
+- Updated the server settings schema and Mongoose model so the snooze timestamp can persist with the rest of user settings.
+- Added tests proving active snooze hides non-critical messages, protected recovery cautions still show, and expired snoozes allow messages again.
 
 ## Phase 10: Test And Polish
 
@@ -303,4 +419,14 @@ npm run build
 - The user-facing message behavior is predictable and calmer.
 
 ### Phase Notes
-- Pending.
+- Completed on 2026-07-21.
+- Confirmed Dashboard, Trends, Workout Summary, and Workout Exercise all pass `settings.messages` into message generation and use the shared visibility/dismissal flow where message cards are rendered.
+- Confirmed the plan's core behavior is covered by tests:
+  - dismissed messages disappear from visibility filtering
+  - dismissed normal messages stay hidden during cooldown
+  - warning messages return when source context or state changes
+  - missed-target, pain, and form messages resolve when latest relevant logs are clean
+  - message settings filter categories, surfaces, frequency, and snooze state
+- Added a final PR freshness regression test proving an older PR message does not keep appearing after a newer completed workout with no PR.
+- Ran the full Phase 10 verification commands successfully.
+- Remaining future polish: backend persistence for dismissed/seen state if cross-device message memory becomes important.

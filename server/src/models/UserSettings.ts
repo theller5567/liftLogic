@@ -59,6 +59,7 @@ const userSettingsSchema = new Schema<UserSettingsDocument>(
         trends: { type: Boolean, required: true },
       },
       futureReminders: { type: Boolean, required: true },
+      nonCriticalSnoozedUntil: { type: String },
     },
     exerciseHistory: {
       includePreviousPrograms: { type: Boolean, required: true },

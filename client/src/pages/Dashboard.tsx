@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 import AppShell from "../components/app/AppShell";
+import BottomSheet from "../components/BottomSheet";
 import LoadingSpinner from "../components/LoadingSpinner";
 import WeekSelector, { type WeekDayOption } from "../components/dashboard/WeekSelector";
 import WorkoutCard from "../components/dashboard/WorkoutCard";
@@ -49,6 +50,10 @@ import {
   type UserMessage,
 } from "../utils/userMessages";
 import {
+  resolveMessageExerciseAction,
+  type MessageExerciseActionTarget,
+} from "../utils/messageActionRouting";
+import {
   canDismissUserMessage,
   dismissUserMessage,
   filterVisibleUserMessages,
@@ -71,6 +76,14 @@ const getDashboardMessageClassName = (message: UserMessage) => {
       return styles.dashboardMessage;
   }
 };
+
+const getDashboardActionLabel = (
+  message: UserMessage,
+  sessions: WorkoutSessionDto[]
+) =>
+  resolveMessageExerciseAction(message, sessions)?.actionLabel ??
+  message.action?.label ??
+  null;
 
 const getScheduledWeekdayIndexes = (daysPerWeek: number) => {
   switch (daysPerWeek) {
@@ -187,6 +200,9 @@ const Dashboard = () => {
   const [messageVisibilityState, setMessageVisibilityState] = useState(() =>
     readUserMessageVisibilityState()
   );
+  const [messageActionTargets, setMessageActionTargets] = useState<
+    MessageExerciseActionTarget[]
+  >([]);
   const [selectedWorkoutByDate, setSelectedWorkoutByDate] =
     useState<SelectedWorkoutByDate>({});
   const focusedPreview = useMemo(
@@ -423,6 +439,34 @@ const Dashboard = () => {
     );
   };
 
+  const navigateToExerciseAdjustment = (target: MessageExerciseActionTarget) => {
+    setMessageActionTargets([]);
+    navigate(target.to, {
+      state: { openAdjustmentSheet: true },
+    });
+  };
+
+  const handleDashboardMessageAction = (message: UserMessage) => {
+    const exerciseAction = resolveMessageExerciseAction(
+      message,
+      currentProgramWeekWorkoutSessions
+    );
+
+    if (exerciseAction) {
+      if (exerciseAction.targets.length === 1) {
+        navigateToExerciseAdjustment(exerciseAction.targets[0]);
+        return;
+      }
+
+      setMessageActionTargets(exerciseAction.targets);
+      return;
+    }
+
+    if (message.action?.to) {
+      navigate(message.action.to);
+    }
+  };
+
   const handleStartWorkout = async () => {
     if (!workoutDay) {
       return;
@@ -551,13 +595,23 @@ const Dashboard = () => {
                 <span>{dashboardMessages.primary.body}</span>
               </div>
               <div className={styles.dashboardMessageActions}>
-                {dashboardMessages.primary.action?.to ? (
+                {getDashboardActionLabel(
+                  dashboardMessages.primary,
+                  currentProgramWeekWorkoutSessions
+                ) ? (
                   <Button
-                    label={dashboardMessages.primary.action.label}
+                    label={
+                      getDashboardActionLabel(
+                        dashboardMessages.primary,
+                        currentProgramWeekWorkoutSessions
+                      ) ?? "Review"
+                    }
                     size="small"
                     tone="gray"
                     variant="outline"
-                    onClick={() => navigate(dashboardMessages.primary?.action?.to ?? "/")}
+                    onClick={() =>
+                      handleDashboardMessageAction(dashboardMessages.primary)
+                    }
                   />
                 ) : null}
                 {canDismissUserMessage(dashboardMessages.primary) ? (
@@ -591,6 +645,23 @@ const Dashboard = () => {
                       ) : null}
                     </div>
                     <span>{message.body}</span>
+                    {getDashboardActionLabel(
+                      message,
+                      currentProgramWeekWorkoutSessions
+                    ) ? (
+                      <Button
+                        label={
+                          getDashboardActionLabel(
+                            message,
+                            currentProgramWeekWorkoutSessions
+                          ) ?? "Review"
+                        }
+                        size="small"
+                        tone="gray"
+                        variant="outline"
+                        onClick={() => handleDashboardMessageAction(message)}
+                      />
+                    ) : null}
                   </article>
                 ))}
               </div>
@@ -632,6 +703,36 @@ const Dashboard = () => {
         {stopSpecializationError ? (
           <p className="text-muted">{stopSpecializationError}</p>
         ) : null}
+        <BottomSheet
+          open={messageActionTargets.length > 1}
+          onClose={() => setMessageActionTargets([])}
+          title="Review exercises"
+          description="Choose the exercise you want to adjust in your active workout."
+          actions={[
+            {
+              label: "Cancel",
+              tone: "gray",
+              variant: "outline",
+              onClick: () => setMessageActionTargets([]),
+            },
+          ]}
+        >
+          <div className={styles.messageActionList}>
+            {messageActionTargets.slice(0, 3).map((target) => (
+              <button
+                key={`${target.sessionId}:${target.exerciseIndex}`}
+                type="button"
+                onClick={() => navigateToExerciseAdjustment(target)}
+              >
+                <span>{target.sessionLabel}</span>
+                <strong>{target.exerciseLabel}</strong>
+              </button>
+            ))}
+            {messageActionTargets.length > 3 ? (
+              <p>{messageActionTargets.length - 3} more exercises need review.</p>
+            ) : null}
+          </div>
+        </BottomSheet>
       </section>
     </AppShell>
   );

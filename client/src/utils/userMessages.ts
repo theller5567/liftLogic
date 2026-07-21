@@ -17,6 +17,7 @@ import {
 import type { GeneratedWorkoutPreview } from "./generateWorkoutPreview";
 import { getPersonalRecordsForSession, type PersonalRecord } from "./personalRecords";
 import { buildProgressionSummary } from "./progressionSummary";
+import { getEndOfWeek, getStartOfWeek } from "./workoutSessionDates";
 import {
   completedAllTargetSets,
   hasLoadTooHighSignal,
@@ -29,15 +30,47 @@ export type UserMessageAction = {
   to?: string;
 };
 
+export type UserMessageScope =
+  | "latest_workout"
+  | "current_week"
+  | "training_pattern"
+  | "exercise_action"
+  | "education";
+
+export type UserMessageDismissalPolicy = {
+  cooldownHours: number;
+  returnWhenChanged: boolean;
+};
+
+export type UserMessageLifecycle = {
+  dismissalPolicy: UserMessageDismissalPolicy;
+  expiresAt?: string;
+  scope: UserMessageScope;
+  sourceExerciseIds?: string[];
+  sourceSessionId?: string;
+  stateKey?: string;
+};
+
 export type UserMessage = {
   id: string;
   category: UserMessageCategory;
+  lifecycle?: UserMessageLifecycle;
   severity: UserMessageSeverity;
   priority: number;
   title: string;
   body: string;
   surfaces: UserMessageSurface[];
   action?: UserMessageAction;
+};
+
+export type TrendUserMessageGroupId =
+  | "latest_workout_insights"
+  | "training_patterns";
+
+export type TrendUserMessageGroup = {
+  id: TrendUserMessageGroupId;
+  label: string;
+  messages: UserMessage[];
 };
 
 export type BuildUserMessagesInput = {
@@ -48,6 +81,7 @@ export type BuildUserMessagesInput = {
   recentlyCompletedSessionId?: string;
   activeExerciseId?: string;
   messagePreferences?: UserMessagePreferences;
+  now?: Date;
 };
 
 const formatExerciseList = (labels: string[]) => {
@@ -68,6 +102,98 @@ const formatExerciseList = (labels: string[]) => {
   return `${uniqueLabels[0]}, ${uniqueLabels[1]}, and ${
     uniqueLabels.length - 2
   } more`;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const RECOVERY_PATTERN_WINDOW_DAYS = 28;
+const MISSED_TARGET_PATTERN_WINDOW_DAYS = 21;
+
+const addDaysIso = (value: string, days: number) => {
+  const timestamp = new Date(value).getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    return undefined;
+  }
+
+  return new Date(timestamp + days * DAY_MS).toISOString();
+};
+
+const getSourceExerciseIds = (exerciseLogs: WorkoutExerciseLog[]) => [
+  ...new Set(exerciseLogs.map((exerciseLog) => exerciseLog.exerciseId)),
+];
+
+const getPatternSourceExerciseIds = (
+  exerciseLogs: WorkoutExerciseLog[],
+  predicate: (exerciseLog: WorkoutExerciseLog) => boolean
+) => getSourceExerciseIds(exerciseLogs.filter(predicate));
+
+const createLifecycle = (
+  lifecycle: Omit<UserMessageLifecycle, "dismissalPolicy"> & {
+    dismissalCooldownHours?: number;
+    returnWhenChanged?: boolean;
+  }
+): UserMessageLifecycle => ({
+  ...lifecycle,
+  dismissalPolicy: {
+    cooldownHours: lifecycle.dismissalCooldownHours ?? 168,
+    returnWhenChanged: lifecycle.returnWhenChanged ?? true,
+  },
+});
+
+const getSessionTime = (session: WorkoutSessionDto) =>
+  new Date(session.scheduledFor).getTime();
+
+const getLatestCompletedSession = (sessions: WorkoutSessionDto[]) =>
+  sessions
+    .filter((session) => session.status === "completed")
+    .sort((left, right) => getSessionTime(right) - getSessionTime(left))[0] ??
+  null;
+
+const getReferenceDate = (sessions: WorkoutSessionDto[]) => {
+  const latestCompletedSession = getLatestCompletedSession(sessions);
+  const timestamp = latestCompletedSession
+    ? getSessionTime(latestCompletedSession)
+    : Date.now();
+
+  return new Date(timestamp);
+};
+
+const filterCompletedSessionsWithinDays = (
+  sessions: WorkoutSessionDto[],
+  referenceDate: Date,
+  days: number
+) => {
+  const referenceTime = referenceDate.getTime();
+  const startTime = referenceTime - days * DAY_MS;
+
+  return sessions.filter((session) => {
+    const sessionTime = getSessionTime(session);
+
+    return (
+      session.status === "completed" &&
+      Number.isFinite(sessionTime) &&
+      sessionTime >= startTime &&
+      sessionTime <= referenceTime
+    );
+  });
+};
+
+const filterSessionsInReferenceWeek = (
+  sessions: WorkoutSessionDto[],
+  referenceDate: Date
+) => {
+  const weekStart = getStartOfWeek(referenceDate).getTime();
+  const weekEnd = getEndOfWeek(referenceDate).getTime();
+
+  return sessions.filter((session) => {
+    const sessionTime = getSessionTime(session);
+
+    return (
+      Number.isFinite(sessionTime) &&
+      sessionTime >= weekStart &&
+      sessionTime <= weekEnd
+    );
+  });
 };
 
 const isProtectedPreferenceMessage = (message: UserMessage) =>
@@ -91,11 +217,23 @@ const getMergedMessagePreferences = (
 
 const shouldShowForMessagePreferences = (
   message: UserMessage,
-  preferences: UserMessagePreferences
+  preferences: UserMessagePreferences,
+  now: Date
 ) => {
   const isProtected = isProtectedPreferenceMessage(message);
+  const snoozedUntil = preferences.nonCriticalSnoozedUntil
+    ? new Date(preferences.nonCriticalSnoozedUntil).getTime()
+    : Number.NaN;
 
   if (!preferences.categories[message.category] && !isProtected) {
+    return false;
+  }
+
+  if (
+    !isProtected &&
+    Number.isFinite(snoozedUntil) &&
+    snoozedUntil > now.getTime()
+  ) {
     return false;
   }
 
@@ -128,13 +266,14 @@ const shouldShowForMessagePreferences = (
 
 export const filterUserMessagesByPreferences = (
   messages: UserMessage[],
-  preferences?: UserMessagePreferences
+  preferences?: UserMessagePreferences,
+  now = new Date()
 ) => {
   const mergedPreferences = getMergedMessagePreferences(preferences);
 
   return messages
     .filter((message) =>
-      shouldShowForMessagePreferences(message, mergedPreferences)
+      shouldShowForMessagePreferences(message, mergedPreferences, now)
     )
     .map((message) => ({
       ...message,
@@ -172,6 +311,37 @@ export const getSecondaryUserMessages = (
   limit = 2
 ) => getUserMessagesForSurface(messages, surface).slice(1, limit + 1);
 
+const isLatestWorkoutInsightMessage = (message: UserMessage) =>
+  message.lifecycle?.scope === "latest_workout" ||
+  message.lifecycle?.scope === "exercise_action";
+
+export const groupTrendUserMessages = (
+  messages: UserMessage[]
+): TrendUserMessageGroup[] => {
+  const sortedMessages = sortUserMessages(messages);
+  const latestWorkoutMessages = sortedMessages.filter(
+    isLatestWorkoutInsightMessage
+  );
+  const trainingPatternMessages = sortedMessages.filter(
+    (message) => !isLatestWorkoutInsightMessage(message)
+  );
+
+  const groups: TrendUserMessageGroup[] = [
+    {
+      id: "latest_workout_insights",
+      label: "Latest workout insights",
+      messages: latestWorkoutMessages,
+    },
+    {
+      id: "training_patterns",
+      label: "Training patterns",
+      messages: trainingPatternMessages,
+    },
+  ];
+
+  return groups.filter((group) => group.messages.length > 0);
+};
+
 const buildCompletionMessage = (
   sessions: WorkoutSessionDto[],
   recentlyCompletedSessionId?: string
@@ -194,6 +364,14 @@ const buildCompletionMessage = (
     body: `${completedSession.programDayLabel} is logged. Your next session will use this data to guide progression.`,
     category: "completion",
     id: `workout-complete-${completedSession._id}`,
+    lifecycle: createLifecycle({
+      dismissalCooldownHours: 168,
+      expiresAt: addDaysIso(completedSession.scheduledFor, 7),
+      scope: "latest_workout",
+      sourceExerciseIds: getSourceExerciseIds(completedSession.exerciseLogs),
+      sourceSessionId: completedSession._id,
+      stateKey: "workout_complete",
+    }),
     priority: 30,
     severity: "success",
     surfaces: ["workout_summary"],
@@ -203,7 +381,8 @@ const buildCompletionMessage = (
 
 const buildWeeklyCompletionMessage = (
   sessions: WorkoutSessionDto[],
-  preview?: Pick<GeneratedWorkoutPreview, "days"> | null
+  preview: Pick<GeneratedWorkoutPreview, "days"> | null | undefined,
+  referenceDate: Date
 ): UserMessage | null => {
   const plannedWorkoutIds = new Set(preview?.days.map((day) => day.id) ?? []);
   const plannedWorkoutCount = plannedWorkoutIds.size;
@@ -212,9 +391,10 @@ const buildWeeklyCompletionMessage = (
     return null;
   }
 
-  const completedSessions = sessions.filter(
-    (session) => session.status === "completed"
-  );
+  const completedSessions = filterSessionsInReferenceWeek(
+    sessions,
+    referenceDate
+  ).filter((session) => session.status === "completed");
   const completedPlannedWorkoutIds = new Set(
     completedSessions
       .filter((session) => plannedWorkoutIds.has(session.programDayId))
@@ -243,6 +423,12 @@ const buildWeeklyCompletionMessage = (
     body: `You finished all ${plannedWorkoutCount} planned workouts this week${extraWorkoutCopy}. Great consistency.`,
     category: "completion",
     id: "weekly-target-complete",
+    lifecycle: createLifecycle({
+      dismissalCooldownHours: 168,
+      scope: "current_week",
+      sourceExerciseIds: [...plannedWorkoutIds],
+      stateKey: "weekly_target_complete",
+    }),
     priority: 30,
     severity: "success",
     surfaces: ["dashboard"],
@@ -250,10 +436,47 @@ const buildWeeklyCompletionMessage = (
   };
 };
 
-const getCompletedExerciseLogs = (sessions: WorkoutSessionDto[]) =>
+type CompletedExerciseLogEntry = {
+  exerciseLog: WorkoutExerciseLog;
+  time: number;
+};
+
+const getCompletedExerciseLogEntries = (
+  sessions: WorkoutSessionDto[]
+): CompletedExerciseLogEntry[] =>
   sessions
     .filter((session) => session.status === "completed")
-    .flatMap((session) => session.exerciseLogs);
+    .flatMap((session) =>
+      session.exerciseLogs.map((exerciseLog) => ({
+        exerciseLog,
+        time: getSessionTime(session),
+      }))
+    );
+
+const getUnresolvedSignalExerciseLogs = (
+  sessions: WorkoutSessionDto[],
+  predicate: (exerciseLog: WorkoutExerciseLog) => boolean
+) => {
+  const latestEntriesByExercise = new Map<string, CompletedExerciseLogEntry>();
+
+  for (const entry of getCompletedExerciseLogEntries(sessions)) {
+    const current = latestEntriesByExercise.get(entry.exerciseLog.exerciseId);
+
+    if (!current || entry.time > current.time) {
+      latestEntriesByExercise.set(entry.exerciseLog.exerciseId, entry);
+    }
+  }
+
+  return getCompletedExerciseLogEntries(sessions)
+    .filter((entry) => predicate(entry.exerciseLog))
+    .filter((entry) =>
+      predicate(
+        latestEntriesByExercise.get(entry.exerciseLog.exerciseId)?.exerciseLog ??
+          entry.exerciseLog
+      )
+    )
+    .map((entry) => entry.exerciseLog);
+};
 
 const hasMissedTargetSignal = (exerciseLog: WorkoutExerciseLog) =>
   exerciseLog.badgeIds.includes("missed_reps") ||
@@ -293,17 +516,42 @@ const getRecoverySurfaces = (
 
 const buildRecoveryMessages = (
   sessions: WorkoutSessionDto[],
+  referenceDate: Date,
   activeExerciseId?: string
 ): UserMessage[] => {
-  const exerciseLogs = getCompletedExerciseLogs(sessions);
-  const painExerciseLabels = getSignalLabels(exerciseLogs, (exerciseLog) =>
-    exerciseLog.badgeIds.includes("pain")
+  const recoveryWindowSessions = filterCompletedSessionsWithinDays(
+    sessions,
+    referenceDate,
+    RECOVERY_PATTERN_WINDOW_DAYS
   );
-  const formIssueLabels = getSignalLabels(exerciseLogs, (exerciseLog) =>
-    exerciseLog.badgeIds.includes("form_issue")
+  const missedTargetWindowSessions = filterCompletedSessionsWithinDays(
+    sessions,
+    referenceDate,
+    MISSED_TARGET_PATTERN_WINDOW_DAYS
+  );
+  const unresolvedPainExerciseLogs = getUnresolvedSignalExerciseLogs(
+    recoveryWindowSessions,
+    (exerciseLog) => exerciseLog.badgeIds.includes("pain")
+  );
+  const unresolvedFormIssueExerciseLogs = getUnresolvedSignalExerciseLogs(
+    recoveryWindowSessions,
+    (exerciseLog) => exerciseLog.badgeIds.includes("form_issue")
+  );
+  const unresolvedMissedTargetExerciseLogs = getUnresolvedSignalExerciseLogs(
+    missedTargetWindowSessions,
+    (exerciseLog) =>
+      hasMissedTargetSignal(exerciseLog) && !hasLoadTooHighSignal(exerciseLog)
+  );
+  const painExerciseLabels = getSignalLabels(
+    unresolvedPainExerciseLogs,
+    (exerciseLog) => exerciseLog.badgeIds.includes("pain")
+  );
+  const formIssueLabels = getSignalLabels(
+    unresolvedFormIssueExerciseLogs,
+    (exerciseLog) => exerciseLog.badgeIds.includes("form_issue")
   );
   const missedTargetLabels = getSignalLabels(
-    exerciseLogs,
+    unresolvedMissedTargetExerciseLogs,
     (exerciseLog) =>
       hasMissedTargetSignal(exerciseLog) && !hasLoadTooHighSignal(exerciseLog)
   );
@@ -316,10 +564,19 @@ const buildRecoveryMessages = (
       )} has been marked with pain more than once. Reduce load, use a pain-free range, or swap the movement before pushing progression.`,
       category: "recovery",
       id: "recovery-repeated-pain",
+      lifecycle: createLifecycle({
+        dismissalCooldownHours: 24,
+        scope: "training_pattern",
+        sourceExerciseIds: getPatternSourceExerciseIds(
+          unresolvedPainExerciseLogs,
+          (exerciseLog) => exerciseLog.badgeIds.includes("pain")
+        ),
+        stateKey: "repeated_pain",
+      }),
       priority: 5,
       severity: "danger",
       surfaces: getRecoverySurfaces(
-        exerciseLogs,
+        unresolvedPainExerciseLogs,
         activeExerciseId,
         (exerciseLog) => exerciseLog.badgeIds.includes("pain"),
         2
@@ -333,10 +590,19 @@ const buildRecoveryMessages = (
       )} was marked with pain. Consider reducing load or swapping the movement before pushing progression.`,
       category: "recovery",
       id: "recovery-pain-signal",
+      lifecycle: createLifecycle({
+        dismissalCooldownHours: 24,
+        scope: "training_pattern",
+        sourceExerciseIds: getPatternSourceExerciseIds(
+          unresolvedPainExerciseLogs,
+          (exerciseLog) => exerciseLog.badgeIds.includes("pain")
+        ),
+        stateKey: "pain_signal",
+      }),
       priority: 10,
       severity: "warning",
       surfaces: getRecoverySurfaces(
-        exerciseLogs,
+        unresolvedPainExerciseLogs,
         activeExerciseId,
         (exerciseLog) => exerciseLog.badgeIds.includes("pain")
       ),
@@ -351,10 +617,19 @@ const buildRecoveryMessages = (
       )} has repeated form flags. Repeat or reduce the load and make clean reps the goal before increasing.`,
       category: "recovery",
       id: "recovery-form-pattern",
+      lifecycle: createLifecycle({
+        dismissalCooldownHours: 24,
+        scope: "training_pattern",
+        sourceExerciseIds: getPatternSourceExerciseIds(
+          unresolvedFormIssueExerciseLogs,
+          (exerciseLog) => exerciseLog.badgeIds.includes("form_issue")
+        ),
+        stateKey: "form_pattern",
+      }),
       priority: 15,
       severity: "warning",
       surfaces: getRecoverySurfaces(
-        exerciseLogs,
+        unresolvedFormIssueExerciseLogs,
         activeExerciseId,
         (exerciseLog) => exerciseLog.badgeIds.includes("form_issue"),
         2
@@ -370,10 +645,20 @@ const buildRecoveryMessages = (
       )} has missed planned targets repeatedly. Hold the weight steady and earn the full rep target before adding load.`,
       category: "recovery",
       id: "recovery-missed-targets",
+      lifecycle: createLifecycle({
+        dismissalCooldownHours: 24,
+        scope: "training_pattern",
+        sourceExerciseIds: getPatternSourceExerciseIds(
+          unresolvedMissedTargetExerciseLogs,
+          (exerciseLog) =>
+            hasMissedTargetSignal(exerciseLog) && !hasLoadTooHighSignal(exerciseLog)
+        ),
+        stateKey: "missed_targets",
+      }),
       priority: 18,
       severity: "warning",
       surfaces: getRecoverySurfaces(
-        exerciseLogs,
+        unresolvedMissedTargetExerciseLogs,
         activeExerciseId,
         (exerciseLog) =>
           hasMissedTargetSignal(exerciseLog) && !hasLoadTooHighSignal(exerciseLog),
@@ -412,6 +697,12 @@ const buildProgressionMessages = (
           : `${readyCount} exercises are ready for smart next-step progression.`,
       category: "progressive_overload",
       id: "progression-ready",
+      lifecycle: createLifecycle({
+        dismissalCooldownHours: 168,
+        scope: "exercise_action",
+        sourceExerciseIds: summary.readyToProgress.map((item) => item.exerciseId),
+        stateKey: "ready_to_progress",
+      }),
       priority: 50,
       severity: "success",
       surfaces: ["dashboard", "workout_summary", "trends"],
@@ -429,6 +720,12 @@ const buildProgressionMessages = (
             )} should repeat weight before increasing.`,
       category: "progressive_overload",
       id: "progression-repeat-weight",
+      lifecycle: createLifecycle({
+        dismissalCooldownHours: 168,
+        scope: "exercise_action",
+        sourceExerciseIds: summary.repeatWeight.map((item) => item.exerciseId),
+        stateKey: "repeat_weight",
+      }),
       priority: 55,
       severity: "info",
       surfaces: ["workout_summary", "trends"],
@@ -446,6 +743,12 @@ const buildProgressionMessages = (
             )} should hold steady next time.`,
       category: "progressive_overload",
       id: "progression-hold-steady",
+      lifecycle: createLifecycle({
+        dismissalCooldownHours: 168,
+        scope: "exercise_action",
+        sourceExerciseIds: summary.holdSteady.map((item) => item.exerciseId),
+        stateKey: "hold_steady",
+      }),
       priority: 60,
       severity: "info",
       surfaces: ["workout_summary", "trends"],
@@ -463,6 +766,12 @@ const buildProgressionMessages = (
             )} should be reduced or modified before pushing progression.`,
       category: "progressive_overload",
       id: "progression-reduce-or-modify",
+      lifecycle: createLifecycle({
+        dismissalCooldownHours: 24,
+        scope: "exercise_action",
+        sourceExerciseIds: loadTooHighItems.map((item) => item.exerciseId),
+        stateKey: "load_too_high",
+      }),
       priority: 45,
       severity: "warning",
       surfaces: ["dashboard", "workout_summary", "trends"],
@@ -496,6 +805,10 @@ const buildPersonalRecordMessages = (
     return [];
   }
 
+  if (getLatestCompletedSession(sessions)?._id !== recentlyCompletedSessionId) {
+    return [];
+  }
+
   const records = getPersonalRecordsForSession(sessions, recentlyCompletedSessionId);
 
   if (records.length === 0) {
@@ -514,6 +827,13 @@ const buildPersonalRecordMessages = (
       body: `${getPersonalRecordLabel(highlightedRecord)}${remainingCopy}. This is an all-time compound-lift record.`,
       category: "personal_record",
       id: `personal-record-${recentlyCompletedSessionId}`,
+      lifecycle: createLifecycle({
+        dismissalCooldownHours: 168,
+        scope: "latest_workout",
+        sourceExerciseIds: records.map((record) => record.exerciseId),
+        sourceSessionId: recentlyCompletedSessionId,
+        stateKey: "personal_record",
+      }),
       priority: 40,
       severity: "success",
       surfaces: ["workout_summary", "trends"],
@@ -527,6 +847,7 @@ export const buildUserMessages = ({
   currentProgramScope,
   exerciseHistoryScope,
   messagePreferences,
+  now = new Date(),
   preview,
   recentlyCompletedSessionId,
   sessions,
@@ -536,20 +857,26 @@ export const buildUserMessages = ({
     const currentProgramSessions = currentProgramScope
       ? filterCurrentProgramWorkoutSessions(activeSessions, currentProgramScope)
       : activeSessions;
+    const referenceDate = getReferenceDate(activeSessions);
 
     return sortUserMessages(
       filterUserMessagesByPreferences(
         [
           buildCompletionMessage(activeSessions, recentlyCompletedSessionId),
-          buildWeeklyCompletionMessage(currentProgramSessions, preview),
-          ...buildRecoveryMessages(activeSessions, activeExerciseId),
+          buildWeeklyCompletionMessage(
+            currentProgramSessions,
+            preview,
+            referenceDate
+          ),
+          ...buildRecoveryMessages(activeSessions, referenceDate, activeExerciseId),
           ...buildPersonalRecordMessages(
             activeSessions,
             recentlyCompletedSessionId
           ),
           ...buildProgressionMessages(activeSessions, exerciseHistoryScope),
         ].filter((message): message is UserMessage => Boolean(message)),
-        messagePreferences
+        messagePreferences,
+        now
       )
     );
   };

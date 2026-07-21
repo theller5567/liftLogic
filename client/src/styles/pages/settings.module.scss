@@ -401,6 +401,39 @@
   }
 }
 
+.messageSnoozePanel {
+  display: grid;
+  gap: var(--ll-space-3);
+  padding: var(--ll-space-4);
+  border: 1px solid hsl(var(--clr-secondary-500-b) / 0.26);
+  border-radius: var(--ll-radius-card);
+  background: hsl(var(--clr-secondary-500-b) / 0.07);
+
+  > div:first-child {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 0.9rem;
+    line-height: 1.2;
+  }
+
+  span {
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-helper);
+    font-weight: 700;
+    line-height: 1.35;
+  }
+}
+
+.messageSnoozeActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ll-space-2);
+}
+
 .messageToggleRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

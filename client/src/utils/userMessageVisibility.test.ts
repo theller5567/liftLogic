@@ -5,7 +5,6 @@ import {
   dismissUserMessage,
   filterVisibleUserMessages,
   markUserMessagesSeen,
-  type UserMessageVisibilityState,
 } from "./userMessageVisibility";
 import type { UserMessage } from "./userMessages";
 
@@ -42,8 +41,18 @@ describe("user message visibility", () => {
     ).toEqual([]);
   });
 
-  it("shows a dismissed message again when the content changes", () => {
-    const message = createMessage();
+  it("keeps a dismissed lifecycle message hidden when only the copy changes", () => {
+    const message = createMessage({
+      lifecycle: {
+        dismissalPolicy: {
+          cooldownHours: 168,
+          returnWhenChanged: true,
+        },
+        scope: "current_week",
+        sourceExerciseIds: ["workout-a", "workout-b"],
+        stateKey: "weekly_target_complete",
+      },
+    });
     const dismissedState = dismissUserMessage({
       message,
       now: new Date("2026-07-19T12:00:00.000Z"),
@@ -51,6 +60,7 @@ describe("user message visibility", () => {
       surface: "dashboard",
     });
     const updatedMessage = createMessage({
+      ...message,
       body: "You finished every planned workout plus one extra session.",
     });
 
@@ -61,7 +71,7 @@ describe("user message visibility", () => {
         state: dismissedState,
         surface: "dashboard",
       })
-    ).toEqual([updatedMessage]);
+    ).toEqual([]);
   });
 
   it("shows a dismissed non-critical message again after the cooldown", () => {
@@ -114,23 +124,188 @@ describe("user message visibility", () => {
     ).toEqual([]);
   });
 
-  it("keeps recovery caution messages visible and non-dismissible", () => {
+  it("temporarily suppresses dismissed recovery cautions", () => {
     const message = createMessage({
       category: "recovery",
       id: "recovery-repeated-pain",
+      lifecycle: {
+        dismissalPolicy: {
+          cooldownHours: 24,
+          returnWhenChanged: true,
+        },
+        scope: "training_pattern",
+        sourceExerciseIds: ["standing_overhead_press"],
+      },
       severity: "danger",
       title: "Repeated pain signal",
     });
-    const state: UserMessageVisibilityState = {};
+    const dismissedState = dismissUserMessage({
+      message,
+      now: new Date("2026-07-19T12:00:00.000Z"),
+      state: {},
+      surface: "dashboard",
+    });
 
-    expect(canDismissUserMessage(message)).toBe(false);
+    expect(canDismissUserMessage(message)).toBe(true);
     expect(
       filterVisibleUserMessages({
         messages: [message],
-        now: new Date("2026-07-19T12:00:00.000Z"),
-        state,
+        now: new Date("2026-07-19T18:00:00.000Z"),
+        state: dismissedState,
+        surface: "dashboard",
+      })
+    ).toEqual([]);
+    expect(
+      filterVisibleUserMessages({
+        messages: [message],
+        now: new Date("2026-07-21T12:00:00.000Z"),
+        state: dismissedState,
         surface: "dashboard",
       })
     ).toEqual([message]);
+  });
+
+  it("brings a dismissed warning back when its source context changes", () => {
+    const message = createMessage({
+      category: "progressive_overload",
+      id: "progression-reduce-or-modify",
+      lifecycle: {
+        dismissalPolicy: {
+          cooldownHours: 24,
+          returnWhenChanged: true,
+        },
+        scope: "exercise_action",
+        sourceExerciseIds: ["back_squat"],
+        stateKey: "load_too_high",
+      },
+      severity: "warning",
+      title: "Drop the load or modify",
+    });
+    const dismissedState = dismissUserMessage({
+      message,
+      now: new Date("2026-07-19T12:00:00.000Z"),
+      state: {},
+      surface: "trends",
+    });
+    const updatedMessage = {
+      ...message,
+      lifecycle: {
+        ...message.lifecycle!,
+        sourceExerciseIds: ["back_squat", "barbell_bench_press"],
+      },
+    };
+
+    expect(
+      filterVisibleUserMessages({
+        messages: [updatedMessage],
+        now: new Date("2026-07-19T18:00:00.000Z"),
+        state: dismissedState,
+        surface: "trends",
+      })
+    ).toEqual([updatedMessage]);
+  });
+
+  it("brings a dismissed warning back when its state changes", () => {
+    const message = createMessage({
+      category: "progressive_overload",
+      id: "progression-guidance",
+      lifecycle: {
+        dismissalPolicy: {
+          cooldownHours: 24,
+          returnWhenChanged: true,
+        },
+        scope: "exercise_action",
+        sourceExerciseIds: ["back_squat"],
+        stateKey: "hold_steady",
+      },
+      severity: "warning",
+      title: "Hold steady",
+    });
+    const dismissedState = dismissUserMessage({
+      message,
+      now: new Date("2026-07-19T12:00:00.000Z"),
+      state: {},
+      surface: "trends",
+    });
+    const updatedMessage = {
+      ...message,
+      lifecycle: {
+        ...message.lifecycle!,
+        stateKey: "load_too_high",
+      },
+      title: "Drop the load or modify",
+    };
+
+    expect(
+      filterVisibleUserMessages({
+        messages: [updatedMessage],
+        now: new Date("2026-07-19T18:00:00.000Z"),
+        state: dismissedState,
+        surface: "trends",
+      })
+    ).toEqual([updatedMessage]);
+  });
+
+  it("does not treat reordered source exercise ids as a new message", () => {
+    const message = createMessage({
+      category: "progressive_overload",
+      id: "progression-reduce-or-modify",
+      lifecycle: {
+        dismissalPolicy: {
+          cooldownHours: 24,
+          returnWhenChanged: true,
+        },
+        scope: "exercise_action",
+        sourceExerciseIds: ["back_squat", "barbell_bench_press"],
+        stateKey: "load_too_high",
+      },
+      severity: "warning",
+      title: "Drop the load or modify",
+    });
+    const dismissedState = dismissUserMessage({
+      message,
+      now: new Date("2026-07-19T12:00:00.000Z"),
+      state: {},
+      surface: "trends",
+    });
+    const updatedMessage = {
+      ...message,
+      lifecycle: {
+        ...message.lifecycle!,
+        sourceExerciseIds: ["barbell_bench_press", "back_squat"],
+      },
+    };
+
+    expect(
+      filterVisibleUserMessages({
+        messages: [updatedMessage],
+        now: new Date("2026-07-19T18:00:00.000Z"),
+        state: dismissedState,
+        surface: "trends",
+      })
+    ).toEqual([]);
+  });
+
+  it("hides expired messages", () => {
+    const message = createMessage({
+      lifecycle: {
+        dismissalPolicy: {
+          cooldownHours: 168,
+          returnWhenChanged: true,
+        },
+        expiresAt: "2026-07-20T12:00:00.000Z",
+        scope: "latest_workout",
+        sourceSessionId: "session-1",
+      },
+    });
+
+    expect(
+      filterVisibleUserMessages({
+        messages: [message],
+        now: new Date("2026-07-21T12:00:00.000Z"),
+        state: {},
+        surface: "dashboard",
+      })
+    ).toEqual([]);
   });
 });

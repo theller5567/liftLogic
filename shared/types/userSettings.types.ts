@@ -25,6 +25,7 @@ export type UserMessagePreferences = {
   frequency: UserMessageFrequency;
   surfaces: Record<UserMessageSurface, boolean>;
   futureReminders: boolean;
+  nonCriticalSnoozedUntil?: string;
 };
 
 export type ExerciseHistoryPreferences = {

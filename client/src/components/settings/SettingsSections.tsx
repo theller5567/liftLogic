@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Bell, Dumbbell, Target } from "lucide-react";
 import ProgramIcon from "../../assets/icons/001-notes.svg?react";
 import TrainingIcon from "../../assets/icons/003-weightlifting.svg?react";
@@ -128,6 +129,12 @@ const formatFocusDate = (value: string) =>
     month: "short",
     day: "numeric",
   }).format(new Date(value));
+
+const addDaysIso = (date: Date, days: number) => {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate.toISOString();
+};
 
 const formatSettingLabel = (value: string | number | undefined | null) => {
   if (value === undefined || value === null || value === "") {
@@ -466,6 +473,14 @@ export const MessageSettingsSection = ({
   draftSettings,
   onUpdateDraft,
 }: TrainingSettingsSectionProps) => {
+  const [renderedAt] = useState(() => Date.now());
+  const snoozedUntil = draftSettings.messages.nonCriticalSnoozedUntil;
+  const snoozedUntilTime = snoozedUntil
+    ? new Date(snoozedUntil).getTime()
+    : Number.NaN;
+  const isSnoozeActive =
+    Number.isFinite(snoozedUntilTime) && snoozedUntilTime > renderedAt;
+
   const updateMessageCategory = (
     category: UserMessageCategory,
     enabled: boolean
@@ -496,6 +511,28 @@ export const MessageSettingsSection = ({
         },
       },
     }));
+  };
+
+  const handleSnoozeNonCritical = () => {
+    onUpdateDraft((current) => ({
+      ...current,
+      messages: {
+        ...current.messages,
+        nonCriticalSnoozedUntil: addDaysIso(new Date(), 7),
+      },
+    }));
+  };
+
+  const handleClearMessageSnooze = () => {
+    onUpdateDraft((current) => {
+      const { nonCriticalSnoozedUntil, ...messages } = current.messages;
+      void nonCriticalSnoozedUntil;
+
+      return {
+        ...current,
+        messages,
+      };
+    });
   };
 
   return (
@@ -532,6 +569,34 @@ export const MessageSettingsSection = ({
           )?.description
         }
       </p>
+
+      <div className={styles.messageSnoozePanel}>
+        <div>
+          <strong>Non-critical snooze</strong>
+          <span>
+            {isSnoozeActive && snoozedUntil
+              ? `Snoozed until ${formatFocusDate(snoozedUntil)}`
+              : "Completion, PR, progression, and education messages are active."}
+          </span>
+        </div>
+        <div className={styles.messageSnoozeActions}>
+          <Button
+            label="Snooze 7 days"
+            size="medium"
+            tone="gray"
+            variant={isSnoozeActive ? "outline" : undefined}
+            onClick={handleSnoozeNonCritical}
+          />
+          <Button
+            disabled={!isSnoozeActive}
+            label="Clear snooze"
+            size="medium"
+            tone="secondary"
+            variant="outline"
+            onClick={handleClearMessageSnooze}
+          />
+        </div>
+      </div>
 
       <div className={styles.messageOptionGroup}>
         <strong>Categories</strong>

@@ -18,6 +18,7 @@ const STORAGE_KEY = "liftlogic:user-messages:v1";
 const DISMISS_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const SEEN_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const MAX_RECENT_SEEN_COUNT = 3;
+const HOURS_TO_MS = 60 * 60 * 1000;
 
 const canUseStorage = () => typeof window !== "undefined";
 
@@ -26,8 +27,22 @@ export const getUserMessageVisibilityKey = (
   surface: UserMessageSurface
 ) => `${surface}:${message.id}`;
 
-export const getUserMessageFingerprint = (message: UserMessage) =>
-  `${message.id}:${message.title}:${message.body}`;
+const getStableSourceExerciseIds = (message: UserMessage) =>
+  [...new Set(message.lifecycle?.sourceExerciseIds ?? [])].sort().join(",");
+
+export const getUserMessageFingerprint = (message: UserMessage) => {
+  if (message.lifecycle) {
+    return [
+      message.id,
+      message.lifecycle.scope,
+      message.lifecycle.stateKey ?? "state",
+      message.lifecycle.sourceSessionId ?? "",
+      getStableSourceExerciseIds(message),
+    ].join(":");
+  }
+
+  return [message.id, message.category, message.severity].join(":");
+};
 
 export const isProtectedUserMessage = (message: UserMessage) =>
   message.category === "recovery" ||
@@ -85,8 +100,32 @@ const isWithinCooldown = (
   return Number.isFinite(timestamp) && now.getTime() - timestamp < cooldownMs;
 };
 
-export const canDismissUserMessage = (message: UserMessage) =>
-  !isProtectedUserMessage(message);
+const isExpired = (isoDate: string | undefined, now: Date) => {
+  if (!isoDate) {
+    return false;
+  }
+
+  const timestamp = new Date(isoDate).getTime();
+
+  return Number.isFinite(timestamp) && timestamp <= now.getTime();
+};
+
+const getDismissCooldownMs = (message: UserMessage) => {
+  const policyHours = message.lifecycle?.dismissalPolicy.cooldownHours;
+
+  if (policyHours !== undefined) {
+    return policyHours * HOURS_TO_MS;
+  }
+
+  return isProtectedUserMessage(message)
+    ? 24 * HOURS_TO_MS
+    : DISMISS_COOLDOWN_MS;
+};
+
+export const canDismissUserMessage = (message?: UserMessage) => {
+  void message;
+  return true;
+};
 
 export const shouldShowUserMessage = ({
   message,
@@ -99,8 +138,8 @@ export const shouldShowUserMessage = ({
   state: UserMessageVisibilityState;
   surface: UserMessageSurface;
 }) => {
-  if (isProtectedUserMessage(message)) {
-    return true;
+  if (isExpired(message.lifecycle?.expiresAt, now)) {
+    return false;
   }
 
   const key = getUserMessageVisibilityKey(message, surface);
@@ -110,8 +149,12 @@ export const shouldShowUserMessage = ({
     return true;
   }
 
-  if (isWithinCooldown(record.dismissedAt, now, DISMISS_COOLDOWN_MS)) {
+  if (isWithinCooldown(record.dismissedAt, now, getDismissCooldownMs(message))) {
     return false;
+  }
+
+  if (isProtectedUserMessage(message)) {
+    return true;
   }
 
   return !(
@@ -189,10 +232,6 @@ export const dismissUserMessage = ({
   state?: UserMessageVisibilityState;
   surface: UserMessageSurface;
 }) => {
-  if (!canDismissUserMessage(message)) {
-    return state;
-  }
-
   const key = getUserMessageVisibilityKey(message, surface);
   const fingerprint = getUserMessageFingerprint(message);
   const dismissedAt = now.toISOString();

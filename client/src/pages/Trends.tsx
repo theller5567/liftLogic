@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Activity, BarChart3, Clock3, Dumbbell } from "lucide-react";
 
 import AppShell from "../components/app/AppShell";
+import BottomSheet from "../components/BottomSheet";
+import Button from "../components/Button";
 import InlineStatus from "../components/ui/InlineStatus";
 import PageHeader from "../components/ui/PageHeader";
 import StatCard from "../components/ui/StatCard";
@@ -14,6 +17,7 @@ import type {
 } from "../../../shared/utils/workoutSessionScope";
 import { buildProgressionSummary } from "../utils/progressionSummary";
 import { useUserFlow } from "../utils/userFlow";
+import { useUserMessageVisibility } from "../utils/useUserMessageVisibility";
 import { useUserSettings } from "../utils/userSettings";
 import { resolveCurrentWorkoutPreview } from "../utils/workoutPlanPreview";
 import {
@@ -23,7 +27,16 @@ import {
   type TrendsSessionScope,
 } from "../utils/trendsData";
 import type { TrendsMetric } from "../utils/trendsTypes";
-import { buildUserMessages, getUserMessagesForSurface } from "../utils/userMessages";
+import {
+  buildUserMessages,
+  getUserMessagesForSurface,
+  groupTrendUserMessages,
+  type UserMessage,
+} from "../utils/userMessages";
+import {
+  resolveMessageExerciseAction,
+  type MessageExerciseActionTarget,
+} from "../utils/messageActionRouting";
 import styles from "../styles/pages/trends.module.scss";
 
 const metricIcons = [Activity, BarChart3, Dumbbell, Clock3];
@@ -64,10 +77,19 @@ const MetricCard = ({
   );
 };
 
+const getTrendMessageActionLabel = (
+  message: UserMessage,
+  sessions: WorkoutSessionDto[]
+) => resolveMessageExerciseAction(message, sessions)?.actionLabel ?? null;
+
 const Trends = () => {
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<WorkoutSessionDto[]>([]);
   const [trendScope, setTrendScope] =
     useState<TrendsSessionScope>("current_program");
+  const [messageActionTargets, setMessageActionTargets] = useState<
+    MessageExerciseActionTarget[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { workoutPlan } = useUserFlow();
@@ -131,7 +153,7 @@ const Trends = () => {
         )[0]?._id,
     [scopedSessions]
   );
-  const trendMessages = useMemo(
+  const generatedTrendMessages = useMemo(
     () =>
       getUserMessagesForSurface(
         buildUserMessages({
@@ -141,13 +163,23 @@ const Trends = () => {
           sessions: scopedSessions,
         }),
         "trends"
-      ).slice(0, 3),
+      ),
     [
       exerciseHistoryScope,
       latestCompletedSessionId,
       scopedSessions,
       settings.messages,
     ]
+  );
+  const { dismissMessage: dismissTrendMessage, visibleMessages: trendMessages } =
+    useUserMessageVisibility({
+      limit: 3,
+      messages: generatedTrendMessages,
+      surface: "trends",
+    });
+  const trendMessageGroups = useMemo(
+    () => groupTrendUserMessages(trendMessages),
+    [trendMessages]
   );
   const programHistory = useMemo(() => {
     const groupedPrograms = new Map<
@@ -197,6 +229,28 @@ const Trends = () => {
     ...trendsData.weeklyVolume.map((point) => point.workouts),
     1
   );
+
+  const navigateToExerciseAdjustment = (target: MessageExerciseActionTarget) => {
+    setMessageActionTargets([]);
+    navigate(target.to, {
+      state: { openAdjustmentSheet: true },
+    });
+  };
+
+  const handleTrendMessageAction = (message: UserMessage) => {
+    const exerciseAction = resolveMessageExerciseAction(message, scopedSessions);
+
+    if (!exerciseAction) {
+      return;
+    }
+
+    if (exerciseAction.targets.length === 1) {
+      navigateToExerciseAdjustment(exerciseAction.targets[0]);
+      return;
+    }
+
+    setMessageActionTargets(exerciseAction.targets);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -295,14 +349,46 @@ const Trends = () => {
           </div>
         </section>
 
-        {trendMessages.length > 0 ? (
-          <section className={styles.messageGrid} aria-label="Training messages">
-            {trendMessages.map((message) => (
-              <article key={message.id} className={styles.messageCard}>
-                <p>{message.category.replace(/_/g, " ")}</p>
-                <strong>{message.title}</strong>
-                <span>{message.body}</span>
-              </article>
+        {trendMessageGroups.length > 0 ? (
+          <section
+            className={styles.messageSection}
+            aria-label="Training messages"
+          >
+            {trendMessageGroups.map((group) => (
+              <div key={group.id} className={styles.messageGroup}>
+                <h2>{group.label}</h2>
+                <div className={styles.messageGrid}>
+                  {group.messages.map((message) => (
+                    <article key={message.id} className={styles.messageCard}>
+                      <div className={styles.messageCardHeader}>
+                        <p>{message.category.replace(/_/g, " ")}</p>
+                        <button
+                          type="button"
+                          aria-label={`Dismiss ${message.title}`}
+                          className={styles.messageDismissButton}
+                          onClick={() => dismissTrendMessage(message)}
+                        >
+                          <span aria-hidden="true">&times;</span>
+                        </button>
+                      </div>
+                      <strong>{message.title}</strong>
+                      <span>{message.body}</span>
+                      {getTrendMessageActionLabel(message, scopedSessions) ? (
+                        <Button
+                          label={
+                            getTrendMessageActionLabel(message, scopedSessions) ??
+                            "Review"
+                          }
+                          size="small"
+                          tone="gray"
+                          variant="outline"
+                          onClick={() => handleTrendMessageAction(message)}
+                        />
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              </div>
             ))}
           </section>
         ) : null}
@@ -494,6 +580,36 @@ const Trends = () => {
             </article>
           ))}
         </section>
+        <BottomSheet
+          open={messageActionTargets.length > 1}
+          onClose={() => setMessageActionTargets([])}
+          title="Review exercises"
+          description="Choose the exercise you want to adjust in your active workout."
+          actions={[
+            {
+              label: "Cancel",
+              tone: "gray",
+              variant: "outline",
+              onClick: () => setMessageActionTargets([]),
+            },
+          ]}
+        >
+          <div className={styles.messageActionList}>
+            {messageActionTargets.slice(0, 3).map((target) => (
+              <button
+                key={`${target.sessionId}:${target.exerciseIndex}`}
+                type="button"
+                onClick={() => navigateToExerciseAdjustment(target)}
+              >
+                <span>{target.sessionLabel}</span>
+                <strong>{target.exerciseLabel}</strong>
+              </button>
+            ))}
+            {messageActionTargets.length > 3 ? (
+              <p>{messageActionTargets.length - 3} more exercises need review.</p>
+            ) : null}
+          </div>
+        </BottomSheet>
       </section>
     </AppShell>
   );
