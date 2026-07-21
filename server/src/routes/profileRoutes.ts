@@ -131,6 +131,10 @@ router.put("/onboarding", async (req, res, next) => {
     const existingPreview = existingWorkoutPlan
       ? getBaseWorkoutPreview(existingWorkoutPlan)
       : null;
+    const initialOnboardingAnswers =
+      existingWorkoutPlan?.initialOnboardingAnswers ??
+      existingWorkoutPlan?.onboardingAnswers ??
+      answers;
     const isProgramSwitch =
       Boolean(existingWorkoutPlan) &&
       existingPreview?.programId !== suggestedPreview.programId;
@@ -176,6 +180,7 @@ router.put("/onboarding", async (req, res, next) => {
       {
         $set: {
           clientId,
+          initialOnboardingAnswers,
           onboardingAnswers: answers,
           suggestedPreview,
           editedPreview: null,

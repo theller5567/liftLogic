@@ -107,6 +107,15 @@ const getWeightStepKey = (exerciseId: string): WeightStepKey => {
   return equipmentType;
 };
 
+const formatTimerExerciseTarget = (exerciseLog: WorkoutExerciseLog) => {
+  const { reps, sets, suggestedWeight, weightUnit } =
+    exerciseLog.prescriptionSnapshot;
+  const load =
+    suggestedWeight !== undefined ? ` • ${suggestedWeight} ${weightUnit ?? "lb"}` : "";
+
+  return `${sets} sets • ${reps} reps${load}`;
+};
+
 const WorkoutExercise = () => {
   const { exerciseIndex } = useParams();
   const navigate = useNavigate();
@@ -276,6 +285,26 @@ const WorkoutExercise = () => {
   const advisoryRequestedIncrease = advisoryAttempt
     ? `${advisoryAttempt.previousWeight} ${advisoryWeightUnit} to ${advisoryAttempt.nextWeight} ${advisoryWeightUnit}`
     : null;
+  const timerNextExerciseIndex = useMemo(() => {
+    const nextIncompleteIndex = session.exerciseLogs.findIndex(
+      (exerciseLog, index) => index > activeExerciseIndex && !exerciseLog.completed
+    );
+
+    if (nextIncompleteIndex >= 0) {
+      return nextIncompleteIndex;
+    }
+
+    const nextSequentialIndex = activeExerciseIndex + 1;
+
+    return nextSequentialIndex < session.exerciseLogs.length
+      ? nextSequentialIndex
+      : -1;
+  }, [activeExerciseIndex, session.exerciseLogs]);
+  const timerNextExercise =
+    timerNextExerciseIndex >= 0
+      ? session.exerciseLogs[timerNextExerciseIndex]
+      : null;
+  const isRestTimerComplete = restSeconds !== null && restSeconds <= 0;
 
   useEffect(() => {
     if (activeSetIndex < 0) {
@@ -536,6 +565,18 @@ const WorkoutExercise = () => {
 
     if (restTime) {
       setRestSeconds(restTime);
+    }
+  };
+
+  const handleAddRestTime = () => {
+    setRestSeconds((currentSeconds) => (currentSeconds ?? 0) + 30);
+  };
+
+  const handleSkipRest = () => {
+    setRestSeconds(null);
+
+    if (timerNextExerciseIndex >= 0) {
+      navigate(`/workout/${session._id}/exercise/${timerNextExerciseIndex}`);
     }
   };
 
@@ -807,19 +848,66 @@ const WorkoutExercise = () => {
       </BottomSheet>
 
       <BottomSheet
-        open={restSeconds !== null && restSeconds > 0}
+        open={restSeconds !== null}
         onClose={() => setRestSeconds(null)}
-        title="Resting..."
-        eyebrow="Set complete"
+        title={isRestTimerComplete ? "Rest complete" : "Resting..."}
+        eyebrow={isRestTimerComplete ? "Next set ready" : "Set complete"}
+        variant="full"
+        className={styles.restTimerBottomSheet}
+        description={
+          isRestTimerComplete
+            ? "Move when you are ready, or add a little more rest if the last set was heavy."
+            : "Use this window to set up your next set or exercise."
+        }
         actions={[
           {
-            label: "Cancel timer",
+            label:
+              isRestTimerComplete && timerNextExercise
+                ? "Start next exercise"
+                : isRestTimerComplete
+                  ? "Done"
+                  : "Skip rest",
+            tone: "primary",
+            onClick: handleSkipRest,
+          },
+          {
+            label: "+30 sec",
             tone: "gray",
+            variant: "outline",
+            closeOnClick: false,
+            onClick: handleAddRestTime,
+          },
+          {
+            label: "Cancel",
+            tone: "gray",
+            variant: "outline",
             onClick: () => setRestSeconds(null),
           },
         ]}
       >
-        <p className={styles.timer}>{formatTimer(restSeconds ?? 0)}</p>
+        <div className={styles.restTimerSheet}>
+          <p
+            className={clsx(
+              styles.timer,
+              isRestTimerComplete && styles.timerComplete
+            )}
+          >
+            {formatTimer(restSeconds ?? 0)}
+          </p>
+          {timerNextExercise ? (
+            <article className={styles.timerNextCard}>
+              <span>Next up</span>
+              <strong>{timerNextExercise.label}</strong>
+              <p>{formatTimerExerciseTarget(timerNextExercise)}</p>
+            </article>
+          ) : (
+            <article className={styles.timerNextCard}>
+              <span>Next up</span>
+              <strong>Workout wrap-up</strong>
+              <p>Finish your final notes when you are ready.</p>
+            </article>
+          )}
+        </div>
       </BottomSheet>
     </section>
   );

@@ -25,6 +25,7 @@ export type WorkoutProgramHistoryEntry = {
 export type WorkoutPlanDto = {
   _id: string;
   clientId: string;
+  initialOnboardingAnswers?: OnboardingAnswers;
   onboardingAnswers: OnboardingAnswers;
   suggestedPreview: GeneratedWorkoutPreview;
   editedPreview?: GeneratedWorkoutPreview | null;

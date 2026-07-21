@@ -8,6 +8,7 @@ import {
 } from "../../../shared/utils/workoutSessionScope";
 import {
   getCompletedExerciseProgressionState,
+  hasLoadTooHighSignal,
   type ActionableProgressiveOverloadState,
 } from "./workoutAdvisory";
 
@@ -15,6 +16,7 @@ export type ProgressionSummaryItem = {
   exerciseId: string;
   historySource?: "current_program" | "previous_program";
   label: string;
+  signal?: "load_too_high" | "pain";
   state: ActionableProgressiveOverloadState;
 };
 
@@ -82,12 +84,24 @@ const getLatestCompletedExerciseLogs = (
 const createSummaryItem = (
   exerciseLog: WorkoutExerciseLog,
   historySource?: ProgressionSummaryItem["historySource"]
-): ProgressionSummaryItem => ({
-  exerciseId: exerciseLog.exerciseId,
-  historySource,
-  label: exerciseLog.label,
-  state: getCompletedExerciseProgressionState(exerciseLog),
-});
+): ProgressionSummaryItem => {
+  const state = getCompletedExerciseProgressionState(exerciseLog);
+
+  return {
+    exerciseId: exerciseLog.exerciseId,
+    historySource,
+    label: exerciseLog.label,
+    signal:
+      state === "reduce_or_modify"
+        ? exerciseLog.badgeIds.includes("pain")
+          ? "pain"
+          : hasLoadTooHighSignal(exerciseLog)
+            ? "load_too_high"
+            : undefined
+        : undefined,
+    state,
+  };
+};
 
 export const buildProgressionSummary = (
   sessions: WorkoutSessionDto[],

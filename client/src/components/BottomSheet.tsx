@@ -54,7 +54,12 @@ const BottomSheet = ({
   const descriptionId = useId();
   const prefersReducedMotion = useReducedMotion();
   const sheetRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) {
@@ -71,7 +76,7 @@ const BottomSheet = ({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
       }
     };
 
@@ -83,7 +88,7 @@ const BottomSheet = ({
       window.removeEventListener("keydown", handleKeyDown);
       previousFocusRef.current?.focus({ preventScroll: true });
     };
-  }, [open, onClose]);
+  }, [open]);
 
   const handleActionClick = (action: BottomSheetAction) => {
     action.onClick?.();

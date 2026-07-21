@@ -7,6 +7,7 @@ import type { GeneratedWorkoutPreview } from "../../../shared/utils/generateWork
 
 export type WorkoutPlanDocument = {
   clientId: string;
+  initialOnboardingAnswers?: OnboardingAnswers;
   onboardingAnswers: OnboardingAnswers;
   suggestedPreview: GeneratedWorkoutPreview;
   editedPreview?: GeneratedWorkoutPreview | null;
@@ -31,6 +32,9 @@ const workoutPlanSchema = new Schema<WorkoutPlanDocument>(
     onboardingAnswers: {
       type: Schema.Types.Mixed,
       required: true,
+    },
+    initialOnboardingAnswers: {
+      type: Schema.Types.Mixed,
     },
     suggestedPreview: {
       type: Schema.Types.Mixed,

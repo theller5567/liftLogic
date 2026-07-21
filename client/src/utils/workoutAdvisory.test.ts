@@ -7,6 +7,7 @@ import type {
 } from "../../../shared/types/workoutSession.types";
 import {
   getProgressiveOverloadRecommendation,
+  hasLoadTooHighSignal,
   shouldShowWeightIncreaseAdvisory,
 } from "./workoutAdvisory";
 
@@ -165,6 +166,30 @@ describe("progressive overload recommendations", () => {
     expect(recommendation.canApplyWeight).toBe(false);
   });
 
+  it("recommends reducing weight when multiple sets badly miss the target", () => {
+    const recommendation = getRecommendationFromPriorLog(
+      createExerciseLog({ actualReps: [6, 6, 5] })
+    );
+
+    expect(recommendation.state).toBe("reduce_or_modify");
+    expect(recommendation.canApplyWeight).toBe(true);
+    expect(recommendation.previousWeight).toBe(135);
+    expect(recommendation.recommendedWeight).toBe(130);
+    expect(recommendation.reason).toContain("too high");
+  });
+
+  it("recommends reducing weight when missed reps are paired with hard effort", () => {
+    const recommendation = getRecommendationFromPriorLog(
+      createExerciseLog({
+        actualReps: [10, 9, 8],
+        badgeIds: ["missed_reps", "felt_hard"],
+      })
+    );
+
+    expect(recommendation.state).toBe("reduce_or_modify");
+    expect(recommendation.recommendedWeight).toBe(130);
+  });
+
   it("repeats weight when the user marked the exercise as hard", () => {
     const recommendation = getRecommendationFromPriorLog(
       createExerciseLog({ badgeIds: ["felt_hard"] })
@@ -190,6 +215,7 @@ describe("progressive overload recommendations", () => {
 
     expect(recommendation.state).toBe("reduce_or_modify");
     expect(recommendation.canApplyWeight).toBe(false);
+    expect(recommendation.recommendedWeight).toBeUndefined();
   });
 
   it("does not apply weight increases to bodyweight or unweighted logs", () => {
@@ -297,6 +323,29 @@ describe("progressive overload recommendations", () => {
     });
 
     expect(recommendation.state).toBe("no_history");
+  });
+});
+
+describe("load too high signals", () => {
+  it("does not treat one small missed set as too heavy", () => {
+    expect(
+      hasLoadTooHighSignal(
+        createExerciseLog({
+          actualReps: [10, 9, 10],
+          badgeIds: ["missed_reps"],
+        })
+      )
+    ).toBe(false);
+  });
+
+  it("treats large repeated rep misses as too heavy", () => {
+    expect(
+      hasLoadTooHighSignal(
+        createExerciseLog({
+          actualReps: [6, 6, 5],
+        })
+      )
+    ).toBe(true);
   });
 });
 

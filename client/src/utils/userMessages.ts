@@ -17,7 +17,10 @@ import {
 import type { GeneratedWorkoutPreview } from "./generateWorkoutPreview";
 import { getPersonalRecordsForSession, type PersonalRecord } from "./personalRecords";
 import { buildProgressionSummary } from "./progressionSummary";
-import { completedAllTargetSets } from "./workoutAdvisory";
+import {
+  completedAllTargetSets,
+  hasLoadTooHighSignal,
+} from "./workoutAdvisory";
 
 export type UserMessageSeverity = "info" | "success" | "warning" | "danger";
 
@@ -299,7 +302,11 @@ const buildRecoveryMessages = (
   const formIssueLabels = getSignalLabels(exerciseLogs, (exerciseLog) =>
     exerciseLog.badgeIds.includes("form_issue")
   );
-  const missedTargetLabels = getSignalLabels(exerciseLogs, hasMissedTargetSignal);
+  const missedTargetLabels = getSignalLabels(
+    exerciseLogs,
+    (exerciseLog) =>
+      hasMissedTargetSignal(exerciseLog) && !hasLoadTooHighSignal(exerciseLog)
+  );
   const messages: UserMessage[] = [];
 
   if (painExerciseLabels.length >= 2) {
@@ -368,7 +375,8 @@ const buildRecoveryMessages = (
       surfaces: getRecoverySurfaces(
         exerciseLogs,
         activeExerciseId,
-        hasMissedTargetSignal,
+        (exerciseLog) =>
+          hasMissedTargetSignal(exerciseLog) && !hasLoadTooHighSignal(exerciseLog),
         2
       ),
       title: "Targets missed repeatedly",
@@ -386,6 +394,10 @@ const buildProgressionMessages = (
   const readyCount = summary.readyToProgress.length;
   const repeatWeightCount = summary.repeatWeight.length;
   const holdSteadyCount = summary.holdSteady.length;
+  const loadTooHighItems = summary.reduceOrModify.filter(
+    (item) => item.signal === "load_too_high"
+  );
+  const reduceOrModifyCount = loadTooHighItems.length;
   const messages: UserMessage[] = [];
 
   if (readyCount > 0) {
@@ -438,6 +450,23 @@ const buildProgressionMessages = (
       severity: "info",
       surfaces: ["workout_summary", "trends"],
       title: "Hold steady",
+    });
+  }
+
+  if (reduceOrModifyCount > 0) {
+    messages.push({
+      body:
+        reduceOrModifyCount === 1
+          ? `${loadTooHighItems[0].label} looks too heavy or needs a safer variation next time.`
+          : `${formatExerciseList(
+              loadTooHighItems.map((item) => item.label)
+            )} should be reduced or modified before pushing progression.`,
+      category: "progressive_overload",
+      id: "progression-reduce-or-modify",
+      priority: 45,
+      severity: "warning",
+      surfaces: ["dashboard", "workout_summary", "trends"],
+      title: "Drop the load or modify",
     });
   }
 

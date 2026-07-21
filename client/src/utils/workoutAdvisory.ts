@@ -58,6 +58,11 @@ const REPEAT_WEIGHT_BADGES = new Set<WorkoutBadgeId>([
 
 const HOLD_STEADY_BADGES = new Set<WorkoutBadgeId>(["missed_reps"]);
 
+const LOAD_TOO_HIGH_SUPPORTING_BADGES = new Set<WorkoutBadgeId>([
+  "felt_hard",
+  "form_issue",
+]);
+
 const normalizeLabel = (label: string) =>
   label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
@@ -111,6 +116,77 @@ const hasUsableWeightProgression = (
   weightUnit: WeightUnit | undefined
 ) => previousWeight !== undefined && previousWeight > 0 && Boolean(weightUnit);
 
+const getRepTargetMissAnalysis = (exerciseLog: WorkoutExerciseLog) => {
+  const requiredSetCount = exerciseLog.prescriptionSnapshot.sets;
+  const requiredSets = exerciseLog.sets.slice(0, requiredSetCount);
+  const attemptedSets = requiredSets.filter(
+    (setLog) => setLog.completed && setLog.actualReps !== undefined
+  );
+  let missedSetCount = 0;
+  let severeMissCount = 0;
+  let largestRepMiss = 0;
+  let totalCompletionRatio = 0;
+  let comparableSetCount = 0;
+
+  for (const setLog of attemptedSets) {
+    const targetReps = getSetTargetReps(exerciseLog, setLog);
+
+    if (targetReps === null || targetReps <= 0) {
+      continue;
+    }
+
+    const actualReps = setLog.actualReps ?? 0;
+    const repMiss = Math.max(0, targetReps - actualReps);
+
+    comparableSetCount += 1;
+    totalCompletionRatio += actualReps / targetReps;
+    largestRepMiss = Math.max(largestRepMiss, repMiss);
+
+    if (repMiss > 0) {
+      missedSetCount += 1;
+    }
+
+    if (repMiss >= 2) {
+      severeMissCount += 1;
+    }
+  }
+
+  return {
+    averageCompletionRatio:
+      comparableSetCount > 0 ? totalCompletionRatio / comparableSetCount : 1,
+    incompleteRequiredSetCount: Math.max(
+      0,
+      requiredSetCount - attemptedSets.length
+    ),
+    largestRepMiss,
+    missedSetCount,
+    severeMissCount,
+  };
+};
+
+export const hasLoadTooHighSignal = (exerciseLog: WorkoutExerciseLog) => {
+  const missedReps = exerciseLog.badgeIds.includes("missed_reps");
+  const hasSupportingBadge = hasAnyBadge(
+    exerciseLog,
+    LOAD_TOO_HIGH_SUPPORTING_BADGES
+  );
+  const {
+    averageCompletionRatio,
+    incompleteRequiredSetCount,
+    largestRepMiss,
+    missedSetCount,
+    severeMissCount,
+  } = getRepTargetMissAnalysis(exerciseLog);
+
+  return (
+    (missedReps && hasSupportingBadge) ||
+    (missedReps && incompleteRequiredSetCount > 0) ||
+    severeMissCount >= 2 ||
+    largestRepMiss >= 4 ||
+    (missedSetCount >= 2 && averageCompletionRatio < 0.8)
+  );
+};
+
 export const completedAllTargetSets = (exerciseLog: WorkoutExerciseLog) => {
   const requiredSetCount = exerciseLog.prescriptionSnapshot.sets;
   const completedSets = exerciseLog.sets.filter((setLog) => setLog.completed);
@@ -132,6 +208,10 @@ export const getCompletedExerciseProgressionState = (
   exerciseLog: WorkoutExerciseLog
 ): ActionableProgressiveOverloadState => {
   if (exerciseLog.badgeIds.includes("pain")) {
+    return "reduce_or_modify";
+  }
+
+  if (hasLoadTooHighSignal(exerciseLog)) {
     return "reduce_or_modify";
   }
 
@@ -311,12 +391,26 @@ export const getProgressiveOverloadRecommendation = ({
     getCompletedExerciseProgressionState(priorExerciseLog);
 
   if (progressionState === "reduce_or_modify") {
+    const shouldSuggestLowerWeight =
+      !priorExerciseLog.badgeIds.includes("pain") &&
+      hasLoadTooHighSignal(priorExerciseLog) &&
+      canApplyWeight &&
+      previousWeight !== undefined &&
+      previousWeight > weightStep;
+    const recommendedWeight = shouldSuggestLowerWeight
+      ? previousWeight - weightStep
+      : undefined;
+
     return {
-      canApplyWeight: false,
+      canApplyWeight: recommendedWeight !== undefined,
       historySource,
       previousWeight,
-      reason:
-        "This exercise was marked with pain last time. Consider reducing load or swapping the movement.",
+      reason: priorExerciseLog.badgeIds.includes("pain")
+        ? "This exercise was marked with pain last time. Consider reducing load or swapping the movement."
+        : recommendedWeight !== undefined
+          ? `Last time suggests this load was too high. Drop ${weightStep} ${weightUnit} and rebuild with clean target reps.`
+          : "Last time suggests this load was too high. Reduce the load, use a cleaner range of motion, or swap the movement.",
+      recommendedWeight,
       state: "reduce_or_modify",
       weightUnit,
     };

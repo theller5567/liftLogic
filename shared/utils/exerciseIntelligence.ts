@@ -582,10 +582,12 @@ export function getExerciseSelectionNotes({
 export function getBestCompatibleAlternative({
   answers,
   availableEquipment,
+  excludedExerciseIds,
   exerciseId,
 }: {
   answers: OnboardingAnswers;
   availableEquipment: EquipmentItemId[];
+  excludedExerciseIds?: Set<string>;
   exerciseId: string;
 }) {
   const originalExercise = getExerciseById(exerciseId);
@@ -616,6 +618,7 @@ export function getBestCompatibleAlternative({
       } =>
         Boolean(
           candidate.exercise &&
+            !excludedExerciseIds?.has(candidate.exercise.id) &&
             canPerformExercise(candidate.exercise.id, availableEquipment)
         )
     )
@@ -630,6 +633,7 @@ export function getBestCompatibleAlternative({
 
   const libraryCandidates = exerciseLibrary.exercises
     .filter((exercise) => exercise.id !== originalExercise.id)
+    .filter((exercise) => !excludedExerciseIds?.has(exercise.id))
     .filter((exercise) => canPerformExercise(exercise.id, availableEquipment))
     .filter((exercise) => {
       const hasSamePrimaryMuscle = hasSharedPrimaryMuscle(originalExercise, exercise);

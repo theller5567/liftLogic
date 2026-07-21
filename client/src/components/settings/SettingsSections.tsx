@@ -12,6 +12,7 @@ import EquipmentInventoryPicker from "../EquipmentInventoryPicker";
 import FormField, { SelectInput, TextInput } from "../ui/FormField";
 import SectionAccordion from "../ui/SectionAccordion";
 import type { EquipmentItemId } from "../../../../shared/constants/equipmentCatalog";
+import type { OnboardingAnswers } from "../../../../shared/types/onboarding.types";
 import {
   WORKOUT_FOCUS_DURATION_WEEKS,
   type WorkoutFocusArea,
@@ -61,7 +62,7 @@ const messageCategoryOptions: Array<{
     label: "Completion",
   },
   {
-    description: "Ready-to-progress, repeat-weight, and hold-steady coaching.",
+    description: "Increase, repeat, hold, and drop-weight coaching.",
     key: "progressive_overload",
     label: "Progressive overload",
   },
@@ -128,6 +129,73 @@ const formatFocusDate = (value: string) =>
     day: "numeric",
   }).format(new Date(value));
 
+const formatSettingLabel = (value: string | number | undefined | null) => {
+  if (value === undefined || value === null || value === "") {
+    return "Not answered";
+  }
+
+  return String(value)
+    .replace(/[_-]/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+const formatAnswerList = (values: string[] | undefined) =>
+  values?.length ? values.map(formatSettingLabel).join(", ") : "Not answered";
+
+const formatBodyStats = (answers: OnboardingAnswers) => {
+  const stats = [
+    answers.heightInches ? `${answers.heightInches} in` : null,
+    answers.bodyWeight
+      ? `${answers.bodyWeight} ${answers.weightUnit ?? "lb"}`
+      : null,
+  ].filter(Boolean);
+
+  return stats.length ? stats.join(" / ") : "Not answered";
+};
+
+const formatAnchorAnswer = (
+  label: string,
+  answer: OnboardingAnswers["benchPress"],
+  unit: OnboardingAnswers["weightUnit"]
+) => {
+  if (!answer?.estimatedWeight || !answer.estimatedReps) {
+    return `${label}: Not answered`;
+  }
+
+  const confidence = answer.confidence
+    ? `, ${formatSettingLabel(answer.confidence)} confidence`
+    : "";
+
+  return `${label}: ${answer.estimatedWeight} ${unit ?? "lb"} x ${answer.estimatedReps}${confidence}`;
+};
+
+const buildOnboardingSnapshotRows = (answers: OnboardingAnswers) => [
+  { label: "Goal", value: formatSettingLabel(answers.goalPriority ?? answers.goal) },
+  { label: "Experience", value: formatSettingLabel(answers.experienceLevel) },
+  {
+    label: "Schedule",
+    value: answers.availableTrainingDays
+      ? `${answers.availableTrainingDays} days / ${formatSettingLabel(answers.sessionLength)}`
+      : "Not answered",
+  },
+  {
+    label: "Equipment",
+    value: answers.availableEquipment?.length
+      ? formatAnswerList(answers.availableEquipment)
+      : formatSettingLabel(answers.equipmentAccess),
+  },
+  { label: "Body stats", value: formatBodyStats(answers) },
+  {
+    label: "Starting lifts",
+    value: [
+      formatAnchorAnswer("Bench", answers.benchPress, answers.weightUnit),
+      formatAnchorAnswer("Squat", answers.squat, answers.weightUnit),
+      formatAnchorAnswer("Deadlift", answers.barbellDeadlift, answers.weightUnit),
+      formatAnchorAnswer("Row", answers.dumbbellRow, answers.weightUnit),
+    ].join(" • "),
+  },
+];
+
 type ProgramSettingsSectionProps = {
   activeFocusBlock: WorkoutFocusBlock | null | undefined;
   currentWorkoutPlan: WorkoutPlanDto | null;
@@ -160,6 +228,10 @@ export const ProgramSettingsSection = ({
   selectedFocusDuration,
 }: ProgramSettingsSectionProps) => {
   const isFocusActive = isWorkoutFocusBlockActive(activeFocusBlock);
+  const initialAnswers =
+    currentWorkoutPlan?.initialOnboardingAnswers ??
+    currentWorkoutPlan?.onboardingAnswers;
+  const currentAnswers = currentWorkoutPlan?.onboardingAnswers;
 
   return (
     <SectionAccordion icon={<ProgramIcon aria-hidden="true" />} title="Program">
@@ -169,14 +241,42 @@ export const ProgramSettingsSection = ({
       </div>
       <div className={styles.summaryRow}>
         <span>Current goal</span>
-        <strong>{currentWorkoutPlan?.onboardingAnswers.goal ?? "Not set"}</strong>
+        <strong>
+          {formatSettingLabel(currentWorkoutPlan?.onboardingAnswers.goal)}
+        </strong>
       </div>
       <div className={styles.summaryRow}>
         <span>Equipment</span>
         <strong>
-          {currentWorkoutPlan?.onboardingAnswers.equipmentAccess ?? "Not set"}
+          {formatSettingLabel(currentWorkoutPlan?.onboardingAnswers.equipmentAccess)}
         </strong>
       </div>
+      {initialAnswers ? (
+        <div className={styles.onboardingSnapshotPanel}>
+          <div className={styles.focusHeader}>
+            <span>Starting answers</span>
+            <strong>
+              {currentWorkoutPlan?.createdAt
+                ? formatFocusDate(currentWorkoutPlan.createdAt)
+                : "Saved"}
+            </strong>
+          </div>
+          <div className={styles.snapshotRows}>
+            {buildOnboardingSnapshotRows(initialAnswers).map((row) => (
+              <div key={row.label} className={styles.snapshotRow}>
+                <span>{row.label}</span>
+                <strong>{row.value}</strong>
+              </div>
+            ))}
+          </div>
+          {currentAnswers && currentAnswers !== initialAnswers ? (
+            <p className={styles.messageHelper}>
+              Current answers can change when you redo onboarding. This section
+              keeps the original starting point for reference.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <div className={styles.focusPanel}>
         <div className={styles.focusHeader}>
           <span>

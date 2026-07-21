@@ -138,6 +138,111 @@ describe("generateWorkoutPreview", () => {
     ]);
   });
 
+  it("caps hypertrophy pressing weights from low-rep bench anchors", () => {
+    const preview = generateWorkoutPreview({
+      ageRange: "19_29",
+      availableTrainingDays: 5,
+      benchPress: {
+        confidence: "high",
+        estimatedReps: 6,
+        estimatedWeight: 210,
+        familiarity: "often",
+        knowsWorkingWeight: true,
+      },
+      equipmentAccess: "full_gym",
+      experienceLevel: "advanced",
+      gender: "male",
+      goal: "hypertrophy",
+      selectedWorkoutTemplateId: "bro_split",
+      weightUnit: "lb",
+    });
+    const chestDay = preview.days.find((day) => day.label === "Chest");
+
+    expect(chestDay?.exercises.slice(0, 3).map((exercise) => [
+      exercise.exerciseId,
+      exercise.suggestedWeight,
+    ])).toEqual([
+      ["barbell_bench_press", 145],
+      ["incline_dumbbell_press", 50],
+      ["flat_dumbbell_press", 45],
+    ]);
+    expect(chestDay?.exercises[0].suggestedWeight).toBeLessThanOrEqual(150);
+    expect(chestDay?.exercises[1].suggestedWeight).toBeLessThanOrEqual(50);
+    expect(chestDay?.exercises[2].suggestedWeight).toBeLessThanOrEqual(50);
+    expect(chestDay?.exercises[0].notes).toContain(
+      "adjusted for 4 working sets"
+    );
+    expect(chestDay?.exercises[1].notes).toContain(
+      "adjusted for 4 working sets"
+    );
+  });
+
+  it("keeps strength prescriptions heavier than hypertrophy prescriptions from the same anchor", () => {
+    const baseAnswers = {
+      ageRange: "19_29",
+      availableTrainingDays: 4,
+      benchPress: {
+        confidence: "high",
+        estimatedReps: 6,
+        estimatedWeight: 210,
+        familiarity: "often",
+        knowsWorkingWeight: true,
+      },
+      equipmentAccess: "full_gym",
+      experienceLevel: "advanced",
+      gender: "male",
+      weightUnit: "lb",
+    } as const;
+    const hypertrophyPreview = generateWorkoutPreview({
+      ...baseAnswers,
+      goal: "hypertrophy",
+      selectedWorkoutTemplateId: "upper_lower_split",
+    });
+    const strengthPreview = generateWorkoutPreview({
+      ...baseAnswers,
+      goal: "strength",
+      selectedWorkoutTemplateId: "wendler_531",
+    });
+    const hypertrophyBench = hypertrophyPreview.days
+      .flatMap((day) => day.exercises)
+      .find((exercise) => exercise.exerciseId === "barbell_bench_press");
+    const strengthBench = strengthPreview.days
+      .flatMap((day) => day.exercises)
+      .find((exercise) => exercise.exerciseId === "barbell_bench_press");
+
+    expect(strengthBench?.suggestedWeight).toBeGreaterThan(
+      hypertrophyBench?.suggestedWeight ?? 0
+    );
+  });
+
+  it("lowers first-week weights as onboarding confidence decreases", () => {
+    const buildPreview = (confidence: "high" | "medium" | "low") =>
+      generateWorkoutPreview({
+        ageRange: "19_29",
+        availableTrainingDays: 5,
+        benchPress: {
+          confidence,
+          estimatedReps: 6,
+          estimatedWeight: 210,
+          familiarity: "often",
+          knowsWorkingWeight: true,
+        },
+        equipmentAccess: "full_gym",
+        experienceLevel: "advanced",
+        gender: "male",
+        goal: "hypertrophy",
+        selectedWorkoutTemplateId: "bro_split",
+        weightUnit: "lb",
+      });
+    const highBench = buildPreview("high").days[0].exercises[0].suggestedWeight ?? 0;
+    const mediumBench =
+      buildPreview("medium").days[0].exercises[0].suggestedWeight ?? 0;
+    const lowBench = buildPreview("low").days[0].exercises[0].suggestedWeight ?? 0;
+
+    expect(mediumBench).toBeLessThan(highBench);
+    expect(lowBench).toBeLessThan(mediumBench);
+  });
+
   it("uses height and body weight as mild starting-weight conservatism for beginners", () => {
     const baseAnswers = {
       ageRange: "19_29",
@@ -246,6 +351,46 @@ describe("generateWorkoutPreview", () => {
     expect(firstExercise.exerciseId).toBe("goblet_squat");
     expect(firstExercise.notes).toContain("Substituted for Back Squat");
     expect(firstExercise.notes).toContain("Keeps the same primary training target");
+  });
+
+  it("avoids repeating the same exercise inside one workout day when an alternative exists", () => {
+    const template = exerciseLibrary.workoutTemplates.find(
+      (workoutTemplate) => workoutTemplate.id === "starting_strength"
+    );
+    const firstWorkoutDay = template?.workoutDays.find(
+      (day) => day.type === "workout"
+    );
+
+    if (!firstWorkoutDay || firstWorkoutDay.type !== "workout") {
+      throw new Error("Expected Starting Strength to include a workout day.");
+    }
+
+    const originalExerciseIds = [...firstWorkoutDay.exerciseIds];
+    firstWorkoutDay.exerciseIds = ["back_squat", "back_squat"];
+
+    try {
+      const preview = generateWorkoutPreview({
+        ageRange: "19_29",
+        availableTrainingDays: 3,
+        equipmentAccess: "full_gym",
+        experienceLevel: "beginner",
+        gender: "male",
+        goal: "strength",
+        selectedWorkoutTemplateId: "starting_strength",
+        weightUnit: "lb",
+      });
+      const firstDayExerciseIds = preview.days[0].exercises.map(
+        (exercise) => exercise.exerciseId
+      );
+
+      expect(new Set(firstDayExerciseIds).size).toBe(firstDayExerciseIds.length);
+      expect(preview.days[0].exercises[1].exerciseId).not.toBe("back_squat");
+      expect(preview.days[0].exercises[1].notes).toContain(
+        "avoid repeating the same exercise"
+      );
+    } finally {
+      firstWorkoutDay.exerciseIds = originalExerciseIds;
+    }
   });
 
   it("uses the broader library when an unavailable exercise has no curated alternatives", () => {

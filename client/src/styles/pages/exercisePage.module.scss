@@ -881,6 +881,52 @@
   text-align: center;
 }
 
+.restTimerBottomSheet {
+  min-height: 90dvh;
+  max-height: 90dvh;
+}
+
+.restTimerSheet {
+  display: grid;
+  align-content: center;
+  gap: 1.25rem;
+  min-height: 100%;
+}
+
+.timerComplete {
+  color: hsl(var(--clr-secondary-500-b));
+}
+
+.timerNextCard {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px solid hsl(var(--clr-secondary-500-b) / 0.3);
+  border-radius: var(--ll-radius-card);
+  background: hsl(var(--clr-secondary-500-b) / 0.08);
+
+  span {
+    color: hsl(var(--clr-secondary-500-b));
+    font-size: var(--ll-type-eyebrow);
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 1.2rem;
+    line-height: 1.15;
+  }
+
+  p {
+    margin: 0;
+    color: var(--ll-text-muted);
+    font-size: 0.9rem;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+}
+
 .noteBadgeForm {
   display: grid;
   gap: 1rem;

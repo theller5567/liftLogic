@@ -119,8 +119,149 @@ type AnchorAnswer = NonNullable<
   | OnboardingAnswers["barbellDeadlift"]
 >;
 
+type WeightEstimateResult = {
+  weight: number;
+  wasPrescriptionCapped?: boolean;
+};
+
 function getWeightUnit(answers: OnboardingAnswers): WeightUnit {
   return answers.weightUnit ?? "lb";
+}
+
+function getPrescriptionTopReps(reps: string): number | null {
+  const matches = reps.match(/\d+/g);
+
+  if (!matches?.length) {
+    return null;
+  }
+
+  return Math.max(...matches.map(Number));
+}
+
+function getMultiSetReserveMultiplier(sets: number): number {
+  if (sets >= 4) {
+    return 0.84;
+  }
+
+  if (sets === 3) {
+    return 0.88;
+  }
+
+  return 0.92;
+}
+
+function getFirstWeekConfidenceBuffer(
+  confidence: EstimateDirectWeightParams["confidence"]
+) {
+  switch (confidence) {
+    case "high":
+      return 0.95;
+    case "medium":
+      return 0.9;
+    case "low":
+      return 0.85;
+    default:
+      return 0.9;
+  }
+}
+
+function estimatePrescriptionCappedStartingWeight({
+  directEstimate,
+  equipmentType,
+  prescription,
+  weightUnit,
+}: {
+  directEstimate: Pick<
+    EstimateDirectWeightParams,
+    "estimatedWeight" | "estimatedReps" | "confidence"
+  >;
+  equipmentType: ReturnType<typeof getExerciseEquipmentType>;
+  prescription: WorkoutSetPrescription;
+  weightUnit: WeightUnit;
+}) {
+  const targetReps = getPrescriptionTopReps(prescription.reps);
+
+  if (!targetReps) {
+    return null;
+  }
+
+  const estimatedOneRepMax =
+    directEstimate.estimatedWeight * (1 + directEstimate.estimatedReps / 30);
+  const targetRepWeight = estimatedOneRepMax / (1 + targetReps / 30);
+  const rawWeight =
+    targetRepWeight *
+    getMultiSetReserveMultiplier(prescription.sets) *
+    getFirstWeekConfidenceBuffer(directEstimate.confidence);
+  const increment = weightEstimationRules.rounding[weightUnit][equipmentType];
+  const rounded = roundToIncrement(rawWeight, increment);
+
+  return applyMinimum(rounded, weightUnit, equipmentType);
+}
+
+function isBenchDerivedDumbbellPress(exerciseKey: ExerciseKey) {
+  return (
+    exerciseKey === "dumbbell_bench_press" ||
+    exerciseKey === "incline_bench_press"
+  );
+}
+
+function isCompoundPressingExercise(
+  exercise: ExerciseDefinition | null | undefined
+) {
+  return (
+    Boolean(exercise?.isCompound) &&
+    (exercise?.movementPattern === "horizontal_press" ||
+      exercise?.movementPattern === "vertical_press")
+  );
+}
+
+function getPressingFatigueMultiplier(
+  exercise: ExerciseDefinition | null | undefined,
+  previousExercises: GeneratedWorkoutExercisePreview[]
+) {
+  if (!isCompoundPressingExercise(exercise)) {
+    return 1;
+  }
+
+  const previousPressCount = previousExercises.filter((previousExercise) =>
+    isCompoundPressingExercise(getExerciseById(previousExercise.exerciseId))
+  ).length;
+
+  if (previousPressCount >= 2) {
+    return 0.9;
+  }
+
+  if (previousPressCount === 1) {
+    return 0.95;
+  }
+
+  return 1;
+}
+
+function applyDayFatigueGuidance({
+  exercise,
+  exerciseKey,
+  previousExercises,
+  weight,
+  weightUnit,
+}: {
+  exercise: ExerciseDefinition | null | undefined;
+  exerciseKey: ExerciseKey;
+  previousExercises: GeneratedWorkoutExercisePreview[];
+  weight: number;
+  weightUnit: WeightUnit;
+}) {
+  const multiplier = getPressingFatigueMultiplier(exercise, previousExercises);
+
+  if (multiplier === 1) {
+    return weight;
+  }
+
+  const equipmentType = getExerciseEquipmentType(exerciseKey);
+  const increment = weightEstimationRules.rounding[weightUnit][equipmentType];
+  const rounded = roundToIncrement(weight * multiplier, increment);
+
+  return applyMinimum(rounded, weightUnit, equipmentType);
 }
 
 function getProfileWeightMultiplier(answers: OnboardingAnswers): number {
@@ -229,10 +370,11 @@ function getDirectEstimateForExercise(
 
 function resolveSuggestedWeightForExercise(
   exerciseKey: ExerciseKey,
+  prescription: WorkoutSetPrescription,
   answers: OnboardingAnswers,
-  cache: Map<ExerciseKey, number>,
+  cache: Map<ExerciseKey, WeightEstimateResult>,
   stack: Set<ExerciseKey>
-): number {
+): WeightEstimateResult {
   const cached = cache.get(exerciseKey);
   if (cached !== undefined) {
     return cached;
@@ -245,8 +387,8 @@ function resolveSuggestedWeightForExercise(
       experienceLevel: getRequestedLevel(answers),
     });
     const guidedFallback = applyProfileWeightGuidance(fallback, exerciseKey, answers);
-    cache.set(exerciseKey, guidedFallback);
-    return guidedFallback;
+    cache.set(exerciseKey, { weight: guidedFallback });
+    return { weight: guidedFallback };
   }
 
   stack.add(exerciseKey);
@@ -254,14 +396,26 @@ function resolveSuggestedWeightForExercise(
   const directEstimate = getDirectEstimateForExercise(exerciseKey, answers);
 
   let suggestedWeight: number;
+  let wasPrescriptionCapped = false;
 
   if (directEstimate) {
-    suggestedWeight = resolveStartingWeight({
+    const weightUnit = getWeightUnit(answers);
+    const prescriptionCappedWeight = estimatePrescriptionCappedStartingWeight({
+      directEstimate,
+      equipmentType: getExerciseEquipmentType(exerciseKey),
+      prescription,
+      weightUnit,
+    });
+    const legacyEstimate = resolveStartingWeight({
       exerciseKey,
-      weightUnit: getWeightUnit(answers),
+      weightUnit,
       experienceLevel: getRequestedLevel(answers),
       directEstimate,
     });
+
+    suggestedWeight = Math.min(prescriptionCappedWeight ?? legacyEstimate, legacyEstimate);
+    wasPrescriptionCapped =
+      prescriptionCappedWeight !== null && suggestedWeight < legacyEstimate;
   } else {
     const derivedRule =
       weightEstimationRules.derivedFrom[
@@ -269,19 +423,35 @@ function resolveSuggestedWeightForExercise(
       ];
 
     if (derivedRule) {
-      const sourceWeight = resolveSuggestedWeightForExercise(
+      const sourceEstimate = resolveSuggestedWeightForExercise(
         derivedRule.source,
+        prescription,
         answers,
         cache,
         stack
       );
 
-      suggestedWeight = resolveStartingWeight({
-        exerciseKey,
-        weightUnit: getWeightUnit(answers),
-        experienceLevel: getRequestedLevel(answers),
-        derivedSourceWeight: sourceWeight,
-      });
+      if (
+        derivedRule.source === "bench_press" &&
+        isBenchDerivedDumbbellPress(exerciseKey)
+      ) {
+        const weightUnit = getWeightUnit(answers);
+        const increment = weightEstimationRules.rounding[weightUnit].dumbbell;
+        suggestedWeight = applyMinimum(
+          roundToIncrement(sourceEstimate.weight * 0.35, increment),
+          weightUnit,
+          "dumbbell"
+        );
+        wasPrescriptionCapped = sourceEstimate.wasPrescriptionCapped ?? false;
+      } else {
+        suggestedWeight = resolveStartingWeight({
+          exerciseKey,
+          weightUnit: getWeightUnit(answers),
+          experienceLevel: getRequestedLevel(answers),
+          derivedSourceWeight: sourceEstimate.weight,
+        });
+        wasPrescriptionCapped = sourceEstimate.wasPrescriptionCapped ?? false;
+      }
     } else {
       suggestedWeight = resolveStartingWeight({
         exerciseKey,
@@ -293,10 +463,11 @@ function resolveSuggestedWeightForExercise(
 
   suggestedWeight = applyProfileWeightGuidance(suggestedWeight, exerciseKey, answers);
 
-  cache.set(exerciseKey, suggestedWeight);
+  const result = { weight: suggestedWeight, wasPrescriptionCapped };
+  cache.set(exerciseKey, result);
   stack.delete(exerciseKey);
 
-  return suggestedWeight;
+  return result;
 }
 
 export function getPrescriptionForExercise(
@@ -440,7 +611,7 @@ export function buildExerciseReplacementPreview({
   const prescription = shouldKeepCurrentPrescription
     ? currentExercise.prescription
     : nextPrescription;
-  const weightCache = new Map<ExerciseKey, number>();
+  const weightCache = new Map<ExerciseKey, WeightEstimateResult>();
   const notes = [
     swapSource === "custom"
       ? "Custom swap selected outside recommended alternatives."
@@ -498,10 +669,11 @@ export function buildExerciseReplacementPreview({
     ...nextPreview,
     suggestedWeight: resolveSuggestedWeightForExercise(
       nextEstimatorKey,
+      prescription,
       answers,
       weightCache,
       new Set()
-    ),
+    ).weight,
     weightUnit: getWeightUnit(answers),
   };
 }
@@ -512,18 +684,24 @@ function buildExercisePreview(
   exerciseIndex: number,
   goal: WorkoutGoal,
   answers: OnboardingAnswers,
-  cache: Map<ExerciseKey, number>
+  cache: Map<ExerciseKey, WeightEstimateResult>,
+  previousExercises: GeneratedWorkoutExercisePreview[]
 ): GeneratedWorkoutExercisePreview {
   const availableEquipment = getAvailableEquipmentFromAnswers(answers);
   const originalExercise = getExerciseById(exerciseId);
+  const usedExerciseIds = new Set(
+    previousExercises.map((previousExercise) => previousExercise.exerciseId)
+  );
   const compatibleAlternative = getBestCompatibleAlternative({
     answers,
     availableEquipment,
+    excludedExerciseIds: usedExerciseIds,
     exerciseId,
   });
+  const isRepeatedExercise = usedExerciseIds.has(exerciseId);
   const shouldSubstitute =
     originalExercise &&
-    !canPerformExercise(exerciseId, availableEquipment) &&
+    (!canPerformExercise(exerciseId, availableEquipment) || isRepeatedExercise) &&
     compatibleAlternative;
   const resolvedExerciseId = shouldSubstitute
     ? compatibleAlternative.alternative.exerciseId
@@ -534,8 +712,16 @@ function buildExercisePreview(
   const estimateFrom = normalizeLibraryIdToEstimatorKey(resolvedExerciseId);
   const missingEquipment = getMissingEquipmentLabels(exerciseId, availableEquipment);
   const substitutionNote =
-    shouldSubstitute && originalExercise
+    shouldSubstitute && originalExercise && !isRepeatedExercise
       ? `Substituted for ${originalExercise.displayName ?? originalExercise.name} because your equipment list does not include: ${missingEquipment.join(", ")}.`
+      : undefined;
+  const duplicateSubstitutionNote =
+    shouldSubstitute && originalExercise && isRepeatedExercise
+      ? `Substituted for ${originalExercise.displayName ?? originalExercise.name} to avoid repeating the same exercise in one workout.`
+      : undefined;
+  const duplicateWarningNote =
+    !shouldSubstitute && originalExercise && isRepeatedExercise
+      ? `${originalExercise.displayName ?? originalExercise.name} appears more than once in this workout because no compatible alternative was available.`
       : undefined;
   const missingEquipmentNote =
     !shouldSubstitute && missingEquipment.length
@@ -552,20 +738,23 @@ function buildExercisePreview(
       : [];
   const notes = [
     substitutionNote,
+    duplicateSubstitutionNote,
     ...getExerciseSelectionNotes({
       exercise,
       originalExercise: shouldSubstitute ? originalExercise : null,
     }),
     missingEquipmentNote,
+    duplicateWarningNote,
     getExerciseNotes(resolvedExerciseId, answers),
   ]
     .filter(Boolean)
     .join(" ");
+  const prescription = getPrescriptionForExercise(resolvedExerciseId, goal, answers);
   const basePreview = {
     id: `${dayId}_${exerciseIndex + 1}_${resolvedExerciseId}`,
     exerciseId: resolvedExerciseId,
     label,
-    prescription: getPrescriptionForExercise(resolvedExerciseId, goal, answers),
+    prescription,
     ...(notes ? { notes } : {}),
     ...(warnings.length ? { warnings } : {}),
     detailTags: getExerciseDetailTags(exercise),
@@ -576,14 +765,29 @@ function buildExercisePreview(
     return basePreview;
   }
 
+  const estimate = resolveSuggestedWeightForExercise(
+    estimateFrom,
+    prescription,
+    answers,
+    cache,
+    new Set()
+  );
+  const suggestedWeight = applyDayFatigueGuidance({
+    exercise,
+    exerciseKey: estimateFrom,
+    previousExercises,
+    weight: estimate.weight,
+    weightUnit: getWeightUnit(answers),
+  });
+  const calibrationNote = estimate.wasPrescriptionCapped
+    ? `Estimated from your onboarding answer and adjusted for ${prescription.sets} working sets.`
+    : undefined;
+  const finalNotes = [basePreview.notes, calibrationNote].filter(Boolean).join(" ");
+
   return {
     ...basePreview,
-    suggestedWeight: resolveSuggestedWeightForExercise(
-      estimateFrom,
-      answers,
-      cache,
-      new Set()
-    ),
+    ...(finalNotes ? { notes: finalNotes } : {}),
+    suggestedWeight,
     weightUnit: getWeightUnit(answers),
   };
 }
@@ -592,17 +796,31 @@ function buildDayPreview(
   day: WorkoutTemplateWorkoutDay,
   template: WorkoutTemplate,
   answers: OnboardingAnswers,
-  cache: Map<ExerciseKey, number>
+  cache: Map<ExerciseKey, WeightEstimateResult>
 ): GeneratedWorkoutDayPreview {
   const goal = getTemplateGoal(template);
+
+  const exercises = day.exerciseIds.reduce<GeneratedWorkoutExercisePreview[]>(
+    (currentExercises, exerciseId, exerciseIndex) => [
+      ...currentExercises,
+      buildExercisePreview(
+        exerciseId,
+        day.id,
+        exerciseIndex,
+        goal,
+        answers,
+        cache,
+        currentExercises
+      ),
+    ],
+    []
+  );
 
   return {
     id: day.id,
     label: day.label,
     focus: template.focus,
-    exercises: day.exerciseIds.map((exerciseId, exerciseIndex) =>
-      buildExercisePreview(exerciseId, day.id, exerciseIndex, goal, answers, cache)
-    ),
+    exercises,
   };
 }
 
@@ -644,7 +862,7 @@ export function generateWorkoutPreview(
   answers: OnboardingAnswers
 ): GeneratedWorkoutPreview {
   const selectedTemplate = getSelectedWorkoutTemplate(answers);
-  const weightCache = new Map<ExerciseKey, number>();
+  const weightCache = new Map<ExerciseKey, WeightEstimateResult>();
   const weightUnit = getWeightUnit(answers);
   const workoutDays = getTemplateWorkoutDays(selectedTemplate);
 

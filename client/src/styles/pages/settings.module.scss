@@ -211,6 +211,38 @@
   background: var(--ll-surface-subtle);
 }
 
+.onboardingSnapshotPanel {
+  display: grid;
+  gap: 0.8rem;
+  padding: var(--ll-space-4);
+  border: 1px solid hsl(var(--clr-primary-500-b) / 0.26);
+  border-radius: var(--ll-radius-card);
+  background: hsl(var(--clr-primary-500-b) / 0.07);
+}
+
+.snapshotRows {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.snapshotRow {
+  display: grid;
+  gap: 0.25rem;
+
+  span {
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-eyebrow);
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 0.86rem;
+    line-height: 1.35;
+  }
+}
+
 .focusHeader {
   display: flex;
   align-items: center;

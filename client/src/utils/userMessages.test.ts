@@ -265,6 +265,11 @@ describe("user messages", () => {
           exerciseId: "lat_pulldown",
           label: "Lat Pulldown",
         }),
+        createExerciseLog({
+          actualReps: [6, 6, 5],
+          exerciseId: "back_squat",
+          label: "Back Squat",
+        }),
       ],
     });
     const messages = getUserMessagesForSurface(
@@ -277,6 +282,7 @@ describe("user messages", () => {
 
     expect(messages.map((message) => message.id)).toEqual([
       "workout-complete-session-1",
+      "progression-reduce-or-modify",
       "progression-ready",
       "progression-repeat-weight",
       "progression-hold-steady",
@@ -290,6 +296,10 @@ describe("user messages", () => {
     expect(
       messages.find((message) => message.id === "progression-hold-steady")?.body
     ).toContain("Lat Pulldown");
+    expect(
+      messages.find((message) => message.id === "progression-reduce-or-modify")
+        ?.body
+    ).toContain("Back Squat");
   });
 
   it("prioritizes pain cautions on the workout summary", () => {
