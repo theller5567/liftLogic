@@ -137,6 +137,199 @@ describe("progressive overload recommendations", () => {
     expect(recommendation.recommendedWeight).toBe(140);
   });
 
+  it("keeps normal earned increases when they remain feasible", () => {
+    const activeExerciseLog = createExerciseLog({
+      actualReps: [],
+      weight: 135,
+    });
+    const recommendation = getProgressiveOverloadRecommendation({
+      currentSession: {
+        ...currentSession,
+        exerciseLogs: [activeExerciseLog],
+      },
+      exerciseLog: activeExerciseLog,
+      priorSessions: [
+        createSession({
+          exerciseLog: createExerciseLog({ actualReps: [10, 10, 10], weight: 135 }),
+          scheduledFor: "2026-07-07T12:00:00.000Z",
+        }),
+      ],
+      weightStep: 5,
+    });
+
+    expect(recommendation.state).toBe("ready_to_increase");
+    expect(recommendation.canApplyWeight).toBe(true);
+    expect(recommendation.recommendedWeight).toBe(140);
+  });
+
+  it("shrinks oversized earned increases when a smaller jump is feasible", () => {
+    const activeExerciseLog = createExerciseLog({
+      actualReps: [],
+      weight: 100,
+    });
+    const recommendation = getProgressiveOverloadRecommendation({
+      currentSession: {
+        ...currentSession,
+        exerciseLogs: [activeExerciseLog],
+      },
+      exerciseLog: activeExerciseLog,
+      priorSessions: [
+        createSession({
+          exerciseLog: createExerciseLog({ actualReps: [10, 10, 10], weight: 100 }),
+          scheduledFor: "2026-07-07T12:00:00.000Z",
+        }),
+      ],
+      weightStep: 20,
+    });
+
+    expect(recommendation.state).toBe("ready_to_increase");
+    expect(recommendation.canApplyWeight).toBe(true);
+    expect(recommendation.recommendedWeight).toBe(105);
+    expect(recommendation.reason).toContain("smaller increase");
+  });
+
+  it("turns too-heavy earned increases into a repeat recommendation", () => {
+    const activeExerciseLog = createExerciseLog({
+      actualReps: [],
+      weight: 100,
+    });
+    const recommendation = getProgressiveOverloadRecommendation({
+      currentSession: {
+        ...currentSession,
+        exerciseLogs: [activeExerciseLog],
+      },
+      exerciseLog: activeExerciseLog,
+      priorSessions: [
+        createSession({
+          exerciseLog: createExerciseLog({ actualReps: [10, 10, 10], weight: 100 }),
+          scheduledFor: "2026-07-07T12:00:00.000Z",
+        }),
+      ],
+      weightStep: 80,
+    });
+
+    expect(recommendation.state).toBe("repeat_weight");
+    expect(recommendation.canApplyWeight).toBe(false);
+    expect(recommendation.recommendedWeight).toBe(100);
+    expect(recommendation.reason).toContain("looks too heavy");
+  });
+
+  it("does not reduce after a jump when all sets stay within the rep range", () => {
+    const activeExerciseLog = createExerciseLog({
+      actualReps: [],
+      targetReps: "8-12",
+      weight: 140,
+    });
+    const recommendation = getProgressiveOverloadRecommendation({
+      currentSession: {
+        ...currentSession,
+        exerciseLogs: [activeExerciseLog],
+        scheduledFor: "2026-07-15T12:00:00.000Z",
+      },
+      exerciseLog: activeExerciseLog,
+      priorSessions: [
+        createSession({
+          exerciseLog: createExerciseLog({
+            actualReps: [12, 8, 8],
+            targetReps: "8-12",
+            weight: 135,
+          }),
+          scheduledFor: "2026-07-01T12:00:00.000Z",
+        }),
+        createSession({
+          exerciseLog: createExerciseLog({
+            actualReps: [12, 8, 8],
+            targetReps: "8-12",
+            weight: 140,
+          }),
+          scheduledFor: "2026-07-08T12:00:00.000Z",
+        }),
+      ],
+      weightStep: 5,
+    });
+
+    expect(recommendation.state).toBe("hold_steady");
+    expect(recommendation.canApplyWeight).toBe(false);
+  });
+
+  it("recommends returning to the previous load after a premature below-range jump", () => {
+    const activeExerciseLog = createExerciseLog({
+      actualReps: [],
+      targetReps: "8-12",
+      weight: 140,
+    });
+    const recommendation = getProgressiveOverloadRecommendation({
+      currentSession: {
+        ...currentSession,
+        exerciseLogs: [activeExerciseLog],
+        scheduledFor: "2026-07-15T12:00:00.000Z",
+      },
+      exerciseLog: activeExerciseLog,
+      priorSessions: [
+        createSession({
+          exerciseLog: createExerciseLog({
+            actualReps: [12, 8, 8],
+            targetReps: "8-12",
+            weight: 135,
+          }),
+          scheduledFor: "2026-07-01T12:00:00.000Z",
+        }),
+        createSession({
+          exerciseLog: createExerciseLog({
+            actualReps: [12, 7, 6],
+            targetReps: "8-12",
+            weight: 140,
+          }),
+          scheduledFor: "2026-07-08T12:00:00.000Z",
+        }),
+      ],
+      weightStep: 5,
+    });
+
+    expect(recommendation.state).toBe("reduce_or_modify");
+    expect(recommendation.canApplyWeight).toBe(true);
+    expect(recommendation.recommendedWeight).toBe(135);
+  });
+
+  it("does not reduce after a jump when strong early sets fade only at the end", () => {
+    const activeExerciseLog = createExerciseLog({
+      actualReps: [],
+      targetReps: "8-12",
+      weight: 140,
+    });
+    const recommendation = getProgressiveOverloadRecommendation({
+      currentSession: {
+        ...currentSession,
+        exerciseLogs: [activeExerciseLog],
+        scheduledFor: "2026-07-15T12:00:00.000Z",
+      },
+      exerciseLog: activeExerciseLog,
+      priorSessions: [
+        createSession({
+          exerciseLog: createExerciseLog({
+            actualReps: [12, 12, 12],
+            targetReps: "8-12",
+            weight: 135,
+          }),
+          scheduledFor: "2026-07-01T12:00:00.000Z",
+        }),
+        createSession({
+          exerciseLog: createExerciseLog({
+            actualReps: [12, 12, 3],
+            badgeIds: ["missed_reps"],
+            targetReps: "8-12",
+            weight: 140,
+          }),
+          scheduledFor: "2026-07-08T12:00:00.000Z",
+        }),
+      ],
+      weightStep: 5,
+    });
+
+    expect(recommendation.state).toBe("hold_steady");
+    expect(recommendation.canApplyWeight).toBe(false);
+  });
+
   it("ignores soft-deleted prior sessions when building recommendations", () => {
     const activeExerciseLog = currentSession.exerciseLogs[0];
     const recommendation = getProgressiveOverloadRecommendation({
@@ -178,7 +371,7 @@ describe("progressive overload recommendations", () => {
     expect(recommendation.reason).toContain("too high");
   });
 
-  it("recommends reducing weight when missed reps are paired with hard effort", () => {
+  it("holds steady when missed reps are paired with hard effort but not severe", () => {
     const recommendation = getRecommendationFromPriorLog(
       createExerciseLog({
         actualReps: [10, 9, 8],
@@ -186,8 +379,8 @@ describe("progressive overload recommendations", () => {
       })
     );
 
-    expect(recommendation.state).toBe("reduce_or_modify");
-    expect(recommendation.recommendedWeight).toBe(130);
+    expect(recommendation.state).toBe("hold_steady");
+    expect(recommendation.canApplyWeight).toBe(false);
   });
 
   it("repeats weight when the user marked the exercise as hard", () => {
@@ -338,11 +531,78 @@ describe("load too high signals", () => {
     ).toBe(false);
   });
 
+  it("does not treat normal range fatigue as too heavy", () => {
+    expect(
+      hasLoadTooHighSignal(
+        createExerciseLog({
+          actualReps: [12, 9, 6],
+          badgeIds: ["missed_reps"],
+          targetReps: "8-12",
+        })
+      )
+    ).toBe(false);
+  });
+
+  it("does not treat a small final-set miss below the range as too heavy", () => {
+    expect(
+      hasLoadTooHighSignal(
+        createExerciseLog({
+          actualReps: [8, 8, 7],
+          badgeIds: ["missed_reps"],
+          targetReps: "8-12",
+        })
+      )
+    ).toBe(false);
+  });
+
+  it("allows one strong set with late fatigue before calling the load too heavy", () => {
+    expect(
+      hasLoadTooHighSignal(
+        createExerciseLog({
+          actualReps: [12, 8, 5],
+          badgeIds: ["missed_reps"],
+          targetReps: "8-12",
+        })
+      )
+    ).toBe(false);
+  });
+
   it("treats large repeated rep misses as too heavy", () => {
     expect(
       hasLoadTooHighSignal(
         createExerciseLog({
           actualReps: [6, 6, 5],
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("treats no sets reaching the minimum range as too heavy", () => {
+    expect(
+      hasLoadTooHighSignal(
+        createExerciseLog({
+          actualReps: [6, 5, 4],
+          targetReps: "8-12",
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("treats one good set followed by severe misses as too heavy", () => {
+    expect(
+      hasLoadTooHighSignal(
+        createExerciseLog({
+          actualReps: [12, 5, 4],
+          targetReps: "8-12",
+        })
+      )
+    ).toBe(true);
+
+    expect(
+      hasLoadTooHighSignal(
+        createExerciseLog({
+          actualReps: [8, 4, 4],
+          targetReps: "8-12",
         })
       )
     ).toBe(true);

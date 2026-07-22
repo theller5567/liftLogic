@@ -13,12 +13,14 @@ const createExerciseLog = ({
   exerciseId = "barbell_bench_press",
   label = "Bench Press",
   targetReps = "8-10",
+  weight = 135,
 }: {
   actualReps?: number[];
   badgeIds?: WorkoutBadgeId[];
   exerciseId?: string;
   label?: string;
   targetReps?: string;
+  weight?: number;
 } = {}): WorkoutExerciseLog => ({
   badgeIds,
   completed: actualReps.length === 3,
@@ -31,7 +33,7 @@ const createExerciseLog = ({
     reps: targetReps,
     restSeconds: 120,
     sets: 3,
-    suggestedWeight: 135,
+    suggestedWeight: weight,
     weightUnit: "lb",
   },
   sets: Array.from({ length: 3 }, (_, index) => ({
@@ -39,7 +41,7 @@ const createExerciseLog = ({
     completed: actualReps[index] !== undefined,
     setNumber: index + 1,
     targetReps,
-    weight: 135,
+    weight,
     weightUnit: "lb",
   })),
   slotId: `${exerciseId}-slot`,
@@ -125,6 +127,62 @@ describe("progression summary", () => {
 
     expect(summary.readyToProgress).toHaveLength(1);
     expect(summary.reduceOrModify).toHaveLength(0);
+  });
+
+  it("does not treat within-range load jumps as modify signals in summaries", () => {
+    const summary = buildProgressionSummary([
+      createSession({
+        scheduledFor: "2026-07-01T12:00:00.000Z",
+        exerciseLogs: [
+          createExerciseLog({
+            actualReps: [12, 8, 8],
+            targetReps: "8-12",
+            weight: 135,
+          }),
+        ],
+      }),
+      createSession({
+        scheduledFor: "2026-07-08T12:00:00.000Z",
+        exerciseLogs: [
+          createExerciseLog({
+            actualReps: [12, 8, 8],
+            targetReps: "8-12",
+            weight: 140,
+          }),
+        ],
+      }),
+    ]);
+
+    expect(summary.reduceOrModify).toHaveLength(0);
+    expect(summary.holdSteady).toHaveLength(1);
+  });
+
+  it("treats premature below-range load jumps as modify signals in summaries", () => {
+    const summary = buildProgressionSummary([
+      createSession({
+        scheduledFor: "2026-07-01T12:00:00.000Z",
+        exerciseLogs: [
+          createExerciseLog({
+            actualReps: [12, 8, 8],
+            targetReps: "8-12",
+            weight: 135,
+          }),
+        ],
+      }),
+      createSession({
+        scheduledFor: "2026-07-08T12:00:00.000Z",
+        exerciseLogs: [
+          createExerciseLog({
+            actualReps: [12, 7, 6],
+            targetReps: "8-12",
+            weight: 140,
+          }),
+        ],
+      }),
+    ]);
+
+    expect(summary.reduceOrModify).toHaveLength(1);
+    expect(summary.reduceOrModify[0].signal).toBe("load_too_high");
   });
 
   it("ignores exercise logs before an exercise reset cutoff", () => {

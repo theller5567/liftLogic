@@ -5,6 +5,7 @@ export type MessageExerciseActionTarget = {
   exerciseId: string;
   exerciseIndex: number;
   exerciseLabel: string;
+  openAdjustmentSheet?: boolean;
   sessionId: string;
   sessionLabel: string;
   to: string;
@@ -41,6 +42,7 @@ export const resolveMessageExerciseAction = (
                 exerciseId: exerciseLog.exerciseId,
                 exerciseIndex,
                 exerciseLabel: exerciseLog.label,
+                openAdjustmentSheet: message.id === "progression-reduce-or-modify",
                 sessionId: session._id,
                 sessionLabel: session.programDayLabel,
                 to: `/workout/${session._id}/exercise/${exerciseIndex}`,

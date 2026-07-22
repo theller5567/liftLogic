@@ -74,6 +74,45 @@ describe("user message visibility", () => {
     ).toEqual([]);
   });
 
+  it("shows a dismissed lifecycle message again when source exercises change", () => {
+    const message = createMessage({
+      id: "recovery-load-selection-pattern",
+      lifecycle: {
+        dismissalPolicy: {
+          cooldownHours: 24,
+          returnWhenChanged: true,
+        },
+        scope: "training_pattern",
+        sourceExerciseIds: ["barbell_bench_press"],
+        stateKey: "load_selection_pattern",
+      },
+      severity: "warning",
+      title: "Review load selection",
+    });
+    const dismissedState = dismissUserMessage({
+      message,
+      now: new Date("2026-07-19T12:00:00.000Z"),
+      state: {},
+      surface: "trends",
+    });
+    const updatedMessage = createMessage({
+      ...message,
+      lifecycle: {
+        ...message.lifecycle!,
+        sourceExerciseIds: ["barbell_bench_press", "back_squat"],
+      },
+    });
+
+    expect(
+      filterVisibleUserMessages({
+        messages: [updatedMessage],
+        now: new Date("2026-07-19T13:00:00.000Z"),
+        state: dismissedState,
+        surface: "trends",
+      })
+    ).toEqual([updatedMessage]);
+  });
+
   it("shows a dismissed non-critical message again after the cooldown", () => {
     const message = createMessage();
     const dismissedState = dismissUserMessage({

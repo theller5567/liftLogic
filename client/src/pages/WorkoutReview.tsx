@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { Navigate, useNavigate } from "react-router-dom";
 import CheckMark from "../assets/icons/078-check.svg?react";
@@ -20,12 +20,14 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import WorkoutTemplateBrowser from "../components/WorkoutTemplateBrowser";
 import WorkoutPreview from "../components/WorkoutPreview";
 import {
+  getWorkoutSessions,
   isApiEnabled,
   markWorkoutPlanReviewed,
   type ProgramSwitchOptions,
   saveEditedWorkoutPreview,
   submitOnboardingAnswers,
 } from "../services/api";
+import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
 import { generateWorkoutPreview } from "../utils/generateWorkoutPreview";
 import type { GeneratedWorkoutPreview } from "../utils/generateWorkoutPreview";
 import {
@@ -42,6 +44,7 @@ import {
   writeWorkoutReviewed,
 } from "../utils/workoutStorage";
 import { useUserFlow } from "../utils/userFlow";
+import { applyWorkoutPreviewFeasibilityAdjustments } from "../utils/workoutPreviewFeasibilityAudit";
 import { updateCachedCurrentAppData } from "../utils/appDataCache";
 import pageStyles from "../styles/pages/page.module.scss";
 
@@ -89,6 +92,10 @@ const WorkoutReview = () => {
   const [showPlanBrowser, setShowPlanBrowser] = useState(false);
   const [pendingTemplateSwitch, setPendingTemplateSwitch] =
     useState<PendingTemplateSwitch | null>(null);
+  const [completedWorkoutSessions, setCompletedWorkoutSessions] = useState<
+    WorkoutSessionDto[]
+  >([]);
+  const [historyLoadError, setHistoryLoadError] = useState<string | null>(null);
   const [abandonInProgressSessions, setAbandonInProgressSessions] =
     useState(true);
   const [preserveExerciseHistory, setPreserveExerciseHistory] = useState(true);
@@ -98,7 +105,7 @@ const WorkoutReview = () => {
     useState<WorkoutFocusBlock["durationWeeks"]>(4);
   const activeAnswers = localAnswers ?? submittedAnswers;
 
-  const suggestedPreview = useMemo(
+  const rawSuggestedPreview = useMemo(
     () =>
       localAnswers
         ? generateWorkoutPreview(localAnswers)
@@ -106,14 +113,30 @@ const WorkoutReview = () => {
           (submittedAnswers ? generateWorkoutPreview(submittedAnswers) : null),
     [localAnswers, remoteWorkoutPlan?.suggestedPreview, submittedAnswers]
   );
+  const feasibilityAdjustedPreviewResult = useMemo(() => {
+    if (!activeAnswers || !rawSuggestedPreview) {
+      return null;
+    }
+
+    return applyWorkoutPreviewFeasibilityAdjustments({
+      onboardingAnswers: activeAnswers,
+      preview: rawSuggestedPreview,
+      workoutSessions: completedWorkoutSessions,
+    });
+  }, [activeAnswers, completedWorkoutSessions, rawSuggestedPreview]);
+  const suggestedPreview =
+    feasibilityAdjustedPreviewResult?.preview ?? rawSuggestedPreview;
+  const savedEditedPreview = isApiEnabled()
+    ? remoteWorkoutPlan?.editedPreview
+    : localEditedPreview;
+  const hasSavedEditedPreview =
+    savedEditedPreview?.programId === suggestedPreview?.programId;
   const preview =
-    suggestedPreview &&
-    (isApiEnabled() ? remoteWorkoutPlan?.editedPreview : localEditedPreview)
-      ?.programId === suggestedPreview.programId
-      ? isApiEnabled()
-        ? remoteWorkoutPlan?.editedPreview
-        : localEditedPreview
+    suggestedPreview && hasSavedEditedPreview
+      ? savedEditedPreview
       : suggestedPreview;
+  const feasibilityAdjustments =
+    feasibilityAdjustedPreviewResult?.adjustments ?? [];
   const editedMessages =
     suggestedPreview && preview
       ? getEditedPreviewMessages(suggestedPreview, preview)
@@ -133,6 +156,42 @@ const WorkoutReview = () => {
     previewSyncStatus === "saving" ||
     templateSyncStatus === "saving" ||
     isCompletingReview;
+
+  useEffect(() => {
+    if (!isApiEnabled()) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadCompletedWorkoutHistory = async () => {
+      try {
+        const { workoutSessions } = await getWorkoutSessions({
+          dateTo: new Date().toISOString(),
+          status: "completed",
+        });
+
+        if (isMounted) {
+          setCompletedWorkoutSessions(workoutSessions);
+          setHistoryLoadError(null);
+        }
+      } catch (historyError) {
+        if (isMounted) {
+          setHistoryLoadError(
+            historyError instanceof Error
+              ? historyError.message
+              : "Workout history could not load for this review."
+          );
+        }
+      }
+    };
+
+    void loadCompletedWorkoutHistory();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   if (isLoading) {
     return <LoadingSpinner fullScreen label="Loading workout review..." />;
@@ -262,6 +321,24 @@ const WorkoutReview = () => {
 
     setReviewError(null);
     setIsCompletingReview(true);
+
+    if (suggestedPreview && !hasSavedEditedPreview && feasibilityAdjustments.length) {
+      writeEditedWorkoutPreview(suggestedPreview);
+
+      if (isApiEnabled()) {
+        try {
+          const { workoutPlan } = await saveEditedWorkoutPreview(suggestedPreview);
+          updateCachedCurrentAppData({ workoutPlan });
+        } catch (error) {
+          console.error("Failed to save adjusted workout preview to API", error);
+          setReviewError(
+            "We adjusted a few starting weights, but could not save them yet. Check your connection and try again."
+          );
+          setIsCompletingReview(false);
+          return;
+        }
+      }
+    }
 
     if (isApiEnabled()) {
       try {
@@ -475,13 +552,21 @@ const WorkoutReview = () => {
           </div>
         ) : null}
         {reviewError ? <p className="text-muted">{reviewError}</p> : null}
+        {historyLoadError ? (
+          <p className="text-muted">
+            Feasibility review is using your onboarding answers because workout
+            history could not load: {historyLoadError}
+          </p>
+        ) : null}
       </header>
 
       <WorkoutPreview
         availableEquipment={getAvailableEquipmentFromAnswers(activeAnswers)}
+        baselinePreview={suggestedPreview}
         editPresentation="review_actions"
         onboardingAnswers={activeAnswers}
         preview={preview}
+        workoutSessions={completedWorkoutSessions}
         onPreviewChange={handlePreviewChange}
       />
 

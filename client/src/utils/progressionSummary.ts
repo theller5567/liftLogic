@@ -9,6 +9,7 @@ import {
 import {
   getCompletedExerciseProgressionState,
   hasLoadTooHighSignal,
+  hasPrematureProgressionLoadSignal,
   type ActionableProgressiveOverloadState,
 } from "./workoutAdvisory";
 
@@ -36,6 +37,8 @@ const getLatestCompletedExerciseLogs = (
     {
       exerciseLog: WorkoutExerciseLog;
       historySource?: ProgressionSummaryItem["historySource"];
+      previousExerciseLog?: WorkoutExerciseLog;
+      previousTime?: number;
       time: number;
     }
   >();
@@ -72,7 +75,18 @@ const getLatestCompletedExerciseLogs = (
               : exerciseHistoryScope.currentProgramScope
                 ? "current_program"
                 : undefined,
+          previousExerciseLog: current?.exerciseLog,
+          previousTime: current?.time,
           time: sessionTime,
+        });
+      } else if (
+        sessionTime < current.time &&
+        (!current.previousTime || sessionTime > current.previousTime)
+      ) {
+        latestExerciseLogs.set(exerciseLog.exerciseId, {
+          ...current,
+          previousExerciseLog: exerciseLog,
+          previousTime: sessionTime,
         });
       }
     }
@@ -83,9 +97,16 @@ const getLatestCompletedExerciseLogs = (
 
 const createSummaryItem = (
   exerciseLog: WorkoutExerciseLog,
+  previousExerciseLog?: WorkoutExerciseLog,
   historySource?: ProgressionSummaryItem["historySource"]
 ): ProgressionSummaryItem => {
-  const state = getCompletedExerciseProgressionState(exerciseLog);
+  const state = getCompletedExerciseProgressionState(
+    exerciseLog,
+    previousExerciseLog
+  );
+  const hasLoadOrProgressionSignal =
+    hasLoadTooHighSignal(exerciseLog) ||
+    hasPrematureProgressionLoadSignal(exerciseLog, previousExerciseLog);
 
   return {
     exerciseId: exerciseLog.exerciseId,
@@ -95,7 +116,7 @@ const createSummaryItem = (
       state === "reduce_or_modify"
         ? exerciseLog.badgeIds.includes("pain")
           ? "pain"
-          : hasLoadTooHighSignal(exerciseLog)
+          : hasLoadOrProgressionSignal
             ? "load_too_high"
             : undefined
         : undefined,
@@ -114,11 +135,16 @@ export const buildProgressionSummary = (
     reduceOrModify: [],
   };
 
-  for (const { exerciseLog, historySource } of getLatestCompletedExerciseLogs(
-    sessions,
-    exerciseHistoryScope
-  )) {
-    const item = createSummaryItem(exerciseLog, historySource);
+  for (const {
+    exerciseLog,
+    historySource,
+    previousExerciseLog,
+  } of getLatestCompletedExerciseLogs(sessions, exerciseHistoryScope)) {
+    const item = createSummaryItem(
+      exerciseLog,
+      previousExerciseLog,
+      historySource
+    );
 
     if (item.state === "ready_to_increase") {
       summary.readyToProgress.push(item);

@@ -4,6 +4,7 @@ import type {
   UserMessageSurface,
 } from "../../../shared/types/userSettings.types";
 import { DEFAULT_MESSAGE_PREFERENCES } from "../../../shared/types/userSettings.types";
+import { weightEstimationRules } from "../../../shared/constants/weightEstimationRules";
 import type {
   WorkoutExerciseLog,
   WorkoutSessionDto,
@@ -14,12 +15,14 @@ import {
   type CurrentProgramScope,
   type ExerciseHistoryScopeOptions,
 } from "../../../shared/utils/workoutSessionScope";
+import { normalizeLibraryIdToEstimatorKey } from "../../../shared/utils/exerciseLibraryAdapter";
+import { getLoadFeasibility } from "../../../shared/utils/loadFeasibility";
+import { resolveLoadFeasibilityCapacity } from "../../../shared/utils/loadFeasibilityCapacity";
 import type { GeneratedWorkoutPreview } from "./generateWorkoutPreview";
 import { getPersonalRecordsForSession, type PersonalRecord } from "./personalRecords";
 import { buildProgressionSummary } from "./progressionSummary";
 import { getEndOfWeek, getStartOfWeek } from "./workoutSessionDates";
 import {
-  completedAllTargetSets,
   hasLoadTooHighSignal,
 } from "./workoutAdvisory";
 
@@ -106,7 +109,6 @@ const formatExerciseList = (labels: string[]) => {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RECOVERY_PATTERN_WINDOW_DAYS = 28;
-const MISSED_TARGET_PATTERN_WINDOW_DAYS = 21;
 
 const addDaysIso = (value: string, days: number) => {
   const timestamp = new Date(value).getTime();
@@ -478,14 +480,215 @@ const getUnresolvedSignalExerciseLogs = (
     .map((entry) => entry.exerciseLog);
 };
 
-const hasMissedTargetSignal = (exerciseLog: WorkoutExerciseLog) =>
-  exerciseLog.badgeIds.includes("missed_reps") ||
-  !completedAllTargetSets(exerciseLog);
+const getSuggestedWeightLabel = (weight: number, weightUnit: string) =>
+  `${weight} ${weightUnit}`;
+
+const getAssignedWeight = (exerciseLog: WorkoutExerciseLog) =>
+  exerciseLog.prescriptionSnapshot.suggestedWeight ??
+  exerciseLog.sets.find((setLog) => setLog.weight !== undefined)?.weight;
+
+const getFeasibilityForExerciseLogEntry = ({
+  entry,
+  sessions,
+}: {
+  entry: CompletedExerciseLogEntry;
+  sessions: WorkoutSessionDto[];
+}) => {
+  const exerciseLog = entry.exerciseLog;
+  const canonicalEstimatorKey = normalizeLibraryIdToEstimatorKey(
+    exerciseLog.exerciseId
+  );
+
+  if (!canonicalEstimatorKey) {
+    return null;
+  }
+
+  const assignedWeight = getAssignedWeight(exerciseLog);
+  const weightUnit = exerciseLog.prescriptionSnapshot.weightUnit;
+
+  if (!assignedWeight || !weightUnit) {
+    return null;
+  }
+
+  const priorSessions = sessions.filter(
+    (session) => session.status === "completed" && getSessionTime(session) < entry.time
+  );
+  const capacity = resolveLoadFeasibilityCapacity({
+    canonicalEstimatorKey,
+    exerciseId: exerciseLog.exerciseId,
+    includeDefaultEstimate: false,
+    weightUnit,
+    workoutSessions: priorSessions,
+  });
+
+  if (!capacity.capacity) {
+    return null;
+  }
+
+  return getLoadFeasibility({
+    assignedWeight,
+    capacity: capacity.capacity,
+    confidence: capacity.confidence,
+    equipmentType:
+      weightEstimationRules.exerciseMeta[canonicalEstimatorKey].equipmentType,
+    reps: exerciseLog.prescriptionSnapshot.reps,
+    sets: exerciseLog.prescriptionSnapshot.sets,
+    weightUnit,
+  });
+};
+
+const getFeasibleLoadSuggestion = ({
+  exerciseId,
+  sessions,
+}: {
+  exerciseId: string;
+  sessions: WorkoutSessionDto[];
+}) => {
+  const sourceEntry = getCompletedExerciseLogEntries(sessions)
+    .filter(
+      (entry) =>
+        entry.exerciseLog.exerciseId === exerciseId &&
+        hasLoadTooHighSignal(entry.exerciseLog)
+    )
+    .sort((left, right) => right.time - left.time)[0];
+
+  if (!sourceEntry) {
+    return null;
+  }
+
+  const result = getFeasibilityForExerciseLogEntry({
+    entry: sourceEntry,
+    sessions,
+  });
+
+  if (
+    !result ||
+    result.suggestedWeight === undefined ||
+    result.status === "unknown" ||
+    result.suggestedWeight >= (result.assignedWeight ?? 0)
+  ) {
+    return null;
+  }
+
+  return {
+    label: sourceEntry.exerciseLog.label,
+    weightLabel: getSuggestedWeightLabel(
+      result.suggestedWeight,
+      sourceEntry.exerciseLog.prescriptionSnapshot.weightUnit ?? "lb"
+    ),
+  };
+};
+
+const getReduceOrModifyMessageBody = ({
+  items,
+  sessions,
+}: {
+  items: { exerciseId: string; label: string }[];
+  sessions: WorkoutSessionDto[];
+}) => {
+  const suggestions = items
+    .map((item) => getFeasibleLoadSuggestion({ exerciseId: item.exerciseId, sessions }))
+    .filter((suggestion): suggestion is NonNullable<typeof suggestion> =>
+      Boolean(suggestion)
+    );
+
+  if (items.length === 1) {
+    const suggestion = suggestions[0];
+
+    return suggestion
+      ? `${items[0].label} is missing the target range across most sets. Try ${suggestion.weightLabel} next time or choose an easier variation if reps still break down.`
+      : `${items[0].label} is missing the target range across most sets. Drop the load or choose an easier variation next time.`;
+  }
+
+  if (suggestions.length > 0) {
+    const suggestionText = suggestions
+      .slice(0, 2)
+      .map((suggestion) => `${suggestion.label}: ${suggestion.weightLabel}`)
+      .join(", ");
+
+    return `A few lifts are missing the target range across most sets. Review the loads before progressing. Suggested targets: ${suggestionText}.`;
+  }
+
+  return "A few lifts are missing the target range across most sets. Review the loads before progressing.";
+};
 
 const getSignalLabels = (
   exerciseLogs: WorkoutExerciseLog[],
   predicate: (exerciseLog: WorkoutExerciseLog) => boolean
 ) => exerciseLogs.filter(predicate).map((exerciseLog) => exerciseLog.label);
+
+type LoadSelectionPatternEntry = {
+  entry: CompletedExerciseLogEntry;
+  suggestedWeightLabel: string;
+};
+
+const isFeasibilityLoadSelectionSignal = (
+  entry: CompletedExerciseLogEntry,
+  sessions: WorkoutSessionDto[]
+): LoadSelectionPatternEntry | null => {
+  if (!hasLoadTooHighSignal(entry.exerciseLog)) {
+    return null;
+  }
+
+  const feasibility = getFeasibilityForExerciseLogEntry({ entry, sessions });
+
+  if (
+    !feasibility ||
+    feasibility.status !== "too_heavy" ||
+    feasibility.suggestedWeight === undefined
+  ) {
+    return null;
+  }
+
+  return {
+    entry,
+    suggestedWeightLabel: getSuggestedWeightLabel(
+      feasibility.suggestedWeight,
+      entry.exerciseLog.prescriptionSnapshot.weightUnit ?? "lb"
+    ),
+  };
+};
+
+const getUnresolvedLoadSelectionPatternEntries = (
+  sessions: WorkoutSessionDto[]
+) => {
+  const completedEntries = getCompletedExerciseLogEntries(sessions);
+  const latestEntryByExercise = new Map<string, CompletedExerciseLogEntry>();
+  const signalsByExercise = new Map<string, LoadSelectionPatternEntry[]>();
+
+  for (const entry of completedEntries) {
+    const current = latestEntryByExercise.get(entry.exerciseLog.exerciseId);
+
+    if (!current || entry.time > current.time) {
+      latestEntryByExercise.set(entry.exerciseLog.exerciseId, entry);
+    }
+  }
+
+  const unresolvedSignals = completedEntries
+    .map((entry) => isFeasibilityLoadSelectionSignal(entry, sessions))
+    .filter((signal): signal is LoadSelectionPatternEntry => Boolean(signal))
+    .filter((signal) => {
+      const latest = latestEntryByExercise.get(
+        signal.entry.exerciseLog.exerciseId
+      );
+
+      return Boolean(
+        latest && isFeasibilityLoadSelectionSignal(latest, sessions)
+      );
+    });
+
+  for (const signal of unresolvedSignals) {
+    const exerciseId = signal.entry.exerciseLog.exerciseId;
+    signalsByExercise.set(exerciseId, [
+      ...(signalsByExercise.get(exerciseId) ?? []),
+      signal,
+    ]);
+  }
+
+  return [...signalsByExercise.values()]
+    .filter((signals) => signals.length >= 2)
+    .map((signals) => signals.sort((left, right) => right.entry.time - left.entry.time)[0]);
+};
 
 const hasActiveExerciseSignal = (
   exerciseLogs: WorkoutExerciseLog[],
@@ -524,11 +727,6 @@ const buildRecoveryMessages = (
     referenceDate,
     RECOVERY_PATTERN_WINDOW_DAYS
   );
-  const missedTargetWindowSessions = filterCompletedSessionsWithinDays(
-    sessions,
-    referenceDate,
-    MISSED_TARGET_PATTERN_WINDOW_DAYS
-  );
   const unresolvedPainExerciseLogs = getUnresolvedSignalExerciseLogs(
     recoveryWindowSessions,
     (exerciseLog) => exerciseLog.badgeIds.includes("pain")
@@ -537,10 +735,12 @@ const buildRecoveryMessages = (
     recoveryWindowSessions,
     (exerciseLog) => exerciseLog.badgeIds.includes("form_issue")
   );
-  const unresolvedMissedTargetExerciseLogs = getUnresolvedSignalExerciseLogs(
-    missedTargetWindowSessions,
-    (exerciseLog) =>
-      hasMissedTargetSignal(exerciseLog) && !hasLoadTooHighSignal(exerciseLog)
+  const unresolvedLoadSelectionPatternEntries =
+    getUnresolvedLoadSelectionPatternEntries(recoveryWindowSessions);
+  const loadSelectionExerciseIds = new Set(
+    unresolvedLoadSelectionPatternEntries.map(
+      ({ entry }) => entry.exerciseLog.exerciseId
+    )
   );
   const painExerciseLabels = getSignalLabels(
     unresolvedPainExerciseLogs,
@@ -550,11 +750,13 @@ const buildRecoveryMessages = (
     unresolvedFormIssueExerciseLogs,
     (exerciseLog) => exerciseLog.badgeIds.includes("form_issue")
   );
-  const missedTargetLabels = getSignalLabels(
-    unresolvedMissedTargetExerciseLogs,
-    (exerciseLog) =>
-      hasMissedTargetSignal(exerciseLog) && !hasLoadTooHighSignal(exerciseLog)
+  const loadSelectionLabels = unresolvedLoadSelectionPatternEntries.map(
+    ({ entry }) => entry.exerciseLog.label
   );
+  const loadSelectionSuggestion =
+    unresolvedLoadSelectionPatternEntries.find(
+      ({ suggestedWeightLabel }) => suggestedWeightLabel
+    ) ?? null;
   const messages: UserMessage[] = [];
 
   if (painExerciseLabels.length >= 2) {
@@ -614,7 +816,7 @@ const buildRecoveryMessages = (
     messages.push({
       body: `${formatExerciseList(
         formIssueLabels
-      )} has repeated form flags. Repeat or reduce the load and make clean reps the goal before increasing.`,
+      )} has repeated form flags. Use a cleaner load or a safer variation before increasing.`,
       category: "recovery",
       id: "recovery-form-pattern",
       lifecycle: createLifecycle({
@@ -638,33 +840,33 @@ const buildRecoveryMessages = (
     });
   }
 
-  if (missedTargetLabels.length >= 2) {
+  if (unresolvedLoadSelectionPatternEntries.length > 0) {
     messages.push({
-      body: `${formatExerciseList(
-        missedTargetLabels
-      )} has missed planned targets repeatedly. Hold the weight steady and earn the full rep target before adding load.`,
+      body: loadSelectionSuggestion?.suggestedWeightLabel
+        ? loadSelectionLabels.length === 1
+          ? `${loadSelectionLabels[0]} is missing the target range across most sets at a load above estimated capacity. Try ${loadSelectionSuggestion.suggestedWeightLabel} next time or choose an easier variation.`
+          : `A few lifts are missing the target range across most sets. Review the loads before progressing. Try ${loadSelectionSuggestion.suggestedWeightLabel} for ${loadSelectionSuggestion.entry.exerciseLog.label}.`
+        : loadSelectionLabels.length === 1
+          ? `${loadSelectionLabels[0]} is missing the target range across most sets. Drop the load or choose an easier variation next time.`
+          : "A few lifts are missing the target range across most sets. Review the loads before progressing.",
       category: "recovery",
-      id: "recovery-missed-targets",
+      id: "recovery-load-selection-pattern",
       lifecycle: createLifecycle({
         dismissalCooldownHours: 24,
         scope: "training_pattern",
-        sourceExerciseIds: getPatternSourceExerciseIds(
-          unresolvedMissedTargetExerciseLogs,
-          (exerciseLog) =>
-            hasMissedTargetSignal(exerciseLog) && !hasLoadTooHighSignal(exerciseLog)
+        sourceExerciseIds: getSourceExerciseIds(
+          unresolvedLoadSelectionPatternEntries.map(({ entry }) => entry.exerciseLog)
         ),
-        stateKey: "missed_targets",
+        stateKey: "load_selection_pattern",
       }),
-      priority: 18,
+      priority: 16,
       severity: "warning",
       surfaces: getRecoverySurfaces(
-        unresolvedMissedTargetExerciseLogs,
+        unresolvedLoadSelectionPatternEntries.map(({ entry }) => entry.exerciseLog),
         activeExerciseId,
-        (exerciseLog) =>
-          hasMissedTargetSignal(exerciseLog) && !hasLoadTooHighSignal(exerciseLog),
-        2
+        (exerciseLog) => loadSelectionExerciseIds.has(exerciseLog.exerciseId)
       ),
-      title: "Targets missed repeatedly",
+      title: "Review load selection",
     });
   }
 
@@ -677,8 +879,6 @@ const buildProgressionMessages = (
 ): UserMessage[] => {
   const summary = buildProgressionSummary(sessions, exerciseHistoryScope);
   const readyCount = summary.readyToProgress.length;
-  const repeatWeightCount = summary.repeatWeight.length;
-  const holdSteadyCount = summary.holdSteady.length;
   const loadTooHighItems = summary.reduceOrModify.filter(
     (item) => item.signal === "load_too_high"
   );
@@ -710,60 +910,16 @@ const buildProgressionMessages = (
     });
   }
 
-  if (repeatWeightCount > 0) {
-    messages.push({
-      body:
-        repeatWeightCount === 1
-          ? `${summary.repeatWeight[0].label} was completed, but should be repeated for cleaner reps.`
-          : `${formatExerciseList(
-              summary.repeatWeight.map((item) => item.label)
-            )} should repeat weight before increasing.`,
-      category: "progressive_overload",
-      id: "progression-repeat-weight",
-      lifecycle: createLifecycle({
-        dismissalCooldownHours: 168,
-        scope: "exercise_action",
-        sourceExerciseIds: summary.repeatWeight.map((item) => item.exerciseId),
-        stateKey: "repeat_weight",
-      }),
-      priority: 55,
-      severity: "info",
-      surfaces: ["workout_summary", "trends"],
-      title: "Repeat and clean it up",
-    });
-  }
-
-  if (holdSteadyCount > 0) {
-    messages.push({
-      body:
-        holdSteadyCount === 1
-          ? `${summary.holdSteady[0].label} needs the same target again before increasing.`
-          : `${formatExerciseList(
-              summary.holdSteady.map((item) => item.label)
-            )} should hold steady next time.`,
-      category: "progressive_overload",
-      id: "progression-hold-steady",
-      lifecycle: createLifecycle({
-        dismissalCooldownHours: 168,
-        scope: "exercise_action",
-        sourceExerciseIds: summary.holdSteady.map((item) => item.exerciseId),
-        stateKey: "hold_steady",
-      }),
-      priority: 60,
-      severity: "info",
-      surfaces: ["workout_summary", "trends"],
-      title: "Hold steady",
-    });
-  }
-
   if (reduceOrModifyCount > 0) {
     messages.push({
-      body:
-        reduceOrModifyCount === 1
-          ? `${loadTooHighItems[0].label} looks too heavy or needs a safer variation next time.`
-          : `${formatExerciseList(
-              loadTooHighItems.map((item) => item.label)
-            )} should be reduced or modified before pushing progression.`,
+      action: {
+        label: "Review plan weights",
+        to: "/plan",
+      },
+      body: getReduceOrModifyMessageBody({
+        items: loadTooHighItems,
+        sessions,
+      }),
       category: "progressive_overload",
       id: "progression-reduce-or-modify",
       lifecycle: createLifecycle({
@@ -857,6 +1013,20 @@ export const buildUserMessages = ({
     const currentProgramSessions = currentProgramScope
       ? filterCurrentProgramWorkoutSessions(activeSessions, currentProgramScope)
       : activeSessions;
+    const messageHistorySessions = currentProgramScope
+      ? currentProgramSessions
+      : activeSessions;
+    const progressionSessions = currentProgramScope
+      ? currentProgramSessions
+      : activeSessions;
+    const progressionHistoryScope =
+      exerciseHistoryScope ??
+      (currentProgramScope
+        ? {
+            currentProgramScope,
+            includePreviousPrograms: false,
+          }
+        : undefined);
     const referenceDate = getReferenceDate(activeSessions);
 
     return sortUserMessages(
@@ -868,12 +1038,19 @@ export const buildUserMessages = ({
             preview,
             referenceDate
           ),
-          ...buildRecoveryMessages(activeSessions, referenceDate, activeExerciseId),
+          ...buildRecoveryMessages(
+            messageHistorySessions,
+            referenceDate,
+            activeExerciseId
+          ),
           ...buildPersonalRecordMessages(
             activeSessions,
             recentlyCompletedSessionId
           ),
-          ...buildProgressionMessages(activeSessions, exerciseHistoryScope),
+          ...buildProgressionMessages(
+            progressionSessions,
+            progressionHistoryScope
+          ),
         ].filter((message): message is UserMessage => Boolean(message)),
         messagePreferences,
         now

@@ -25,12 +25,14 @@ const createExerciseLog = ({
   badgeIds = [],
   exerciseId = "barbell_bench_press",
   label = "Bench Press",
+  targetReps = "8-10",
   weight = 135,
 }: {
   actualReps?: number[];
   badgeIds?: WorkoutBadgeId[];
   exerciseId?: string;
   label?: string;
+  targetReps?: string;
   weight?: number;
 } = {}): WorkoutExerciseLog => ({
   badgeIds,
@@ -41,7 +43,7 @@ const createExerciseLog = ({
   plannedExerciseId: exerciseId,
   plannedLabel: label,
   prescriptionSnapshot: {
-    reps: "8-10",
+    reps: targetReps,
     restSeconds: 120,
     sets: 3,
     suggestedWeight: weight,
@@ -51,7 +53,7 @@ const createExerciseLog = ({
     actualReps: actualReps[index],
     completed: actualReps[index] !== undefined,
     setNumber: index + 1,
-    targetReps: "8-10",
+    targetReps,
     weight,
     weightUnit: "lb",
   })),
@@ -391,22 +393,273 @@ describe("user messages", () => {
       "workout-complete-session-1",
       "progression-reduce-or-modify",
       "progression-ready",
-      "progression-repeat-weight",
-      "progression-hold-steady",
     ]);
     expect(messages.find((message) => message.id === "progression-ready")?.body).toContain(
       "Bench Press"
     );
     expect(
-      messages.find((message) => message.id === "progression-repeat-weight")?.body
-    ).toContain("Barbell Row");
+      messages.some((message) => message.id === "progression-repeat-weight")
+    ).toBe(false);
+    const reduceOrModifyMessage = messages.find(
+      (message) => message.id === "progression-reduce-or-modify"
+    );
+
+    expect(reduceOrModifyMessage?.body).toContain("Back Squat");
+    expect(reduceOrModifyMessage?.body).toContain(
+      "missing the target range across most sets"
+    );
+    expect(reduceOrModifyMessage?.action).toEqual({
+      label: "Review plan weights",
+      to: "/plan",
+    });
+  });
+
+  it("adds a feasible target to load-too-high messages when prior history supports it", () => {
+    const priorSession = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [10, 10, 10],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 100,
+        }),
+      ],
+      id: "session-prior",
+      scheduledFor: "2026-07-01T12:00:00.000Z",
+    });
+    const hardSession = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [6, 6, 5],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 135,
+        }),
+      ],
+      id: "session-hard",
+      scheduledFor: "2026-07-08T12:00:00.000Z",
+    });
+
+    const message = buildUserMessages({
+      recentlyCompletedSessionId: hardSession._id,
+      sessions: [priorSession, hardSession],
+    }).find((candidate) => candidate.id === "progression-reduce-or-modify");
+
+    expect(message?.body).toContain("Try 95 lb next time");
+  });
+
+  it("separates repeated load-selection misses from generic missed-target warnings", () => {
+    const priorSession = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [10, 10, 10],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 100,
+        }),
+      ],
+      id: "session-prior",
+      scheduledFor: "2026-07-01T12:00:00.000Z",
+    });
+    const firstMiss = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [6, 6, 6],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 135,
+        }),
+      ],
+      id: "session-miss-1",
+      scheduledFor: "2026-07-08T12:00:00.000Z",
+    });
+    const secondMiss = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [6, 6, 5],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 135,
+        }),
+      ],
+      id: "session-miss-2",
+      scheduledFor: "2026-07-15T12:00:00.000Z",
+    });
+
+    const messages = buildUserMessages({
+      sessions: [priorSession, firstMiss, secondMiss],
+    });
+
+    const loadSelectionMessage = messages.find(
+      (message) => message.id === "recovery-load-selection-pattern"
+    );
+
+    expect(loadSelectionMessage?.title).toBe("Review load selection");
+    expect(loadSelectionMessage?.body).toContain("above estimated capacity");
+    expect(loadSelectionMessage?.body).toContain("Try");
+    expect(loadSelectionMessage?.surfaces).toContain("trends");
     expect(
-      messages.find((message) => message.id === "progression-hold-steady")?.body
-    ).toContain("Lat Pulldown");
+      messages.some((message) => message.id === "recovery-missed-targets")
+    ).toBe(false);
+  });
+
+  it("requires repeated load-selection evidence for the same exercise", () => {
+    const priorSession = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [10, 10, 10],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 100,
+        }),
+        createExerciseLog({
+          actualReps: [10, 10, 10],
+          exerciseId: "back_squat",
+          label: "Back Squat",
+          weight: 100,
+        }),
+      ],
+      id: "session-prior",
+      scheduledFor: "2026-07-01T12:00:00.000Z",
+    });
+    const mixedMisses = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [6, 6, 5],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 135,
+        }),
+        createExerciseLog({
+          actualReps: [6, 6, 5],
+          exerciseId: "back_squat",
+          label: "Back Squat",
+          weight: 135,
+        }),
+      ],
+      id: "session-mixed-misses",
+      scheduledFor: "2026-07-08T12:00:00.000Z",
+    });
+
+    const messages = buildUserMessages({
+      sessions: [priorSession, mixedMisses],
+    });
+
     expect(
-      messages.find((message) => message.id === "progression-reduce-or-modify")
-        ?.body
-    ).toContain("Back Squat");
+      messages.some((message) => message.id === "recovery-load-selection-pattern")
+    ).toBe(false);
+  });
+
+  it("does not create drop-load messages for normal rep-range fatigue", () => {
+    const priorSession = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [12, 12, 12],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          targetReps: "8-12",
+          weight: 100,
+        }),
+      ],
+      id: "session-prior",
+      scheduledFor: "2026-07-01T12:00:00.000Z",
+    });
+    const firstFatigueSession = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [12, 9, 6],
+          badgeIds: ["missed_reps"],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          targetReps: "8-12",
+          weight: 135,
+        }),
+      ],
+      id: "session-fatigue-1",
+      scheduledFor: "2026-07-08T12:00:00.000Z",
+    });
+    const secondFatigueSession = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [8, 8, 7],
+          badgeIds: ["missed_reps"],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          targetReps: "8-12",
+          weight: 135,
+        }),
+      ],
+      id: "session-fatigue-2",
+      scheduledFor: "2026-07-15T12:00:00.000Z",
+    });
+
+    const messages = buildUserMessages({
+      recentlyCompletedSessionId: secondFatigueSession._id,
+      sessions: [priorSession, firstFatigueSession, secondFatigueSession],
+    });
+
+    expect(
+      messages.some((message) => message.id === "progression-reduce-or-modify")
+    ).toBe(false);
+    expect(
+      messages.some((message) => message.id === "recovery-load-selection-pattern")
+    ).toBe(false);
+  });
+
+  it("does not persist repeat-load or hold-steady messages for normal fatigue", () => {
+    const sessions = [
+      createSession({
+        exerciseLogs: [
+          createExerciseLog({
+            actualReps: [12, 12, 12],
+            exerciseId: "barbell_bench_press",
+            label: "Bench Press",
+            targetReps: "8-12",
+            weight: 100,
+          }),
+        ],
+        id: "session-prior",
+        scheduledFor: "2026-07-01T12:00:00.000Z",
+      }),
+      createSession({
+        exerciseLogs: [
+          createExerciseLog({
+            actualReps: [12, 9, 6],
+            badgeIds: ["missed_reps"],
+            exerciseId: "barbell_bench_press",
+            label: "Bench Press",
+            targetReps: "8-12",
+            weight: 105,
+          }),
+        ],
+        id: "session-fatigue",
+        scheduledFor: "2026-07-08T12:00:00.000Z",
+      }),
+    ];
+    const messages = buildUserMessages({
+      recentlyCompletedSessionId: "session-fatigue",
+      sessions,
+    });
+    const persistedMessages = [
+      ...getUserMessagesForSurface(messages, "dashboard"),
+      ...getUserMessagesForSurface(messages, "workout_summary"),
+      ...getUserMessagesForSurface(messages, "trends"),
+    ];
+
+    expect(
+      persistedMessages.some((message) =>
+        ["progression-repeat-weight", "recovery-missed-targets"].includes(
+          message.id
+        )
+      )
+    ).toBe(false);
+    expect(
+      persistedMessages.some((message) =>
+        /hold steady|repeat (?:the )?(?:load|weight)/i.test(
+          `${message.title} ${message.body}`
+        )
+      )
+    ).toBe(false);
   });
 
   it("prioritizes pain cautions on the workout summary", () => {
@@ -573,7 +826,7 @@ describe("user messages", () => {
     ).toBe(false);
   });
 
-  it("adds repeated missed target recovery messages", () => {
+  it("keeps repeated missed-target-only guidance quiet", () => {
     const messages = buildUserMessages({
       sessions: [
         createSession({
@@ -603,7 +856,7 @@ describe("user messages", () => {
 
     expect(
       messages.some((message) => message.id === "recovery-missed-targets")
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("resolves missed-target messages when the latest exercise log hits targets", () => {
@@ -961,6 +1214,132 @@ describe("user messages", () => {
     expect(
       messages.some((message) => message.id === "weekly-target-complete")
     ).toBe(false);
+  });
+
+  it("does not show archived load-reduction coaching for a new current program", () => {
+    const archivedPriorSession = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [10, 10, 10],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 100,
+        }),
+      ],
+      id: "archived-prior",
+      programHistoryId: "history-1",
+      programId: "bro_split",
+      programVersion: 1,
+      scheduledFor: "2026-06-24T12:00:00.000Z",
+    });
+    const archivedLoadTooHighSession = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [6, 6, 5],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 185,
+        }),
+      ],
+      id: "archived-load-too-high",
+      programHistoryId: "history-1",
+      programId: "bro_split",
+      programVersion: 1,
+      scheduledFor: "2026-07-01T12:00:00.000Z",
+    });
+    const archivedSecondLoadTooHighSession = createSession({
+      exerciseLogs: [
+        createExerciseLog({
+          actualReps: [6, 6, 5],
+          exerciseId: "barbell_bench_press",
+          label: "Bench Press",
+          weight: 185,
+        }),
+      ],
+      id: "archived-load-too-high-2",
+      programHistoryId: "history-1",
+      programId: "bro_split",
+      programVersion: 1,
+      scheduledFor: "2026-07-08T12:00:00.000Z",
+    });
+
+    const messages = buildUserMessages({
+      currentProgramScope: {
+        activeProgramHistoryId: "history-2",
+        programId: "full_body_3_day",
+        programVersion: 2,
+        workoutPlanId: "plan-1",
+      },
+      sessions: [
+        archivedPriorSession,
+        archivedLoadTooHighSession,
+        archivedSecondLoadTooHighSession,
+      ],
+    });
+
+    expect(
+      messages.some((message) => message.id === "progression-reduce-or-modify")
+    ).toBe(false);
+    expect(
+      messages.some((message) => message.id === "recovery-load-selection-pattern")
+    ).toBe(false);
+  });
+
+  it("keeps archived load-selection patterns visible in all-time history", () => {
+    const archivedSessions = [
+      createSession({
+        exerciseLogs: [
+          createExerciseLog({
+            actualReps: [10, 10, 10],
+            exerciseId: "barbell_bench_press",
+            label: "Bench Press",
+            weight: 100,
+          }),
+        ],
+        id: "archived-prior",
+        programHistoryId: "history-1",
+        programId: "bro_split",
+        programVersion: 1,
+        scheduledFor: "2026-06-24T12:00:00.000Z",
+      }),
+      createSession({
+        exerciseLogs: [
+          createExerciseLog({
+            actualReps: [6, 6, 5],
+            exerciseId: "barbell_bench_press",
+            label: "Bench Press",
+            weight: 185,
+          }),
+        ],
+        id: "archived-load-too-high",
+        programHistoryId: "history-1",
+        programId: "bro_split",
+        programVersion: 1,
+        scheduledFor: "2026-07-01T12:00:00.000Z",
+      }),
+      createSession({
+        exerciseLogs: [
+          createExerciseLog({
+            actualReps: [6, 6, 5],
+            exerciseId: "barbell_bench_press",
+            label: "Bench Press",
+            weight: 185,
+          }),
+        ],
+        id: "archived-load-too-high-2",
+        programHistoryId: "history-1",
+        programId: "bro_split",
+        programVersion: 1,
+        scheduledFor: "2026-07-08T12:00:00.000Z",
+      }),
+    ];
+    const messages = buildUserMessages({
+      sessions: archivedSessions,
+    });
+
+    expect(
+      messages.some((message) => message.id === "recovery-load-selection-pattern")
+    ).toBe(true);
   });
 
   it("counts only current 3-day program sessions after switching from a 5-day plan", () => {

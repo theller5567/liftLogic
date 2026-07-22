@@ -26,6 +26,12 @@ import type {
 } from "../../../shared/utils/workoutSessionScope";
 import { normalizeLibraryIdToEstimatorKey } from "../../../shared/utils/exerciseLibraryAdapter";
 import {
+  getLoadFeasibility,
+  parsePrescriptionTopReps,
+  type LoadFeasibilityResult,
+} from "../../../shared/utils/loadFeasibility";
+import { resolveLoadFeasibilityCapacity } from "../../../shared/utils/loadFeasibilityCapacity";
+import {
   getProgressiveOverloadRecommendation,
   getMostRecentPriorWeekExerciseLog,
   shouldShowWeightIncreaseAdvisory,
@@ -52,6 +58,10 @@ type AdvisoryAttempt = {
   nextWeight: number;
   previousWeight: number;
   setIndex: number;
+};
+
+type FeasibilityIncreaseAttempt = AdvisoryAttempt & {
+  feasibility: LoadFeasibilityResult;
 };
 
 type SetUiState = "active" | "completed" | "inactive";
@@ -123,6 +133,24 @@ const formatTimerExerciseTarget = (exerciseLog: WorkoutExerciseLog) => {
   return `${sets} sets • ${reps} reps${load}`;
 };
 
+const getFeasibilityStatusLabel = (
+  status: LoadFeasibilityResult["status"] | undefined
+) => {
+  switch (status) {
+    case "safe":
+      return "Manageable";
+    case "challenging":
+      return "Challenging";
+    case "limit":
+      return "Near limit";
+    case "too_heavy":
+      return "Too heavy";
+    case "unknown":
+    default:
+      return "Unknown";
+  }
+};
+
 const WorkoutExercise = () => {
   const { exerciseIndex } = useParams();
   const location = useLocation();
@@ -134,6 +162,8 @@ const WorkoutExercise = () => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [advisoryAttempt, setAdvisoryAttempt] =
     useState<AdvisoryAttempt | null>(null);
+  const [feasibilityIncreaseAttempt, setFeasibilityIncreaseAttempt] =
+    useState<FeasibilityIncreaseAttempt | null>(null);
   const [noteBadgeDraft, setNoteBadgeDraft] = useState<NoteBadgeDraft | null>(
     null
   );
@@ -181,9 +211,13 @@ const WorkoutExercise = () => {
     }
 
     const timer = window.setInterval(() => {
-      setRestSeconds((currentSeconds) =>
-        currentSeconds === null ? null : Math.max(0, currentSeconds - 1)
-      );
+      setRestSeconds((currentSeconds) => {
+        if (currentSeconds === null) {
+          return null;
+        }
+
+        return currentSeconds <= 1 ? null : currentSeconds - 1;
+      });
     }, 1000);
 
     return () => window.clearInterval(timer);
@@ -264,6 +298,7 @@ const WorkoutExercise = () => {
         ? getUserMessagesForSurface(
             buildUserMessages({
               activeExerciseId: activeExercise.exerciseId,
+              currentProgramScope,
               exerciseHistoryScope,
               messagePreferences: settings.messages,
               sessions: [...priorSessions, session],
@@ -271,7 +306,14 @@ const WorkoutExercise = () => {
             "workout_exercise"
           )
         : [],
-    [activeExercise, exerciseHistoryScope, priorSessions, session, settings.messages]
+    [
+      activeExercise,
+      currentProgramScope,
+      exerciseHistoryScope,
+      priorSessions,
+      session,
+      settings.messages,
+    ]
   );
   const {
     dismissMessage: dismissExerciseMessage,
@@ -309,15 +351,130 @@ const WorkoutExercise = () => {
     activeExercise?.prescriptionSnapshot.suggestedWeight;
   const adjustedWeightUnit =
     activeExercise?.prescriptionSnapshot.weightUnit ?? "lb";
-  const suggestedAdjustmentWeight =
-    progressionRecommendation?.recommendedWeight ??
-    (currentExerciseTargetWeight !== undefined
+  const activeExerciseEstimatorKey = activeExercise
+    ? normalizeLibraryIdToEstimatorKey(activeExercise.exerciseId)
+    : null;
+  const activeExerciseFeasibility = useMemo(() => {
+    if (
+      !activeExercise ||
+      !activeExerciseEstimatorKey ||
+      currentExerciseTargetWeight === undefined
+    ) {
+      return null;
+    }
+
+    const capacity = resolveLoadFeasibilityCapacity({
+      canonicalEstimatorKey: activeExerciseEstimatorKey,
+      exerciseId: activeExercise.exerciseId,
+      workoutSessions: priorSessions,
+      weightUnit: adjustedWeightUnit,
+    });
+    const equipmentType =
+      weightEstimationRules.exerciseMeta[activeExerciseEstimatorKey].equipmentType;
+
+    return getLoadFeasibility({
+      assignedWeight: currentExerciseTargetWeight,
+      capacity: capacity.capacity,
+      confidence: capacity.confidence,
+      equipmentType,
+      reps: activeExercise.prescriptionSnapshot.reps,
+      sets: activeExercise.prescriptionSnapshot.sets,
+      weightUnit: adjustedWeightUnit,
+    });
+  }, [
+    activeExercise,
+    activeExerciseEstimatorKey,
+    adjustedWeightUnit,
+    currentExerciseTargetWeight,
+    priorSessions,
+  ]);
+  const getFeasibilityForWeight = (nextWeight: number) => {
+    if (!activeExercise || !activeExerciseEstimatorKey) {
+      return null;
+    }
+
+    const capacity = resolveLoadFeasibilityCapacity({
+      canonicalEstimatorKey: activeExerciseEstimatorKey,
+      exerciseId: activeExercise.exerciseId,
+      workoutSessions: priorSessions,
+      weightUnit: adjustedWeightUnit,
+    });
+    const equipmentType =
+      weightEstimationRules.exerciseMeta[activeExerciseEstimatorKey].equipmentType;
+
+    return getLoadFeasibility({
+      assignedWeight: nextWeight,
+      capacity: capacity.capacity,
+      confidence: capacity.confidence,
+      equipmentType,
+      reps: activeExercise.prescriptionSnapshot.reps,
+      sets: activeExercise.prescriptionSnapshot.sets,
+      weightUnit: adjustedWeightUnit,
+    });
+  };
+  const earlyMissLoadSignal = useMemo(() => {
+    if (!activeExercise || allSetsCompleted) {
+      return false;
+    }
+
+    const targetReps = parsePrescriptionTopReps(
+      activeExercise.prescriptionSnapshot.reps
+    );
+
+    if (!targetReps) {
+      return false;
+    }
+
+    const completedSets = activeExercise.sets.filter(
+      (setLog) => setLog.completed && setLog.actualReps !== undefined
+    );
+    let severeMissCount = 0;
+    let largestMiss = 0;
+
+    for (const setLog of completedSets) {
+      const setTargetReps =
+        parsePrescriptionTopReps(setLog.targetReps ?? "") ?? targetReps;
+      const miss = Math.max(0, setTargetReps - (setLog.actualReps ?? 0));
+
+      largestMiss = Math.max(largestMiss, miss);
+
+      if (miss >= 2) {
+        severeMissCount += 1;
+      }
+    }
+
+    return largestMiss >= 4 || severeMissCount >= 2;
+  }, [activeExercise, allSetsCompleted]);
+  const showActiveFeasibilityNote =
+    Boolean(activeExerciseFeasibility) &&
+    activeExerciseFeasibility?.status !== "safe" &&
+    activeExerciseFeasibility?.status !== "unknown" &&
+    !allSetsCompleted;
+  const feasibleAdjustmentWeight = activeExerciseFeasibility?.suggestedWeight;
+  const dropOneStepAdjustmentWeight =
+    currentExerciseTargetWeight !== undefined
       ? Math.max(0, currentExerciseTargetWeight - activeExerciseWeightStep)
-      : undefined);
-  const extraReducedAdjustmentWeight =
-    suggestedAdjustmentWeight !== undefined
-      ? Math.max(0, suggestedAdjustmentWeight - activeExerciseWeightStep)
       : undefined;
+  const suggestedAdjustmentWeight =
+    (earlyMissLoadSignal ? dropOneStepAdjustmentWeight : undefined) ??
+    (activeExerciseFeasibility?.status === "too_heavy"
+      ? feasibleAdjustmentWeight
+      : undefined) ??
+    progressionRecommendation?.recommendedWeight ??
+    dropOneStepAdjustmentWeight;
+  const showFeasibleWeightAction =
+    feasibleAdjustmentWeight !== undefined &&
+    feasibleAdjustmentWeight !== currentExerciseTargetWeight &&
+    activeExerciseFeasibility?.status !== "unknown";
+  const showSuggestedAdjustmentAction =
+    !showFeasibleWeightAction &&
+    suggestedAdjustmentWeight !== undefined &&
+    suggestedAdjustmentWeight !== currentExerciseTargetWeight;
+  const showDropOneStepAction =
+    dropOneStepAdjustmentWeight !== undefined &&
+    dropOneStepAdjustmentWeight !== currentExerciseTargetWeight &&
+    dropOneStepAdjustmentWeight !== feasibleAdjustmentWeight &&
+    dropOneStepAdjustmentWeight !== suggestedAdjustmentWeight;
   const timerNextExerciseIndex = useMemo(() => {
     const nextIncompleteIndex = session.exerciseLogs.findIndex(
       (exerciseLog, index) => index > activeExerciseIndex && !exerciseLog.completed
@@ -337,7 +494,6 @@ const WorkoutExercise = () => {
     timerNextExerciseIndex >= 0
       ? session.exerciseLogs[timerNextExerciseIndex]
       : null;
-  const isRestTimerComplete = restSeconds !== null && restSeconds <= 0;
   const shouldOpenAdjustmentSheet = shouldOpenAdjustmentSheetFromRouteState(
     location.state
   );
@@ -475,6 +631,20 @@ const WorkoutExercise = () => {
       return;
     }
 
+    if (direction === "increase") {
+      const feasibility = getFeasibilityForWeight(nextWeight);
+
+      if (feasibility?.status === "too_heavy") {
+        setFeasibilityIncreaseAttempt({
+          feasibility,
+          nextWeight,
+          previousWeight,
+          setIndex,
+        });
+        return;
+      }
+    }
+
     applySetUpdate(setIndex, (currentSet, currentExercise) => ({
       ...currentSet,
       weight: nextWeight,
@@ -493,6 +663,22 @@ const WorkoutExercise = () => {
       weightUnit: setLog.weightUnit ?? exerciseLog.prescriptionSnapshot.weightUnit,
     }));
     setAdvisoryAttempt(null);
+  };
+
+  const applyFeasibilityIncrease = () => {
+    if (!feasibilityIncreaseAttempt) {
+      return;
+    }
+
+    applySetUpdate(
+      feasibilityIncreaseAttempt.setIndex,
+      (setLog, exerciseLog) => ({
+        ...setLog,
+        weight: feasibilityIncreaseAttempt.nextWeight,
+        weightUnit: setLog.weightUnit ?? exerciseLog.prescriptionSnapshot.weightUnit,
+      })
+    );
+    setFeasibilityIncreaseAttempt(null);
   };
 
   const applyProgressionRecommendation = async () => {
@@ -660,14 +846,6 @@ const WorkoutExercise = () => {
     setRestSeconds((currentSeconds) => (currentSeconds ?? 0) + 30);
   };
 
-  const handleSkipRest = () => {
-    setRestSeconds(null);
-
-    if (timerNextExerciseIndex >= 0) {
-      navigate(`/workout/${session._id}/exercise/${timerNextExerciseIndex}`);
-    }
-  };
-
   const openNoteBadgeSheet = () => {
     if (!activeExercise) {
       return;
@@ -788,6 +966,55 @@ const WorkoutExercise = () => {
           />
         ) : null}
 
+        {showActiveFeasibilityNote || earlyMissLoadSignal ? (
+          <aside
+            className={clsx(
+              styles.loadGuardrailCard,
+              (activeExerciseFeasibility?.status === "too_heavy" ||
+                earlyMissLoadSignal) &&
+                styles.loadGuardrailCardDanger
+            )}
+            aria-label="Load feasibility guidance"
+          >
+            <div>
+              <p>Load check</p>
+              <h2>
+                {earlyMissLoadSignal
+                  ? "Consider dropping the remaining sets"
+                  : activeExerciseFeasibility?.status === "too_heavy"
+                    ? "This may be too heavy"
+                    : activeExerciseFeasibility?.status === "limit"
+                      ? "This is near your limit"
+                      : "This should be challenging"}
+              </h2>
+            </div>
+            <span>
+              {earlyMissLoadSignal
+                ? "Your logged reps suggest the current load may be too high for the remaining work."
+                : activeExerciseFeasibility?.reason}
+            </span>
+            {suggestedAdjustmentWeight !== undefined ? (
+              <Button
+                label={`Adjust to ${suggestedAdjustmentWeight} ${adjustedWeightUnit}`}
+                size="small"
+                tone={
+                  activeExerciseFeasibility?.status === "too_heavy" ||
+                  earlyMissLoadSignal
+                    ? "primary"
+                    : "gray"
+                }
+                variant={
+                  activeExerciseFeasibility?.status === "too_heavy" ||
+                  earlyMissLoadSignal
+                    ? undefined
+                    : "outline"
+                }
+                onClick={() => setIsAdjustmentSheetOpen(true)}
+              />
+            ) : null}
+          </aside>
+        ) : null}
+
         {exerciseMessages.length > 0 ? (
           <section className={styles.exerciseMessages} aria-label="Exercise cautions">
             {exerciseMessages.map((message) => (
@@ -872,7 +1099,19 @@ const WorkoutExercise = () => {
         eyebrow={activeExercise.label}
         description="Update the remaining sets for this workout so the target matches what you can complete with clean reps."
         actions={[
-          ...(suggestedAdjustmentWeight !== undefined
+          ...(showFeasibleWeightAction && feasibleAdjustmentWeight !== undefined
+            ? [
+                {
+                  label: `Use feasible weight: ${feasibleAdjustmentWeight} ${adjustedWeightUnit}`,
+                  tone: "primary" as const,
+                  loading: isSaving,
+                  closeOnClick: false,
+                  onClick: () =>
+                    applyExerciseWeightAdjustment(feasibleAdjustmentWeight),
+                },
+              ]
+            : []),
+          ...(showSuggestedAdjustmentAction && suggestedAdjustmentWeight !== undefined
             ? [
                 {
                   label: `Use ${suggestedAdjustmentWeight} ${adjustedWeightUnit}`,
@@ -884,17 +1123,16 @@ const WorkoutExercise = () => {
                 },
               ]
             : []),
-          ...(extraReducedAdjustmentWeight !== undefined &&
-          extraReducedAdjustmentWeight !== suggestedAdjustmentWeight
+          ...(showDropOneStepAction && dropOneStepAdjustmentWeight !== undefined
             ? [
                 {
-                  label: `Drop to ${extraReducedAdjustmentWeight} ${adjustedWeightUnit}`,
+                  label: `Drop one step to ${dropOneStepAdjustmentWeight} ${adjustedWeightUnit}`,
                   tone: "gray" as const,
                   variant: "outline" as const,
                   loading: isSaving,
                   closeOnClick: false,
                   onClick: () =>
-                    applyExerciseWeightAdjustment(extraReducedAdjustmentWeight),
+                    applyExerciseWeightAdjustment(dropOneStepAdjustmentWeight),
                 },
               ]
             : []),
@@ -907,12 +1145,38 @@ const WorkoutExercise = () => {
         ]}
       >
         <div className={styles.adjustmentSheet}>
+          {activeExerciseFeasibility ? (
+            <div
+              className={clsx(
+                styles.adjustmentFeasibility,
+                styles[
+                  `adjustmentFeasibility--${activeExerciseFeasibility.status}`
+                ]
+              )}
+            >
+              <div>
+                <span>Feasibility</span>
+                <strong>
+                  {getFeasibilityStatusLabel(activeExerciseFeasibility.status)}
+                </strong>
+              </div>
+              <p>{activeExerciseFeasibility.reason}</p>
+            </div>
+          ) : null}
           <dl>
             {currentExerciseTargetWeight !== undefined ? (
               <div>
                 <dt>Current target</dt>
                 <dd>
                   {currentExerciseTargetWeight} {adjustedWeightUnit}
+                </dd>
+              </div>
+            ) : null}
+            {feasibleAdjustmentWeight !== undefined ? (
+              <div>
+                <dt>Feasible target</dt>
+                <dd>
+                  {feasibleAdjustmentWeight} {adjustedWeightUnit}
                 </dd>
               </div>
             ) : null}
@@ -1025,32 +1289,58 @@ const WorkoutExercise = () => {
       </BottomSheet>
 
       <BottomSheet
-        open={restSeconds !== null}
-        onClose={() => setRestSeconds(null)}
-        title={isRestTimerComplete ? "Rest complete" : "Resting..."}
-        eyebrow={isRestTimerComplete ? "Next set ready" : "Set complete"}
-        variant="full"
-        className={styles.restTimerBottomSheet}
-        description={
-          isRestTimerComplete
-            ? "Move when you are ready, or add a little more rest if the last set was heavy."
-            : "Use this window to set up your next set or exercise."
-        }
+        open={Boolean(feasibilityIncreaseAttempt)}
+        onClose={() => setFeasibilityIncreaseAttempt(null)}
+        title="This jump looks too heavy"
+        description="This weight is above the estimated feasible range for the planned sets and reps."
         actions={[
           {
             label:
-              isRestTimerComplete && timerNextExercise
-                ? "Start next exercise"
-                : isRestTimerComplete
-                  ? "Done"
-                  : "Skip rest",
+              feasibilityIncreaseAttempt?.feasibility.suggestedWeight !==
+              undefined
+                ? `Use ${feasibilityIncreaseAttempt.feasibility.suggestedWeight} ${adjustedWeightUnit}`
+                : "Use safer load",
             tone: "primary",
-            onClick: handleSkipRest,
+            closeOnClick: false,
+            onClick: () => {
+              const suggestedWeight =
+                feasibilityIncreaseAttempt?.feasibility.suggestedWeight;
+
+              if (suggestedWeight !== undefined) {
+                void applyExerciseWeightAdjustment(suggestedWeight);
+              }
+
+              setFeasibilityIncreaseAttempt(null);
+            },
           },
           {
-            label: "+30 sec",
+            label: "Increase anyway",
             tone: "gray",
             variant: "outline",
+            onClick: applyFeasibilityIncrease,
+          },
+        ]}
+      >
+        <p className={styles.sheetCopy}>
+          {feasibilityIncreaseAttempt
+            ? `Requested jump: ${feasibilityIncreaseAttempt.previousWeight} ${adjustedWeightUnit} to ${feasibilityIncreaseAttempt.nextWeight} ${adjustedWeightUnit}. `
+            : ""}
+          {feasibilityIncreaseAttempt?.feasibility.reason}
+        </p>
+      </BottomSheet>
+
+      <BottomSheet
+        open={restSeconds !== null}
+        onClose={() => setRestSeconds(null)}
+        title="Resting..."
+        eyebrow="Set complete"
+        variant="full"
+        className={styles.restTimerBottomSheet}
+        description="Use this window to set up your next set or exercise."
+        actions={[
+          {
+            label: "+30 sec",
+            tone: "primary",
             closeOnClick: false,
             onClick: handleAddRestTime,
           },
@@ -1063,12 +1353,7 @@ const WorkoutExercise = () => {
         ]}
       >
         <div className={styles.restTimerSheet}>
-          <p
-            className={clsx(
-              styles.timer,
-              isRestTimerComplete && styles.timerComplete
-            )}
-          >
+          <p className={styles.timer}>
             {formatTimer(restSeconds ?? 0)}
           </p>
           {timerNextExercise ? (

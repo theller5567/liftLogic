@@ -80,7 +80,10 @@ const MetricCard = ({
 const getTrendMessageActionLabel = (
   message: UserMessage,
   sessions: WorkoutSessionDto[]
-) => resolveMessageExerciseAction(message, sessions)?.actionLabel ?? null;
+) =>
+  resolveMessageExerciseAction(message, sessions)?.actionLabel ??
+  message.action?.label ??
+  null;
 
 const Trends = () => {
   const navigate = useNavigate();
@@ -157,6 +160,8 @@ const Trends = () => {
     () =>
       getUserMessagesForSurface(
         buildUserMessages({
+          currentProgramScope:
+            trendScope === "current_program" ? currentProgramScope : undefined,
           exerciseHistoryScope,
           messagePreferences: settings.messages,
           recentlyCompletedSessionId: latestCompletedSessionId,
@@ -169,6 +174,8 @@ const Trends = () => {
       latestCompletedSessionId,
       scopedSessions,
       settings.messages,
+      trendScope,
+      currentProgramScope,
     ]
   );
   const { dismissMessage: dismissTrendMessage, visibleMessages: trendMessages } =
@@ -233,7 +240,9 @@ const Trends = () => {
   const navigateToExerciseAdjustment = (target: MessageExerciseActionTarget) => {
     setMessageActionTargets([]);
     navigate(target.to, {
-      state: { openAdjustmentSheet: true },
+      state: target.openAdjustmentSheet
+        ? { openAdjustmentSheet: true }
+        : undefined,
     });
   };
 
@@ -241,6 +250,10 @@ const Trends = () => {
     const exerciseAction = resolveMessageExerciseAction(message, scopedSessions);
 
     if (!exerciseAction) {
+      if (message.action?.to) {
+        navigate(message.action.to);
+      }
+
       return;
     }
 

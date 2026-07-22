@@ -442,7 +442,9 @@ const Dashboard = () => {
   const navigateToExerciseAdjustment = (target: MessageExerciseActionTarget) => {
     setMessageActionTargets([]);
     navigate(target.to, {
-      state: { openAdjustmentSheet: true },
+      state: target.openAdjustmentSheet
+        ? { openAdjustmentSheet: true }
+        : undefined,
     });
   };
 

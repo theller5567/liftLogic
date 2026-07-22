@@ -566,6 +566,7 @@ const SettingsForm = ({
         </BottomSheet>
         <BottomSheet
           open={resetProgramConfirmOpen}
+          variant="full"
           onClose={() => {
             if (!isResettingProgramProgress) {
               setResetProgramConfirmOpen(false);
@@ -607,6 +608,7 @@ const SettingsForm = ({
         </BottomSheet>
         <BottomSheet
           open={deleteWorkoutPlanConfirmOpen}
+          variant="full"
           onClose={() => {
             if (!isDeletingWorkoutPlan) {
               setDeleteWorkoutPlanConfirmOpen(false);
@@ -646,6 +648,7 @@ const SettingsForm = ({
         </BottomSheet>
         <BottomSheet
           open={deleteAllAppDataConfirmOpen}
+          variant="full"
           onClose={() => {
             if (!isDeletingAllAppData) {
               setDeleteAllAppDataConfirmOpen(false);

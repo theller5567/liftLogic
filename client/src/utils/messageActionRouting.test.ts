@@ -86,6 +86,7 @@ describe("message action routing", () => {
           exerciseId: "bench",
           exerciseIndex: 0,
           exerciseLabel: "Bench Press",
+          openAdjustmentSheet: true,
           sessionId: "session-1",
           sessionLabel: "Upper",
           to: "/workout/session-1/exercise/0",
@@ -109,6 +110,7 @@ describe("message action routing", () => {
     ]);
 
     expect(resolution?.actionLabel).toBe("Review exercise");
+    expect(resolution?.targets[0].openAdjustmentSheet).toBe(false);
   });
 
   it("resolves multiple active exercise targets for chooser flows", () => {

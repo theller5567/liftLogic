@@ -9,6 +9,7 @@ import {
 } from "../../../shared/constants/exercise-library";
 import type { EquipmentItemId } from "../../../shared/constants/equipmentCatalog";
 import type { OnboardingAnswers } from "../../../shared/types/onboarding.types";
+import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
 import { canPerformExercise } from "../../../shared/utils/equipmentRequirements";
 import { getExerciseById } from "../../../shared/utils/exerciseLibraryAdapter";
 
@@ -28,6 +29,10 @@ import {
 } from "../utils/motion";
 import { formatWorkoutDisplayLabel } from "../utils/workoutDisplayLabel";
 import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
+import {
+  buildWorkoutPreviewFeasibilityAudit,
+  getWorkoutPreviewExerciseFeasibility,
+} from "../utils/workoutPreviewFeasibilityAudit";
 import Weights from "../assets/icons/010-weights.svg?react";
 import LifeLine from "../assets/icons/047-life-line.svg?react";
 import TotalSets from "../assets/icons/total-sets.svg?react";
@@ -38,10 +43,12 @@ import type {
 
 type WorkoutPreviewProps = {
   availableEquipment?: EquipmentItemId[];
+  baselinePreview?: GeneratedWorkoutPreview;
   editPresentation?: "combined" | "review_actions";
   editableExerciseIds?: Set<string>;
   onboardingAnswers?: OnboardingAnswers;
   preview: GeneratedWorkoutPreview;
+  workoutSessions?: WorkoutSessionDto[];
   onPreviewChange?: (preview: GeneratedWorkoutPreview) => void;
 };
 
@@ -161,7 +168,10 @@ const getPreviewResetKey = (preview: GeneratedWorkoutPreview) =>
     preview.days
       .map((day) =>
         `${day.id}:${day.exercises
-          .map((exercise) => `${exercise.id}:${exercise.exerciseId}`)
+          .map(
+            (exercise) =>
+              `${exercise.id}:${exercise.exerciseId}:${exercise.suggestedWeight ?? "none"}`
+          )
           .join(",")}`
       )
       .join("|"),
@@ -176,10 +186,12 @@ const WorkoutPreview = (props: WorkoutPreviewProps) => (
 
 const WorkoutPreviewContent = ({
   availableEquipment = [],
+  baselinePreview,
   editPresentation = "combined",
   editableExerciseIds,
   onboardingAnswers,
   preview,
+  workoutSessions,
   onPreviewChange,
 }: WorkoutPreviewProps) => {
   const location = useLocation();
@@ -494,6 +506,77 @@ const WorkoutPreviewContent = ({
     ? formatEstimatedWorkoutTime(activeDay.exercises)
     : "";
   const repRange = activeDay ? formatWorkoutRepRange(activeDay.exercises) : "";
+  const feasibilityAudit = useMemo(
+    () =>
+      editPresentation === "review_actions"
+        ? buildWorkoutPreviewFeasibilityAudit({
+            baselinePreview,
+            onboardingAnswers,
+            preview: workingPreview,
+            workoutSessions,
+          })
+        : [],
+    [
+      baselinePreview,
+      editPresentation,
+      onboardingAnswers,
+      workingPreview,
+      workoutSessions,
+    ]
+  );
+  const baselineWeightsByExercise = useMemo(() => {
+    const weightsByExercise = new Map<string, number>();
+
+    for (const day of baselinePreview?.days ?? []) {
+      for (const exercise of day.exercises) {
+        if (exercise.suggestedWeight !== undefined) {
+          weightsByExercise.set(
+            `${exercise.id}:${exercise.exerciseId}`,
+            exercise.suggestedWeight
+          );
+        }
+      }
+    }
+
+    return weightsByExercise;
+  }, [baselinePreview]);
+  const getReviewFeasibility = (
+    exercise: GeneratedWorkoutExercisePreview,
+    assignedWeight = exercise.suggestedWeight
+  ) => {
+    if (editPresentation !== "review_actions") {
+      return undefined;
+    }
+
+    if (baselinePreview) {
+      const baselineWeight = baselineWeightsByExercise.get(
+        `${exercise.id}:${exercise.exerciseId}`
+      );
+
+      if (
+        baselineWeight === undefined ||
+        assignedWeight === undefined ||
+        assignedWeight <= baselineWeight
+      ) {
+        return undefined;
+      }
+    }
+
+    return getWorkoutPreviewExerciseFeasibility({
+      assignedWeight,
+      exercise,
+      onboardingAnswers,
+      workoutSessions,
+    });
+  };
+  const selectedDraftFeasibility = selectedEditExercise
+    ? getWorkoutPreviewExerciseFeasibility({
+        assignedWeight: draftWeight,
+        exercise: selectedEditExercise,
+        onboardingAnswers,
+        workoutSessions,
+      })
+    : undefined;
 
   useEffect(() => {
     dayTabRefs.current[resolvedActiveDayIndex]?.scrollIntoView({
@@ -513,6 +596,30 @@ const WorkoutPreviewContent = ({
       onTabKeyDown={handleDayTabKeyDown}
     />
     <section className={clsx(styles.preview, "grid gap-5")}>
+      {feasibilityAudit.length > 0 ? (
+        <div className={styles.feasibilityAudit} role="status">
+          <div>
+            <strong>
+              {feasibilityAudit.length === 1
+                ? "One starting load needs review"
+                : `${feasibilityAudit.length} starting loads need review`}
+            </strong>
+            <p>
+              Your previous exercise history may not fit this program's sets and
+              reps. Review the flagged weights before continuing.
+            </p>
+          </div>
+          <span>
+            {feasibilityAudit
+              .slice(0, 2)
+              .map((item) => item.exerciseLabel)
+              .join(", ")}
+            {feasibilityAudit.length > 2
+              ? `, and ${feasibilityAudit.length - 2} more`
+              : ""}
+          </span>
+        </div>
+      ) : null}
       <div className={styles.dayPanelViewport}>
         <AnimatePresence mode="wait" initial={false}>
           {activeDay ? (
@@ -575,6 +682,7 @@ const WorkoutPreviewContent = ({
                     exerciseDetailReturnLabel={exerciseDetailReturnLabel}
                     exerciseDetailReturnTo={exerciseDetailReturnTo}
                     exerciseIndex={exerciseIndex}
+                    feasibility={getReviewFeasibility(exercise)}
                     onEditExercise={editExercise}
                   />
                 ))}
@@ -626,7 +734,9 @@ const WorkoutPreviewContent = ({
               {showsWeightEditor ? (
                 <WorkoutPreviewWeightEditor
                   draftWeight={draftWeight}
+                  feasibility={selectedDraftFeasibility}
                   getWeightStep={getWeightStep}
+                  onUseSuggestedWeight={setDraftWeight}
                   selectedEditExercise={selectedEditExercise}
                   updateDraftWeight={updateDraftWeight}
                 />

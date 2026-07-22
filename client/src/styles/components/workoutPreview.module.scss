@@ -2,6 +2,44 @@
   width: min(100%, 64rem);
 }
 
+.feasibilityAudit {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid hsl(var(--clr-secondary-500-b) / 0.45);
+  border-radius: 0.75rem;
+  background: hsl(var(--clr-secondary-500-b) / 0.12);
+  color: hsl(var(--clr-neutral-0-b));
+
+  strong {
+    display: block;
+    margin-block-end: 0.2rem;
+    font-size: 0.95rem;
+  }
+
+  p {
+    margin: 0;
+    color: hsl(var(--clr-neutral-100-b));
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  span {
+    flex: 0 0 auto;
+    max-width: min(18rem, 45%);
+    padding: 0.4rem 0.65rem;
+    border-radius: 999px;
+    background: hsl(var(--clr-neutral-950-b) / 0.55);
+    color: hsl(var(--clr-secondary-500-b));
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1.25;
+    text-align: right;
+  }
+}
+
 .dayTabsContainer {
   display: flex;
   overflow-x: auto;
@@ -332,6 +370,39 @@
   }
 }
 
+.feasibilityBadge {
+  width: fit-content;
+  padding: 0.18rem 0.45rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.18);
+  border-radius: 999px;
+  background: hsl(var(--clr-neutral-900-b) / 0.62);
+  color: hsl(var(--clr-neutral-0-b));
+  font-size: 0.58rem;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.feasibilityBadge--safe {
+  border-color: hsl(var(--clr-primary-500-b) / 0.4);
+  color: hsl(var(--clr-primary-500-b));
+}
+
+.feasibilityBadge--challenging {
+  border-color: hsl(var(--clr-secondary-500-b) / 0.45);
+  color: hsl(var(--clr-secondary-500-b));
+}
+
+.feasibilityBadge--limit {
+  border-color: hsl(42 95% 58% / 0.55);
+  color: hsl(42 95% 68%);
+}
+
+.feasibilityBadge--too_heavy {
+  border-color: hsl(0 78% 58% / 0.58);
+  color: hsl(0 84% 70%);
+}
+
 .exerciseEditButton {
   min-height: 2rem;
   padding-inline: 0.75rem;
@@ -526,6 +597,39 @@
   }
 }
 
+.feasibilityPanel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid hsl(var(--clr-secondary-500-b) / 0.28);
+  border-radius: 0.75rem;
+  background: hsl(var(--clr-secondary-500-b) / 0.1);
+  color: hsl(var(--clr-neutral-0-b));
+
+  strong,
+  p {
+    margin: 0;
+  }
+
+  strong {
+    display: block;
+    font-size: 0.84rem;
+    line-height: 1.3;
+  }
+
+  p {
+    margin-block-start: 0.35rem;
+    color: hsl(var(--clr-neutral-100-b));
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+}
+
+.feasibilityPanelWarning {
+  border-color: hsl(0 78% 58% / 0.46);
+  background: hsl(0 78% 42% / 0.14);
+}
+
 .weightInputWrapper {
   display: flex;
   align-items: center;
@@ -683,6 +787,17 @@ span.activePill {
   .movementOption--selected,
   .customSwapArea {
     animation: none;
+  }
+}
+
+@media (max-width: 42rem) {
+  .feasibilityAudit {
+    display: grid;
+
+    span {
+      max-width: 100%;
+      text-align: left;
+    }
   }
 }
 

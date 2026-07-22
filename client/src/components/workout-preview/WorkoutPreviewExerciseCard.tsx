@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { ClockIcon } from "lucide-react";
 
 import { getExerciseById } from "../../../../shared/utils/exerciseLibraryAdapter";
+import type { LoadFeasibilityResult } from "../../../../shared/utils/loadFeasibility";
 import type { GeneratedWorkoutExercisePreview } from "../../utils/generateWorkoutPreview";
 import {
   createExerciseSlugFromParts,
@@ -25,6 +26,7 @@ type WorkoutPreviewExerciseCardProps = {
   exerciseDetailReturnLabel: string;
   exerciseDetailReturnTo: string;
   exerciseIndex: number;
+  feasibility?: LoadFeasibilityResult;
   onEditExercise: (
     exercise: GeneratedWorkoutExercisePreview,
     mode?: ExerciseEditMode
@@ -60,6 +62,7 @@ const WorkoutPreviewExerciseCard = ({
   exerciseDetailReturnLabel,
   exerciseDetailReturnTo,
   exerciseIndex,
+  feasibility,
   onEditExercise,
 }: WorkoutPreviewExerciseCardProps) => {
   const isReviewActions = editPresentation === "review_actions";
@@ -128,6 +131,22 @@ const WorkoutPreviewExerciseCard = ({
                 <strong>
                   {exercise.suggestedWeight} {exercise.weightUnit}
                 </strong>
+                {feasibility && feasibility.status !== "unknown" ? (
+                  <span
+                    className={clsx(
+                      styles.feasibilityBadge,
+                      styles[`feasibilityBadge--${feasibility.status}`]
+                    )}
+                  >
+                    {feasibility.status === "safe"
+                      ? "Manageable"
+                      : feasibility.status === "challenging"
+                        ? "Challenging"
+                        : feasibility.status === "limit"
+                          ? "Near limit"
+                          : "Too heavy"}
+                  </span>
+                ) : null}
               </span>
             ) : null}
           </div>
@@ -186,6 +205,17 @@ const WorkoutPreviewExerciseCard = ({
             role="alert"
           >
             Missing equipment: {structuredEquipmentWarning.message}
+          </p>
+        ) : null}
+        {feasibility?.status === "too_heavy" ? (
+          <p
+            className={clsx(
+              styles.exerciseCardNote,
+              styles.exerciseCardWarningNote
+            )}
+            role="alert"
+          >
+            {feasibility.reason}
           </p>
         ) : null}
       </div>

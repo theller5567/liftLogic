@@ -104,6 +104,7 @@ const WorkoutSummary = () => {
     () =>
       getUserMessagesForSurface(
         buildUserMessages({
+          currentProgramScope,
           exerciseHistoryScope,
           messagePreferences: settings.messages,
           recentlyCompletedSessionId: session._id,
@@ -111,7 +112,7 @@ const WorkoutSummary = () => {
         }),
         "workout_summary"
     ),
-    [exerciseHistoryScope, priorSessions, session, settings.messages]
+    [currentProgramScope, exerciseHistoryScope, priorSessions, session, settings.messages]
   );
   const {
     dismissMessage: dismissSummaryMessage,

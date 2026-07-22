@@ -357,7 +357,10 @@ Create a reusable engine that can evaluate a weight against a set/rep prescripti
 - Tests prove the math is stable.
 
 ### Phase Notes
-- Pending.
+- Completed Phase 1.
+- Added `shared/utils/loadFeasibility.ts` with Epley 1RM estimation, inverse Epley single-set capacity, volume-adjusted capacity using a 1.5% fatigue reduction per additional set, prescription top-rep parsing, and structured feasibility statuses.
+- Reused existing unit/equipment rounding and minimum-weight rules so feasibility suggestions match the rest of LiftLogic.
+- Added focused coverage for 175 lb 1RM / 4x12 examples, unknown capacity, kg rounding, new-exercise and low-confidence buffers, and rep-range parsing.
 
 ## Phase 2: Capacity Source Resolver
 
@@ -378,7 +381,11 @@ Teach the feasibility engine where user capacity comes from.
 - The app can explain whether a feasibility result came from onboarding, recent performance, or fallback data.
 
 ### Phase Notes
-- Pending.
+- Completed Phase 2.
+- Added `shared/utils/loadFeasibilityCapacity.ts` to resolve the best available capacity source for an exercise.
+- Source priority is now explicit: recent clean completed performance, direct onboarding anchor, derived onboarding anchor, default estimate, then unknown.
+- Resolver returns source metadata, confidence, canonical estimator key, derived-source info, and plain-language reason text for future UI explanations.
+- Added tests proving source priority, ignored dirty/incomplete logs, derived onboarding anchors, default fallback, and unknown fallback behavior.
 
 ## Phase 3: Workout Review Feasibility Badges
 
@@ -396,7 +403,11 @@ Warn users about unrealistic edited starting weights before they accept a plan.
 - Users can identify and fix unrealistic starting weights during review.
 
 ### Phase Notes
-- Pending.
+- Completed Phase 3.
+- Workout review cards now calculate feasibility for visible weighted exercises and show compact status badges: manageable, challenging, near limit, or too heavy.
+- Weight-edit bottom sheets now re-check the draft weight as the user steps it up or down.
+- Limit and too-heavy drafts show an inline warning with the suggested feasible weight and a `Use suggested weight` action.
+- Manual override remains available because users can still save the entered weight.
 
 ## Phase 4: Active Workout Guardrails
 
@@ -413,7 +424,11 @@ Warn users when active workout loads are likely too heavy for the current prescr
 - The app can prevent or recover from obviously unrealistic active workout loads.
 
 ### Phase Notes
-- Pending.
+- Completed Phase 4.
+- `WorkoutExercise` now checks the current target load against feasibility using recent workout history or default capacity when history is missing.
+- Challenging, near-limit, and too-heavy active loads show a non-blocking load-check card with an adjust-load action.
+- Manual stepper increases into `too_heavy` now open a confirmation bottom sheet with a safer suggested load and an override option.
+- Early severe rep misses during an exercise now recommend dropping remaining sets through the existing adjustment sheet.
 
 ## Phase 5: Adjust Load Bottom Sheet Upgrade
 
@@ -430,7 +445,10 @@ Make the adjust-load workflow smarter and more specific.
 - Message actions and exercise-page warnings lead to a concrete safer load.
 
 ### Phase Notes
-- Pending.
+- Completed Phase 5.
+- The adjust-load bottom sheet now shows the current feasibility status, reason text, and feasible target when available.
+- Added a dedicated `Use feasible weight` action so load-check messages and active workout warnings lead to the safest calculated target.
+- Kept a separate `Drop one step` action for quick manual reduction without replacing the user's ability to keep or manually adjust load from the set controls.
 
 ## Phase 6: Progression Recommendation Safety Check
 
@@ -449,7 +467,12 @@ Prevent LiftLogic from recommending increases that exceed feasible volume.
 - Progressive overload stays ambitious but realistic.
 
 ### Phase Notes
-- Pending.
+- Completed Phase 6.
+- Progressive overload recommendations now run earned increases through the load feasibility engine before suggesting them.
+- Normal earned increases still remain intact.
+- Oversized jumps are reduced to a smaller feasible increase when possible.
+- Jumps that still look too heavy become repeat-weight recommendations instead of unsafe increases.
+- Added tests for normal increases, reduced increases, and too-heavy repeat recommendations.
 
 ## Phase 7: Message System Integration
 
@@ -466,7 +489,9 @@ Use feasibility results to make coaching messages more actionable.
 - Load warning messages explain what to change, not just that something is wrong.
 
 ### Phase Notes
-- Pending.
+- Completed in Phase 7. `Drop the load or modify` messages now include a
+  feasible target when prior clean history supports one, and exercise message
+  actions carry an explicit flag to open the adjust-load sheet.
 
 ## Phase 8: Program Switch Feasibility Audit
 
@@ -483,7 +508,9 @@ Protect users when existing exercise history is reused under a new program presc
 - Program switching does not silently carry unrealistic loads into a new plan.
 
 ### Phase Notes
-- Pending.
+- Completed in Phase 8. Workout review now loads completed workout history and
+  audits the preview against the new prescription, surfacing a review callout
+  when prior strength loads look risky for the new set/rep scheme.
 
 ## Phase 9: Trends And Pattern Insights
 
@@ -500,7 +527,10 @@ Use feasibility to explain repeated missed targets and load-too-high patterns.
 - Trends can distinguish effort problems from load-selection problems.
 
 ### Phase Notes
-- Pending.
+- Completed in Phase 9. Trends/recovery messages now detect repeated missed
+  targets at loads above feasible capacity, explain the pattern as a load
+  selection issue, and suppress the generic missed-target warning for the same
+  exercises.
 
 ## Phase 10: Test And Polish
 
@@ -529,4 +559,9 @@ npm run build
 - The user-facing flow feels helpful, not noisy.
 
 ### Phase Notes
-- Pending.
+- Completed in Phase 10. Verified the full load feasibility flow after the
+  final polish pass: onboarding/review feasibility, active workout warnings,
+  adjust-load guidance, progression safety checks, program-switch audits, and
+  message lifecycle behavior are covered by the current test suite.
+- Validation passed with `npm --prefix client run lint`, `npm test`, and
+  `npm run build`.
