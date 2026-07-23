@@ -3,6 +3,26 @@ import type { WeightUnit } from "../constants/weightEstimationRules";
 import type { OnboardingAnswers } from "./onboarding.types";
 
 export type WeightStepKey = "default" | "barbell" | "dumbbell" | "machine" | "cable";
+export type PlateLoadingUnit = "lb" | "kg";
+export type BarbellPreset = "olympic_mens" | "olympic_womens" | "custom";
+
+export type PlateInventoryItem = {
+  count: number;
+  size: number;
+};
+
+export type PlateInventorySettings = {
+  barbellPreset: BarbellPreset;
+  customBarbellWeight?: number;
+  plates: Record<PlateLoadingUnit, PlateInventoryItem[]>;
+  unit: PlateLoadingUnit;
+};
+
+export type PlateInventorySettingsInput = Partial<
+  Omit<PlateInventorySettings, "plates">
+> & {
+  plates?: Partial<Record<PlateLoadingUnit, PlateInventoryItem[]>>;
+};
 
 export type UserMessageCategory =
   | "completion"
@@ -41,12 +61,17 @@ export type UserSettings = {
     defaultSeconds?: number;
   };
   equipmentInventory?: EquipmentItemId[];
+  plateLoading: PlateInventorySettings;
   theme: {
     primaryColor: string;
     secondaryColor: string;
   };
   messages: UserMessagePreferences;
   exerciseHistory: ExerciseHistoryPreferences;
+};
+
+export type UserSettingsInput = Partial<Omit<UserSettings, "plateLoading">> & {
+  plateLoading?: PlateInventorySettingsInput;
 };
 
 export const DEFAULT_THEME_SETTINGS = {
@@ -78,7 +103,104 @@ export const DEFAULT_EXERCISE_HISTORY_PREFERENCES: ExerciseHistoryPreferences = 
   resetCutoffs: {},
 };
 
+export const BARBELL_PRESET_WEIGHTS: Record<
+  Exclude<BarbellPreset, "custom">,
+  Record<PlateLoadingUnit, number>
+> = {
+  olympic_mens: {
+    kg: 20,
+    lb: 45,
+  },
+  olympic_womens: {
+    kg: 15,
+    lb: 33,
+  },
+};
+
+export const DEFAULT_PLATE_LOADING_SETTINGS: PlateInventorySettings = {
+  barbellPreset: "olympic_mens",
+  plates: {
+    kg: [
+      { count: 4, size: 25 },
+      { count: 4, size: 20 },
+      { count: 2, size: 15 },
+      { count: 4, size: 10 },
+      { count: 4, size: 5 },
+      { count: 4, size: 2.5 },
+      { count: 4, size: 1.25 },
+    ],
+    lb: [
+      { count: 8, size: 45 },
+      { count: 2, size: 35 },
+      { count: 2, size: 25 },
+      { count: 2, size: 10 },
+      { count: 4, size: 5 },
+      { count: 2, size: 2.5 },
+    ],
+  },
+  unit: "lb",
+};
+
 const getDefaultStep = (weightUnit: WeightUnit) => (weightUnit === "kg" ? 2.5 : 5);
+
+export const getPlateLoadingUnit = (
+  settings: Pick<UserSettings, "plateLoading" | "weightUnit">
+): PlateLoadingUnit =>
+  settings.plateLoading.unit ?? (settings.weightUnit === "kg" ? "kg" : "lb");
+
+export const getPlateInventory = (
+  settings: Pick<UserSettings, "plateLoading" | "weightUnit">
+) => {
+  const unit = getPlateLoadingUnit(settings);
+
+  return settings.plateLoading.plates[unit];
+};
+
+export const getBarbellWeight = (
+  settings: Pick<UserSettings, "plateLoading" | "weightUnit">
+) => {
+  const unit = getPlateLoadingUnit(settings);
+  const { barbellPreset, customBarbellWeight } = settings.plateLoading;
+
+  if (barbellPreset === "custom") {
+    return customBarbellWeight && customBarbellWeight > 0
+      ? customBarbellWeight
+      : BARBELL_PRESET_WEIGHTS.olympic_mens[unit];
+  }
+
+  return BARBELL_PRESET_WEIGHTS[barbellPreset][unit];
+};
+
+const mergePlateInventoryItems = (
+  fallbackItems: PlateInventoryItem[],
+  savedItems: PlateInventoryItem[] | undefined
+) =>
+  savedItems?.map((item) => ({ ...item })) ??
+  fallbackItems.map((item) => ({ ...item }));
+
+const mergePlateLoadingSettings = (
+  settings: PlateInventorySettingsInput | undefined,
+  weightUnit: WeightUnit
+): PlateInventorySettings => {
+  const defaultUnit = weightUnit === "kg" ? "kg" : "lb";
+  const unit = settings?.unit ?? defaultUnit;
+
+  return {
+    ...DEFAULT_PLATE_LOADING_SETTINGS,
+    ...settings,
+    plates: {
+      kg: mergePlateInventoryItems(
+        DEFAULT_PLATE_LOADING_SETTINGS.plates.kg,
+        settings?.plates?.kg
+      ),
+      lb: mergePlateInventoryItems(
+        DEFAULT_PLATE_LOADING_SETTINGS.plates.lb,
+        settings?.plates?.lb
+      ),
+    },
+    unit,
+  };
+};
 
 export const createDefaultUserSettings = (
   onboardingAnswers?: Pick<
@@ -103,6 +225,7 @@ export const createDefaultUserSettings = (
       defaultSeconds: undefined,
     },
     equipmentInventory: onboardingAnswers?.availableEquipment,
+    plateLoading: mergePlateLoadingSettings(undefined, weightUnit),
     theme: {
       ...DEFAULT_THEME_SETTINGS,
     },
@@ -122,14 +245,16 @@ export const createDefaultUserSettings = (
 };
 
 export const mergeUserSettings = (
-  settings: Partial<UserSettings> | null | undefined,
+  settings: UserSettingsInput | null | undefined,
   onboardingAnswers?: Pick<OnboardingAnswers, "weightUnit">
 ): UserSettings => {
   const defaults = createDefaultUserSettings(onboardingAnswers);
+  const weightUnit = settings?.weightUnit ?? defaults.weightUnit;
 
   return {
     ...defaults,
     ...settings,
+    weightUnit,
     weightSteps: {
       ...defaults.weightSteps,
       ...settings?.weightSteps,
@@ -140,6 +265,7 @@ export const mergeUserSettings = (
     },
     equipmentInventory:
       settings?.equipmentInventory ?? defaults.equipmentInventory,
+    plateLoading: mergePlateLoadingSettings(settings?.plateLoading, weightUnit),
     theme: {
       ...defaults.theme,
       ...settings?.theme,

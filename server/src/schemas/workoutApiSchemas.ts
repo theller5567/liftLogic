@@ -314,6 +314,28 @@ const exerciseHistoryPreferencesSchema = z
   })
   .strict();
 
+const plateLoadingUnitSchema = z.enum(["lb", "kg"]);
+const barbellPresetSchema = z.enum(["olympic_mens", "olympic_womens", "custom"]);
+const plateInventoryItemSchema = z
+  .object({
+    count: z.number().finite().int().min(0).max(100),
+    size: z.number().finite().positive().max(100),
+  })
+  .strict();
+const plateInventorySettingsSchema = z
+  .object({
+    barbellPreset: barbellPresetSchema,
+    customBarbellWeight: z.number().finite().positive().max(500).optional(),
+    plates: z
+      .object({
+        kg: z.array(plateInventoryItemSchema).max(40),
+        lb: z.array(plateInventoryItemSchema).max(40),
+      })
+      .strict(),
+    unit: plateLoadingUnitSchema,
+  })
+  .strict();
+
 export const userSettingsSchema = z
   .object({
     weightUnit: weightUnitSchema,
@@ -325,6 +347,7 @@ export const userSettingsSchema = z
       })
       .strict(),
     equipmentInventory: z.array(equipmentItemSchema).max(80).optional(),
+    plateLoading: plateInventorySettingsSchema,
     theme: z
       .object({
         primaryColor: colorSchema,

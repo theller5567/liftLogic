@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_EXERCISE_HISTORY_PREFERENCES,
   DEFAULT_MESSAGE_PREFERENCES,
+  DEFAULT_PLATE_LOADING_SETTINGS,
 } from "../../../shared/types/userSettings.types";
 import type { CurrentAppData } from "./appDataCache";
 import {
@@ -59,6 +60,17 @@ const createAppData = (): CurrentAppData =>
       restTimer: {
         autoStartAfterSet: false,
         defaultSeconds: 90,
+      },
+      plateLoading: {
+        ...DEFAULT_PLATE_LOADING_SETTINGS,
+        plates: {
+          kg: DEFAULT_PLATE_LOADING_SETTINGS.plates.kg.map((plate) => ({
+            ...plate,
+          })),
+          lb: DEFAULT_PLATE_LOADING_SETTINGS.plates.lb.map((plate) => ({
+            ...plate,
+          })),
+        },
       },
       messages: {
         ...DEFAULT_MESSAGE_PREFERENCES,

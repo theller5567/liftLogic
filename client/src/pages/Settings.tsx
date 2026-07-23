@@ -23,6 +23,7 @@ import {
   EquipmentSettingsSection,
   ExerciseHistorySettingsSection,
   MessageSettingsSection,
+  PlateLoadingSettingsSection,
   ProgramSettingsSection,
   RestTimerSettingsSection,
   TrainingSettingsSection,
@@ -421,6 +422,10 @@ const SettingsForm = ({
                 equipmentInventory,
               }))
             }
+          />
+          <PlateLoadingSettingsSection
+            draftSettings={draftSettings}
+            onUpdateDraft={updateDraft}
           />
           <ProgramSettingsSection
             activeFocusBlock={activeFocusBlock}

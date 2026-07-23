@@ -5,6 +5,7 @@ import IconDumbbell from "../assets/icons/dumbbell.svg?react";
 import IconGrowth from "../assets/icons/growth.svg?react";
 import IconTarget from "../assets/icons/target.svg?react";
 
+
 import Button from "../components/Button";
 import { useAuth } from "../context/useAuth";
 import styles from "../styles/pages/auth.module.scss";
@@ -115,6 +116,7 @@ const Home = () => {
           {statusMessage ? <p className={styles.error}>{statusMessage}</p> : null}
         </motion.div>
       </div>
+      
     </section>
   );
 };

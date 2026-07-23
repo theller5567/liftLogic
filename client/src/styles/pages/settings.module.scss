@@ -314,6 +314,210 @@
   }
 }
 
+.plateControlGroup,
+.plateInventoryHeader,
+.customPlateRow {
+  display: grid;
+  gap: var(--ll-space-2);
+}
+
+.plateControlGroup {
+  > span {
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-eyebrow);
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+}
+
+.segmentedControl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ll-space-2);
+
+  button {
+    min-height: 2.75rem;
+    border: 1px solid var(--ll-border-subtle);
+    border-radius: var(--ll-radius-control);
+    background: hsl(var(--clr-neutral-900-b) / 0.42);
+    color: var(--ll-text-muted);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  button[aria-pressed="true"] {
+    border-color: hsl(var(--clr-secondary-500-b) / 0.78);
+    background: hsl(var(--clr-secondary-500-b) / 0.14);
+    color: hsl(var(--clr-secondary-500-b));
+  }
+}
+
+.barbellPresetGrid {
+  display: grid;
+  gap: var(--ll-space-2);
+
+  button {
+    display: grid;
+    gap: 0.2rem;
+    min-height: 4rem;
+    padding: 0.75rem;
+    border: 1px solid var(--ll-border-subtle);
+    border-radius: var(--ll-radius-control);
+    background: hsl(var(--clr-neutral-900-b) / 0.42);
+    color: var(--ll-text-muted);
+    font: inherit;
+    text-align: left;
+  }
+
+  button[aria-pressed="true"] {
+    border-color: hsl(var(--clr-secondary-500-b) / 0.78);
+    background: hsl(var(--clr-secondary-500-b) / 0.14);
+  }
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 0.86rem;
+    line-height: 1.15;
+  }
+
+  small {
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-helper);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+}
+
+.plateInventoryHeader {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  padding-block-start: var(--ll-space-2);
+
+  div {
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+
+  span {
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-helper);
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  > span {
+    color: hsl(var(--clr-primary-500-b));
+  }
+}
+
+.plateInventoryList {
+  display: grid;
+  gap: var(--ll-space-2);
+}
+
+.validationGroup {
+  display: grid;
+  gap: var(--ll-space-2);
+}
+
+.inputError,
+.plateEmptyState {
+  margin: 0;
+  color: var(--ll-text-muted);
+  font-size: var(--ll-type-helper);
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.inputError {
+  color: var(--ll-color-danger);
+}
+
+.plateEmptyState {
+  padding: var(--ll-space-3);
+  border: 1px solid hsl(var(--clr-primary-500-b) / 0.3);
+  border-radius: var(--ll-radius-control);
+  background: hsl(var(--clr-primary-500-b) / 0.08);
+}
+
+.plateInventoryRow {
+  display: grid;
+  gap: var(--ll-space-3);
+  padding: 0.75rem;
+  border: 1px solid hsl(var(--clr-neutral-300-b) / 0.18);
+  border-radius: var(--ll-radius-control);
+  background: hsl(var(--clr-neutral-900-b) / 0.42);
+
+  > div:first-child {
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  strong {
+    color: var(--ll-text-strong);
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+
+  span {
+    color: var(--ll-text-muted);
+    font-size: var(--ll-type-helper);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+}
+
+.plateStepper {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(3.5rem, 1fr) 2.5rem auto;
+  gap: var(--ll-space-2);
+  align-items: center;
+
+  button,
+  input {
+    min-height: 2.5rem;
+    border: 1px solid var(--ll-border-subtle);
+    border-radius: var(--ll-radius-control);
+    background: hsl(var(--clr-neutral-950-b) / 0.52);
+    color: var(--ll-text-strong);
+    font: inherit;
+    font-weight: 900;
+  }
+
+  button {
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+  }
+
+  input {
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
+    text-align: center;
+  }
+}
+
+.removePlateButton {
+  min-width: 4.75rem;
+  padding-inline: 0.75rem !important;
+  color: var(--ll-text-muted) !important;
+  font-size: var(--ll-type-helper) !important;
+}
+
+.customPlateRow {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  padding-block-start: var(--ll-space-2);
+}
+
 .dataActionPanel {
   display: grid;
   gap: var(--ll-space-3);
@@ -536,5 +740,30 @@
   .settingsPage {
     max-width: 42rem;
     margin: 0 auto;
+  }
+
+  .barbellPresetGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .plateInventoryRow {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, auto);
+    align-items: center;
+  }
+}
+
+@media (max-width: 420px) {
+  .plateStepper,
+  .customPlateRow {
+    grid-template-columns: 1fr;
+  }
+
+  .plateStepper {
+    grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
+  }
+
+  .removePlateButton {
+    grid-column: 1 / -1;
+    min-width: 0;
   }
 }

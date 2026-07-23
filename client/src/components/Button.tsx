@@ -10,6 +10,7 @@ import IconGoogle from '../assets/icons/Google.svg?react'
 import IconReminder from '../assets/icons/051-reminder.svg?react'
 import IconSettings from '../assets/icons/013-user.svg?react'
 import IconSignout from '../assets/icons/exit.svg?react'
+import IconCalculator from '../assets/icons/calculator.svg?react'
 
 import styles from '../styles/components/button.module.scss'
 
@@ -18,7 +19,7 @@ type ButtonVariant = 'outline' | 'ghost' | 'iconOnly'
 type ButtonSize = 'small' | 'medium' | 'large'
 type ButtonIconSize = 'small' | 'medium' | 'large'
 type ButtonIconPosition = 'left' | 'right'
-type ButtonIcon = 'chevronLeft' | 'chevronRight' | 'refresh' | 'settings' | 'edit' | 'plus' | 'minus' | 'google' | 'reminder' | 'exit'
+type ButtonIcon = 'chevronLeft' | 'chevronRight' | 'refresh' | 'settings' | 'edit' | 'calculator' | 'plus' | 'minus' | 'google' | 'reminder' | 'exit'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   label?: string
@@ -47,6 +48,7 @@ const ICONS: Record<ButtonIcon, ComponentType<SVGProps<SVGSVGElement>>> = {
   reminder: IconReminder,
   settings: IconSettings,
   exit: IconSignout,
+  calculator: IconCalculator,
 }
 
 const Button = ({

@@ -19,12 +19,20 @@ import type {
 } from "../../../shared/types/workoutSession.types";
 import { workoutBadgeOptions } from "../../../shared/constants/workout-badges";
 import { weightEstimationRules } from "../../../shared/constants/weightEstimationRules";
-import type { WeightStepKey } from "../../../shared/types/userSettings.types";
+import {
+  getBarbellWeight,
+  getPlateInventory,
+  getPlateLoadingUnit,
+  type WeightStepKey,
+} from "../../../shared/types/userSettings.types";
 import type {
   CurrentProgramScope,
   ExerciseHistoryScopeOptions,
 } from "../../../shared/utils/workoutSessionScope";
-import { normalizeLibraryIdToEstimatorKey } from "../../../shared/utils/exerciseLibraryAdapter";
+import {
+  getExerciseById,
+  normalizeLibraryIdToEstimatorKey,
+} from "../../../shared/utils/exerciseLibraryAdapter";
 import {
   getLoadFeasibility,
   parsePrescriptionTopReps,
@@ -45,6 +53,8 @@ import { useWorkoutSessionRouteContext } from "../utils/workoutSessionRouteConte
 import { useUserMessageVisibility } from "../utils/useUserMessageVisibility";
 import { getWeightStepForKey, useUserSettings } from "../utils/userSettings";
 import { createExerciseSlugFromParts } from "../utils/exerciseLibraryDisplay";
+import PlateCalculator from "../components/PlateCalculator";
+
 import {
   formatTimer,
   getActiveSetIndex,
@@ -124,6 +134,15 @@ const getWeightStepKey = (exerciseId: string): WeightStepKey => {
   return equipmentType;
 };
 
+const canUsePlateCalculator = (exerciseId: string) => {
+  const exercise = getExerciseById(exerciseId);
+
+  return (
+    exercise?.equipmentType === "barbell" ||
+    exercise?.equipmentType === "smith_machine"
+  );
+};
+
 const formatTimerExerciseTarget = (exerciseLog: WorkoutExerciseLog) => {
   const { reps, sets, suggestedWeight, weightUnit } =
     exerciseLog.prescriptionSnapshot;
@@ -160,6 +179,11 @@ const WorkoutExercise = () => {
   const { settings } = useUserSettings();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [showPlateCalculator, setShowPlateCalculator] = useState(false);
+  const [plateCalculatorSetIndex, setPlateCalculatorSetIndex] = useState<
+    number | null
+  >(null);
+
   const [advisoryAttempt, setAdvisoryAttempt] =
     useState<AdvisoryAttempt | null>(null);
   const [feasibilityIncreaseAttempt, setFeasibilityIncreaseAttempt] =
@@ -351,6 +375,18 @@ const WorkoutExercise = () => {
     activeExercise?.prescriptionSnapshot.suggestedWeight;
   const adjustedWeightUnit =
     activeExercise?.prescriptionSnapshot.weightUnit ?? "lb";
+  const plateLoadingUnit = getPlateLoadingUnit(settings);
+  const plateCalculatorInventory = getPlateInventory(settings);
+  const plateCalculatorBarbellWeight = getBarbellWeight(settings);
+  const showPlateCalculatorAction = activeExercise
+    ? canUsePlateCalculator(activeExercise.exerciseId)
+    : false;
+  const selectedPlateCalculatorSet =
+    activeExercise && plateCalculatorSetIndex !== null
+      ? activeExercise.sets[plateCalculatorSetIndex]
+      : null;
+  const plateCalculatorTargetWeight =
+    selectedPlateCalculatorSet?.weight ?? currentExerciseTargetWeight;
   const activeExerciseEstimatorKey = activeExercise
     ? normalizeLibraryIdToEstimatorKey(activeExercise.exerciseId)
     : null;
@@ -846,6 +882,11 @@ const WorkoutExercise = () => {
     setRestSeconds((currentSeconds) => (currentSeconds ?? 0) + 30);
   };
 
+  const openPlateCalculator = (setIndex: number) => {
+    setPlateCalculatorSetIndex(setIndex);
+    setShowPlateCalculator(true);
+  };
+
   const openNoteBadgeSheet = () => {
     if (!activeExercise) {
       return;
@@ -1059,12 +1100,14 @@ const WorkoutExercise = () => {
                 activeExercise={activeExercise}
                 isSaving={isSaving}
                 onLogSet={handleLogSet}
+                onOpenPlateCalculator={openPlateCalculator}
                 onOpenNoteBadge={openNoteBadgeSheet}
                 onRepsChange={handleRepsChange}
                 onWeightChange={handleWeightChange}
                 setIndex={setIndex}
                 setLog={setLog}
                 setState={setState}
+                showPlateCalculator={showPlateCalculatorAction}
               />
             );
           })}
@@ -1327,6 +1370,36 @@ const WorkoutExercise = () => {
             : ""}
           {feasibilityIncreaseAttempt?.feasibility.reason}
         </p>
+      </BottomSheet>
+
+      <BottomSheet
+        open={showPlateCalculator}
+        variant="full"
+        onClose={() => {
+          setShowPlateCalculator(false);
+          setPlateCalculatorSetIndex(null);
+        }}
+        title="Plate calculator"
+        description="Enter your target weight to see the plate breakdown for your barbell."
+        actions={[
+          {
+            label: "Close",
+            tone: "gray",
+            variant: "outline",
+            onClick: () => {
+              setShowPlateCalculator(false);
+              setPlateCalculatorSetIndex(null);
+            },
+          },
+        ]}
+      >
+        <PlateCalculator
+          key={`${activeExercise.exerciseId}-${plateCalculatorSetIndex ?? "active"}-${plateCalculatorTargetWeight ?? "empty"}`}
+          barbellWeight={plateCalculatorBarbellWeight}
+          inventory={plateCalculatorInventory}
+          targetWeight={plateCalculatorTargetWeight}
+          unit={plateLoadingUnit}
+        />
       </BottomSheet>
 
       <BottomSheet

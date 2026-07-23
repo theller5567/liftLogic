@@ -8,6 +8,7 @@ type SectionAccordionProps = {
   children: ReactNode;
   defaultOpen?: boolean;
   icon: ReactNode;
+  id?: string;
   title: string;
 };
 
@@ -15,11 +16,13 @@ const SectionAccordion = ({
   children,
   defaultOpen = false,
   icon,
+  id,
   title,
 }: SectionAccordionProps) => (
   <SurfaceCard
     as="details"
     className={styles.accordion}
+    id={id}
     open={defaultOpen}
   >
     <summary className={styles.accordionSummary}>

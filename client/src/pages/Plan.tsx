@@ -61,9 +61,7 @@ const Plan = () => {
 
   const preview = hasStoppedSpecialization
     ? basePreview
-    :
-    initialPreview &&
-    localEditedPreview?.programId === initialPreview.programId
+    : initialPreview && localEditedPreview?.programId === initialPreview.programId
       ? localEditedPreview
       : initialPreview;
   const isFocusActive =
@@ -197,6 +195,7 @@ const Plan = () => {
               ? getAvailableEquipmentFromAnswers(workoutPlan.onboardingAnswers)
               : undefined
           }
+          baselinePreview={(hasStoppedSpecialization ? basePreview : initialPreview) ?? preview}
           editPresentation="review_actions"
           onboardingAnswers={workoutPlan?.onboardingAnswers}
           preview={preview}

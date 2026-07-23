@@ -21,6 +21,7 @@ type WorkoutSetPanelProps = {
   isSaving: boolean;
   onLogSet: (setIndex: number) => void;
   onOpenNoteBadge: (setIndex: number) => void;
+  onOpenPlateCalculator: (setIndex: number) => void;
   onRepsChange: (setIndex: number, direction: "decrease" | "increase") => void;
   onWeightChange: (
     setIndex: number,
@@ -29,6 +30,7 @@ type WorkoutSetPanelProps = {
   setIndex: number;
   setLog: WorkoutSetLog;
   setState: SetUiState;
+  showPlateCalculator?: boolean;
 };
 
 const getSetClassName = (setState: SetUiState) => {
@@ -48,11 +50,13 @@ const WorkoutSetPanel = ({
   isSaving,
   onLogSet,
   onOpenNoteBadge,
+  onOpenPlateCalculator,
   onRepsChange,
   onWeightChange,
   setIndex,
   setLog,
   setState,
+  showPlateCalculator = false,
 }: WorkoutSetPanelProps) => {
   const isActiveSet = setState === "active";
 
@@ -127,15 +131,28 @@ const WorkoutSetPanel = ({
               </button>
             </div>
           </div>
-          <Button
-            type="button"
-            label="Add Note or Badge"
-            className={styles.noteAction}
-            icon="edit"
-            tone="secondary"
-            variant="outline"
-            onClick={() => onOpenNoteBadge(setIndex)}
-          />
+          <div className="flex">
+            <Button
+              type="button"
+              label="Add Note or Badge"
+              className={styles.noteAction}
+              icon="edit"
+              tone="secondary"
+              variant="outline"
+              onClick={() => onOpenNoteBadge(setIndex)}
+            />
+            {showPlateCalculator ? (
+              <Button
+                type="button"
+                label="View Plate Calculator"
+                className={styles.noteAction}
+                icon="calculator"
+                tone="secondary"
+                variant="outline"
+                onClick={() => onOpenPlateCalculator(setIndex)}
+              />
+            ) : null}
+          </div>
 
           <Button
             disabled={isSaving}

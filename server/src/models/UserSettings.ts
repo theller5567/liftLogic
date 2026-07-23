@@ -34,6 +34,33 @@ const userSettingsSchema = new Schema<UserSettingsDocument>(
       defaultSeconds: { type: Number },
     },
     equipmentInventory: [{ type: String }],
+    plateLoading: {
+      barbellPreset: {
+        type: String,
+        enum: ["olympic_mens", "olympic_womens", "custom"],
+        required: true,
+      },
+      customBarbellWeight: { type: Number },
+      plates: {
+        kg: [
+          {
+            count: { type: Number, required: true },
+            size: { type: Number, required: true },
+          },
+        ],
+        lb: [
+          {
+            count: { type: Number, required: true },
+            size: { type: Number, required: true },
+          },
+        ],
+      },
+      unit: {
+        type: String,
+        enum: ["lb", "kg"],
+        required: true,
+      },
+    },
     theme: {
       primaryColor: { type: String, required: true },
       secondaryColor: { type: String, required: true },
