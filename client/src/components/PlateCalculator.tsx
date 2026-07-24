@@ -65,6 +65,7 @@ const PlateBreakdownList = ({
   const entries = Object.entries(breakdown).sort(
     ([leftSize], [rightSize]) => Number(rightSize) - Number(leftSize)
   );
+  console.log(entries)
 
   if (entries.length === 0) {
     return <p className={styles.emptyResult}>No extra plates needed. Just the bar.</p>;

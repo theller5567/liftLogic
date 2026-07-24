@@ -5,7 +5,6 @@ import AppShell from "../components/app/AppShell";
 import BottomSheet from "../components/BottomSheet";
 import LoadingSpinner from "../components/LoadingSpinner";
 import WeekSelector, { type WeekDayOption } from "../components/dashboard/WeekSelector";
-import PlateCalculator from "../components/PlateCalculator";
 import WorkoutCard from "../components/dashboard/WorkoutCard";
 import Button from "../components/Button";
 import PageLoadingState from "../components/PageLoadingState";
@@ -16,11 +15,7 @@ import {
   isApiEnabled,
 } from "../services/api";
 import type { WorkoutSessionDto } from "../../../shared/types/workoutSession.types";
-import {
-  getBarbellWeight,
-  getPlateInventory,
-  getPlateLoadingUnit,
-} from "../../../shared/types/userSettings.types";
+
 import {
   getWorkoutFocusLabel,
   isWorkoutFocusBlockActive,
@@ -192,9 +187,6 @@ const Dashboard = () => {
     profile,
   } = useUserFlow();
   const { settings } = useUserSettings();
-  const plateLoadingUnit = getPlateLoadingUnit(settings);
-  const plateCalculatorInventory = getPlateInventory(settings);
-  const plateCalculatorBarbellWeight = getBarbellWeight(settings);
   const navigate = useNavigate();
   const apiEnabled = isApiEnabled();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -694,11 +686,7 @@ const Dashboard = () => {
           workoutDay={workoutDay}
           sessionId={currentWorkoutSession?._id}
         />
-        <PlateCalculator
-          barbellWeight={plateCalculatorBarbellWeight}
-          inventory={plateCalculatorInventory}
-          unit={plateLoadingUnit}
-        />
+        
         {workoutSessionsError ? (
           <div>
             <p className="text-muted">{workoutSessionsError}</p>
